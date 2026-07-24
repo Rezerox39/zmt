@@ -69,13 +69,14 @@ object LrcLyricsParser {
     }
 
     private fun parseBackgroundLine(content: String, lines: MutableList<LyricLine>) {
+        val nested = LEADING_TIME.containsMatchIn(content.trim())
         val (stripped, _) = stripLinePrefix(content)
         val (text, words) = parseWordTags(stripped)
         if (text.isBlank() || words.isEmpty()) return
 
         val precedingMain = lines.lastOrNull()
 
-        if (precedingMain != null && isTransliterationOf(precedingMain.text, text)) {
+        if (nested && precedingMain != null && isTransliterationOf(precedingMain.text, text)) {
             lines[lines.size - 1] = precedingMain.copy(
                 transliteration = TimedText(
                     text = text,

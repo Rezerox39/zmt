@@ -87,6 +87,21 @@ class LrcLyricsParserTest {
     }
 
     @Test
+    fun `non-nested bg adlib after a cjk line is not swallowed as its transliteration`() {
+        val lyrics = LrcLyricsParser.parse(fixture("voice_bg_cjk_adlib.lrc"))
+        assertNotNull(lyrics)
+        assertTrue(lyrics!!.synced)
+
+        val main = lyrics.lines.first { it.startMs == 11_891L }
+        assertEquals("天才的なアイドル様", main.text)
+        assertNotNull(main.transliteration)
+        assertEquals("tensaiteki na aidoru-sama", main.transliteration!!.text)
+
+        val adlib = lyrics.lines.first { it.words.isNotEmpty() && it.words.all { w -> w.background } }
+        assertEquals("(You're my savior, you're my saving grace)", adlib.text)
+    }
+
+    @Test
     fun `duet lrc keeps voice sides, own line ends, and bg singer`() {
         val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
         assertNotNull(lyrics)
