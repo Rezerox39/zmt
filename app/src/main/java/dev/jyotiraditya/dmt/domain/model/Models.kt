@@ -1,9 +1,11 @@
 package dev.jyotiraditya.dmt.domain.model
 
 import android.net.Uri
+import androidx.compose.runtime.Immutable
 
 enum class TrackSource { LOCAL, JELLYFIN }
 
+@Immutable
 data class Track(
     val id: Long,
     val uri: Uri,
@@ -25,35 +27,41 @@ data class Track(
     val clipEndMs: Long? = null,
 )
 
+@Immutable
 data class Album(
     val name: String,
     val artist: String,
     val tracks: List<Track>,
 )
 
+@Immutable
 data class Artist(
     val name: String,
     val albums: Int,
     val tracks: List<Track>,
 )
 
+@Immutable
 data class Folder(
     val name: String,
     val path: String,
     val tracks: List<Track>,
 )
 
+@Immutable
 data class Playlist(
     val name: String,
     val tracks: List<Track>,
 )
 
+@Immutable
 data class Spec(
     val label: String,
     val value: String,
     val hot: Boolean = false,
 )
 
+@Immutable
 data class LibrarySnapshot(
     val tracks: List<Track> = emptyList(),
     val albums: List<Album> = emptyList(),
