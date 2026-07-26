@@ -52,7 +52,14 @@ fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
         }
     }
 
-/** Collapses back-to-back lines with identical text and overlapping time into one [Voice.GROUP] line. */
+/**
+ * Collapses back-to-back lines with identical text and overlapping time into one
+ * [Voice.GROUP] line. If either side already has a real declared identity (a named
+ * TTML group agent, not just two soloists who happened to overlap), that identity
+ * is kept instead of being thrown away, so the same named group always renders in
+ * the same color instead of falling back to a generic one whenever it happens to
+ * collide with someone else's duplicate line.
+ */
 fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
     val out = mutableListOf<LyricLine>()
 
@@ -64,10 +71,16 @@ fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
             last.text == line.text &&
             line.startMs < last.endMs
         ) {
+            val singer = when {
+                last.voice == Voice.GROUP -> last.singer
+                line.voice == Voice.GROUP -> line.singer
+                else -> -1
+            }
+
             out[out.size - 1] = last.copy(
                 endMs = maxOf(last.endMs, line.endMs),
                 voice = Voice.GROUP,
-                singer = -1,
+                singer = singer,
             )
         } else {
             out += line

@@ -48,6 +48,23 @@ class TtmlLyricsParserTest {
     }
 
     @Test
+    fun `a named group agent keeps its own color when it overlaps a soloist's duplicate line`() {
+        val lyrics = TtmlLyricsParser.parse(fixture("ttml_multivoice.ttml"))
+        assertNotNull(lyrics)
+
+        // ensemble line, no overlap, keeps its own singer
+        val firstEnsembleLine = lyrics!!.lines.first { it.startMs == 85_063L }
+        assertEquals(Voice.GROUP, firstEnsembleLine.voice)
+        assertTrue(firstEnsembleLine.singer >= 0)
+
+        // same ensemble, but Dolores echoes it right after, triggering a merge,
+        // singer should stay the same, not drop to -1
+        val mergedEnsembleLine = lyrics.lines.first { it.startMs == 89_713L }
+        assertEquals(Voice.GROUP, mergedEnsembleLine.voice)
+        assertEquals(firstEnsembleLine.singer, mergedEnsembleLine.singer)
+    }
+
+    @Test
     fun `translations block is attached to its matching line by itunes key`() {
         val lyrics = TtmlLyricsParser.parse(fixture("ttml_single.ttml"))
         assertNotNull(lyrics)
