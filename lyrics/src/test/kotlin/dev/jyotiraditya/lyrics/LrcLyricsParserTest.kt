@@ -113,9 +113,9 @@ class LrcLyricsParserTest {
         val v3 = lines.first { it.text.startsWith("だから") }
         assertEquals(68_820L, v3.endMs)
 
-        // the two singers land on different sides
+        // v1 and v3 are pinned to the same side (singer index parity), v2 to the other
         val v1 = lines.first { it.text.startsWith("限り有る") }
-        assertNotEquals(v3.voice, v1.voice)
+        assertEquals(v3.voice, v1.voice)
 
         // a standalone bg line keeps background words and inherits the singer it backs
         val bg = lines.first { it.startMs == 194_156L }
@@ -305,20 +305,21 @@ class LrcLyricsParserTest {
     }
 
     @Test
-    fun `real trio track alternates voice sides every time the singer changes`() {
+    fun `real trio track pins each singer to one side for the whole song`() {
         val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
         assertNotNull(lyrics)
 
         val sung = lyrics!!.lines.filter { !it.interlude && it.voice != Voice.GROUP }
-        var lastSinger = -1
-        var lastVoice: Voice? = null
+        val sideBySinger = sung.associate { it.singer to it.voice }
 
+        // same singer, same side, every time it shows up, it shouldn't drift
+        // depending on who sang right before it
         for (line in sung) {
-            if (line.singer != lastSinger) {
-                if (lastVoice != null) assertNotEquals(lastVoice, line.voice)
-                lastSinger = line.singer
-                lastVoice = line.voice
-            }
+            assertEquals(sideBySinger.getValue(line.singer), line.voice)
         }
+
+        // v1 and v3 share a side, v2 is on the other
+        assertEquals(sideBySinger.getValue(0), sideBySinger.getValue(2))
+        assertNotEquals(sideBySinger.getValue(0), sideBySinger.getValue(1))
     }
 }

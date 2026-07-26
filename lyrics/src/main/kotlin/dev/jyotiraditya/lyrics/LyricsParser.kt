@@ -78,25 +78,19 @@ fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
 }
 
 /**
- * Assigns each non-group, non-interlude line a [Voice.PRIMARY]/[Voice.SECONDARY] side,
- * flipping only when [LyricLine.singer] changes from the previous such line. See
- * [Voice] for why this stays binary even when more than two singers are tagged.
+ * Assigns each non-group, non-interlude line a [Voice.PRIMARY]/[Voice.SECONDARY] side
+ * based on [LyricLine.singer], so the same singer always lands on the same side for
+ * the whole song (singer 0 and 2 on one side, 1 and 3 on the other, and so on) instead
+ * of flipping on every transition, which put a singer on the wrong side depending on
+ * how many other singers came before them.
  */
-fun List<LyricLine>.alternateVoices(): List<LyricLine> {
-    var side = Voice.SECONDARY
-    var lastSinger = -1
+fun List<LyricLine>.alternateVoices(): List<LyricLine> =
+    map { line ->
+        if (line.voice == Voice.GROUP || line.interlude || line.singer < 0) return@map line
 
-    return map { line ->
-        if (line.voice == Voice.GROUP || line.interlude) return@map line
-
-        if (line.singer != lastSinger) {
-            side = if (side == Voice.PRIMARY) Voice.SECONDARY else Voice.PRIMARY
-            lastSinger = line.singer
-        }
-
+        val side = if (line.singer % 2 == 0) Voice.PRIMARY else Voice.SECONDARY
         line.copy(voice = side)
     }
-}
 
 /** Inserts a `* * *` marker line into gaps of 8s or more between lines. */
 fun List<LyricLine>.withInterludes(): List<LyricLine> {
