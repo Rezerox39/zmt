@@ -1,22 +1,42 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
-import android.util.Xml
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.LyricWord
-import dev.jyotiraditya.dmt.domain.model.Lyrics
-import dev.jyotiraditya.dmt.domain.model.TimedText
-import dev.jyotiraditya.dmt.domain.model.Voice
-import org.xmlpull.v1.XmlPullParser
+import nl.adaptivity.xmlutil.EventType
+import nl.adaptivity.xmlutil.XmlReader
+import nl.adaptivity.xmlutil.newGenericReader
+import nl.adaptivity.xmlutil.xmlStreaming
 
+/**
+ * Parses the Apple Music lyric-TTML dialect, the kind amll/syncedlyrics-style
+ * community uploads use: `<p>` lines under `<div>` sections, word spans timed
+ * with `begin`/`end`, plus a few extra conventions:
+ *
+ * - `ttm:agent` in `<head><metadata>` declares each voice. A `<p ttm:agent="...">`
+ *   (or its enclosing `<div ttm:agent="...">`) assigns that line a stable
+ *   [LyricLine.singer] index in first-seen order. An agent of `type="group"`
+ *   (ensemble/choir) maps to [Voice.GROUP] instead of a singer index.
+ * - `ttm:role="x-bg"` on a span marks backing/adlib vocals.
+ * - There are two ways a source attaches a reading or translation to a line,
+ *   and we handle both. The block-level way is a `<translation>`/`<transliteration>`
+ *   section with `<text for="#lineKey">` entries: one `<translation>` block per
+ *   language, tagged with its own `xml:lang`, and only the first `<transliteration>`
+ *   block per line is kept since these files never seem to carry more than one
+ *   romanization. The more common way in community (amll-style) uploads is
+ *   `ttm:role="x-translation"` and `ttm:role="x-roman"` spans sitting right inside
+ *   the `<p>`, next to the timed word spans: one `x-translation` span per language,
+ *   at most one `x-roman` span. Either way the result ends up in
+ *   [LyricLine.translation] or [LyricLine.transliteration], never mixed into the
+ *   line's sung [LyricLine.text].
+ */
 object TtmlLyricsParser {
 
     private const val ROLE_BACKGROUND = "x-bg"
+    private const val ROLE_TRANSLATION = "x-translation"
+    private const val ROLE_ROMANIZATION = "x-roman"
     private const val AGENT_TYPE_GROUP = "group"
 
     fun parse(raw: String): Lyrics? =
         runCatching {
-            val parser = Xml.newPullParser()
-            parser.setInput(raw.reader())
+            val parser = xmlStreaming.newGenericReader(raw)
 
             val agents = Agents()
             val lines = mutableListOf<LyricLine>()
@@ -36,12 +56,13 @@ object TtmlLyricsParser {
             val transliterations = mutableMapOf<String, TimedText>()
             var inTranslation = false
             var inTransliteration = false
-            var capturedTranslation = false
-            var capturedTransliteration = false
+            var currentTranslationLang: String? = null
 
             val text = StringBuilder()
             val words = mutableListOf<LyricWord>()
             val spanStack = ArrayDeque<SpanFrame>()
+            val pendingTranslations = mutableListOf<TimedText>()
+            var pendingTransliteration: TimedText? = null
 
             fun flushSpace() {
                 if (pendingSpace && text.isNotEmpty() && text.last() != '\n') text.append(' ')
@@ -61,16 +82,16 @@ object TtmlLyricsParser {
                 }
             }
 
-            var event = parser.eventType
-            while (event != XmlPullParser.END_DOCUMENT) {
+            var event = parser.next()
+            while (event != EventType.END_DOCUMENT) {
                 when (event) {
-                    XmlPullParser.START_TAG -> when (parser.name) {
-                        "ttm:agent", "agent" ->
-                            agents.register(parser.attr("xml:id"), parser.attr("type"))
+                    EventType.START_ELEMENT -> when (parser.localName) {
+                        "agent" ->
+                            agents.register(parser.attr("id"), parser.attr("type"))
 
                         "div" -> {
                             newSection = true
-                            divAgent = parser.attr("ttm:agent")
+                            divAgent = parser.attr("agent")
                         }
 
                         "br" -> if (inLine) {
@@ -84,12 +105,14 @@ object TtmlLyricsParser {
                             words.clear()
                             spanStack.clear()
                             pendingSpace = false
+                            pendingTranslations.clear()
+                            pendingTransliteration = null
 
                             lineBegin = parseTime(parser.attr("begin"))
                             lineEnd = parseTime(parser.attr("end"))
-                            lineKey = parser.attr("itunes:key")
+                            lineKey = parser.attr("key")
 
-                            val agentId = parser.attr("ttm:agent") ?: divAgent
+                            val agentId = parser.attr("agent") ?: divAgent
                             lineVoice = agents.voiceFor(agentId)
                             lineSinger = agents.singerFor(agentId)
 
@@ -97,15 +120,12 @@ object TtmlLyricsParser {
                             newSection = false
                         }
 
-                        "translation" -> if (!capturedTranslation) {
+                        "translation" -> {
                             inTranslation = true
-                            capturedTranslation = true
+                            currentTranslationLang = parser.attr("lang")
                         }
 
-                        "transliteration" -> if (!capturedTransliteration) {
-                            inTransliteration = true
-                            capturedTransliteration = true
-                        }
+                        "transliteration" -> inTransliteration = true
 
                         "text" -> {
                             val forKey = parser.attr("for")
@@ -113,12 +133,14 @@ object TtmlLyricsParser {
                             if (forKey != null && inTranslation) {
                                 val segments = readTranslationSegments(parser)
                                 if (segments.isNotEmpty()) {
-                                    translations[forKey] = segments.map { TimedText(text = it) }
+                                    val lang = currentTranslationLang
+                                    translations[forKey] = (translations[forKey] ?: emptyList()) +
+                                        segments.map { TimedText(text = it, lang = lang) }
                                 }
                             } else if (forKey != null && inTransliteration) {
                                 val (content, spanWords) = readTimedText(parser)
 
-                                if (content.isNotBlank()) {
+                                if (content.isNotBlank() && forKey !in transliterations) {
                                     transliterations[forKey] = TimedText(
                                         text = content,
                                         words = spanWords,
@@ -128,27 +150,51 @@ object TtmlLyricsParser {
                         }
 
                         "span" -> if (inLine) {
-                            spanStack.lastOrNull()?.hadChild = true
-                            flushSpace()
+                            val role = parser.attr("role")
 
-                            val role = parser.attr("ttm:role")
-                            val parentBackground = spanStack.lastOrNull()?.background == true
+                            when (role) {
+                                ROLE_TRANSLATION -> {
+                                    val lang = parser.attr("lang")
+                                    val (content, _) = readTimedText(parser)
+                                    if (content.isNotBlank()) {
+                                        pendingTranslations += TimedText(text = content, lang = lang)
+                                    }
+                                }
 
-                            spanStack.addLast(
-                                SpanFrame(
-                                    beginMs = parseTime(parser.attr("begin")),
-                                    endMs = parseTime(parser.attr("end")),
-                                    textStart = text.length,
-                                    background = parentBackground || role == ROLE_BACKGROUND,
-                                ),
-                            )
+                                ROLE_ROMANIZATION -> {
+                                    val (content, _) = readTimedText(parser)
+                                    if (content.isNotBlank()) {
+                                        pendingTransliteration = TimedText(text = content)
+                                    }
+                                }
+
+                                else -> {
+                                    spanStack.lastOrNull()?.hadChild = true
+                                    flushSpace()
+
+                                    val parentBackground = spanStack.lastOrNull()?.background == true
+
+                                    spanStack.addLast(
+                                        SpanFrame(
+                                            beginMs = parseTime(parser.attr("begin")),
+                                            endMs = parseTime(parser.attr("end")),
+                                            textStart = text.length,
+                                            background = parentBackground || role == ROLE_BACKGROUND,
+                                        ),
+                                    )
+                                }
+                            }
                         }
                     }
 
-                    XmlPullParser.TEXT -> if (inLine) appendLyricText(parser.text)
+                    EventType.TEXT, EventType.IGNORABLE_WHITESPACE -> if (inLine) appendLyricText(parser.text)
 
-                    XmlPullParser.END_TAG -> when (parser.name) {
-                        "translation" -> inTranslation = false
+                    EventType.END_ELEMENT -> when (parser.localName) {
+                        "translation" -> {
+                            inTranslation = false
+                            currentTranslationLang = null
+                        }
+
                         "transliteration" -> inTransliteration = false
 
                         "span" -> if (inLine && spanStack.isNotEmpty()) {
@@ -190,12 +236,16 @@ object TtmlLyricsParser {
                                     voice = lineVoice,
                                     singer = lineSinger,
                                     sectionStart = lineSection,
-                                    translation = lineKey?.let { translations[it] } ?: emptyList(),
-                                    transliteration = lineKey?.let { transliterations[it] },
+                                    translation = (lineKey?.let { translations[it] } ?: emptyList()) +
+                                        pendingTranslations,
+                                    transliteration = lineKey?.let { transliterations[it] }
+                                        ?: pendingTransliteration,
                                 )
                             }
                         }
                     }
+
+                    else -> Unit
                 }
 
                 event = parser.next()
@@ -221,18 +271,10 @@ object TtmlLyricsParser {
             )
         }.getOrNull()
 
-    private fun XmlPullParser.attr(qualifiedName: String): String? {
-        val local = qualifiedName.substringAfter(':')
-
-        getAttributeValue(null, qualifiedName)?.let { return it }
-
+    private fun XmlReader.attr(localName: String): String? {
         for (i in 0 until attributeCount) {
-            val name = getAttributeName(i)
-            if (name == qualifiedName || name == local || name.substringAfterLast(':') == local) {
-                return getAttributeValue(i)
-            }
+            if (getAttributeLocalName(i) == localName) return getAttributeValue(i)
         }
-
         return null
     }
 
@@ -274,7 +316,7 @@ object TtmlLyricsParser {
                 chunk.all { it.isWhitespace() } &&
                 chunk.any { it == '\n' || it == '\r' }
 
-    private fun readTimedText(parser: XmlPullParser): Pair<String, List<LyricWord>> {
+    private fun readTimedText(parser: XmlReader): Pair<String, List<LyricWord>> {
         val text = StringBuilder()
         val words = mutableListOf<LyricWord>()
         val spanStack = ArrayDeque<SpanFrame>()
@@ -290,10 +332,10 @@ object TtmlLyricsParser {
 
         while (depth > 0) {
             when (event) {
-                XmlPullParser.START_TAG -> {
+                EventType.START_ELEMENT -> {
                     depth++
 
-                    if (parser.name == "span") {
+                    if (parser.localName == "span") {
                         flushSpace()
 
                         spanStack.addLast(
@@ -307,7 +349,7 @@ object TtmlLyricsParser {
                     }
                 }
 
-                XmlPullParser.TEXT -> if (!isFormattingOnly(parser.text)) {
+                EventType.TEXT, EventType.IGNORABLE_WHITESPACE -> if (!isFormattingOnly(parser.text)) {
                     parser.text.forEach { c ->
                         if (c.isWhitespace()) {
                             pendingSpace = true
@@ -318,10 +360,10 @@ object TtmlLyricsParser {
                     }
                 }
 
-                XmlPullParser.END_TAG -> {
+                EventType.END_ELEMENT -> {
                     depth--
 
-                    if (parser.name == "span" && spanStack.isNotEmpty()) {
+                    if (parser.localName == "span" && spanStack.isNotEmpty()) {
                         val frame = spanStack.removeLast()
 
                         if (frame.beginMs >= 0 && text.length > frame.textStart) {
@@ -335,6 +377,8 @@ object TtmlLyricsParser {
                         }
                     }
                 }
+
+                else -> Unit
             }
 
             if (depth > 0) event = parser.next()
@@ -343,7 +387,7 @@ object TtmlLyricsParser {
         return text.toString().trim() to words
     }
 
-    private fun readTranslationSegments(parser: XmlPullParser): List<String> {
+    private fun readTranslationSegments(parser: XmlReader): List<String> {
         val segments = mutableListOf<String>()
         val current = StringBuilder()
         val bgStack = ArrayDeque<Boolean>()
@@ -368,11 +412,11 @@ object TtmlLyricsParser {
 
         while (depth > 0) {
             when (event) {
-                XmlPullParser.START_TAG -> {
+                EventType.START_ELEMENT -> {
                     depth++
 
-                    if (parser.name == "span") {
-                        val isBg = currentBg || parser.attr("ttm:role") == ROLE_BACKGROUND
+                    if (parser.localName == "span") {
+                        val isBg = currentBg || parser.attr("role") == ROLE_BACKGROUND
 
                         if (isBg != currentBg) {
                             cutSegment()
@@ -384,7 +428,7 @@ object TtmlLyricsParser {
                     }
                 }
 
-                XmlPullParser.TEXT -> if (!isFormattingOnly(parser.text)) {
+                EventType.TEXT, EventType.IGNORABLE_WHITESPACE -> if (!isFormattingOnly(parser.text)) {
                     parser.text.forEach { c ->
                         if (c.isWhitespace()) {
                             pendingSpace = true
@@ -395,10 +439,10 @@ object TtmlLyricsParser {
                     }
                 }
 
-                XmlPullParser.END_TAG -> {
+                EventType.END_ELEMENT -> {
                     depth--
 
-                    if (parser.name == "span" && bgStack.isNotEmpty()) {
+                    if (parser.localName == "span" && bgStack.isNotEmpty()) {
                         bgStack.removeLast()
 
                         val outerBg = bgStack.lastOrNull() ?: false
@@ -408,6 +452,8 @@ object TtmlLyricsParser {
                         }
                     }
                 }
+
+                else -> Unit
             }
 
             if (depth > 0) event = parser.next()
@@ -418,6 +464,12 @@ object TtmlLyricsParser {
         return segments
     }
 
+    /**
+     * Tracks the order and type of `ttm:agent` declarations so each agent, solo
+     * or a named group, gets a stable [LyricLine.singer] index in the order it's
+     * first actually used on a line, independent of how many the document
+     * declares. `-1` is reserved for lines with no declared agent at all.
+     */
     private class Agents {
 
         private val types = mutableMapOf<String, String>()
@@ -436,7 +488,6 @@ object TtmlLyricsParser {
 
         fun singerFor(agentId: String?): Int {
             if (agentId == null) return 0
-            if (types[agentId] == AGENT_TYPE_GROUP) return -1
 
             if (agentId !in order) order += agentId
 

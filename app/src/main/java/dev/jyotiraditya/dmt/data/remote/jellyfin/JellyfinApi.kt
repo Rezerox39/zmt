@@ -1,10 +1,10 @@
 package dev.jyotiraditya.dmt.data.remote.jellyfin
 
-import dev.jyotiraditya.dmt.data.source.local.lyrics.LyricsParser
-import dev.jyotiraditya.dmt.data.source.local.lyrics.fillLineEnds
-import dev.jyotiraditya.dmt.data.source.local.lyrics.withInterludes
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.Lyrics
+import dev.jyotiraditya.lyrics.LyricsParser
+import dev.jyotiraditya.lyrics.fillLineEnds
+import dev.jyotiraditya.lyrics.withInterludes
+import dev.jyotiraditya.lyrics.LyricLine
+import dev.jyotiraditya.lyrics.Lyrics
 import io.ktor.client.HttpClient
 import io.ktor.client.request.get
 import io.ktor.client.request.header

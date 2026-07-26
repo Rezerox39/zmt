@@ -2,8 +2,8 @@ package dev.jyotiraditya.dmt.domain.usecase
 
 import dev.jyotiraditya.dmt.data.remote.jellyfin.JellyfinApi
 import dev.jyotiraditya.dmt.data.remote.lrclib.LrclibApi
-import dev.jyotiraditya.dmt.data.source.local.lyrics.LyricsParser
-import dev.jyotiraditya.dmt.domain.model.Lyrics
+import dev.jyotiraditya.lyrics.LyricsParser
+import dev.jyotiraditya.lyrics.Lyrics
 import dev.jyotiraditya.dmt.domain.model.Track
 import dev.jyotiraditya.dmt.domain.model.TrackSource
 import dev.jyotiraditya.dmt.data.repository.LyricsRepository

@@ -61,6 +61,10 @@ android {
             optimization {
                 enable = true
             }
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             signingConfig =
                 signingConfigs
                     .getByName("release")
@@ -84,6 +88,7 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(project(":metadata"))
+    implementation(project(":lyrics"))
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.media3.exoplayer)
     implementation(libs.androidx.media3.session)

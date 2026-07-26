@@ -8,7 +8,7 @@ import dev.jyotiraditya.dmt.domain.model.Artist
 import dev.jyotiraditya.dmt.domain.model.DmtSettings
 import dev.jyotiraditya.dmt.domain.model.DmtStats
 import dev.jyotiraditya.dmt.domain.model.Folder
-import dev.jyotiraditya.dmt.domain.model.Lyrics
+import dev.jyotiraditya.lyrics.Lyrics
 import dev.jyotiraditya.dmt.domain.model.Playlist
 import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.domain.model.Spec

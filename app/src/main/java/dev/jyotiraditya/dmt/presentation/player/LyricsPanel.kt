@@ -31,13 +31,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import dev.jyotiraditya.dmt.core.common.TuiPanel
 import dev.jyotiraditya.dmt.core.common.tuiClickable
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.LyricWord
-import dev.jyotiraditya.dmt.domain.model.Lyrics
-import dev.jyotiraditya.dmt.domain.model.TimedText
-import dev.jyotiraditya.dmt.domain.model.Voice
+import dev.jyotiraditya.lyrics.LyricLine
+import dev.jyotiraditya.lyrics.LyricWord
+import dev.jyotiraditya.lyrics.Lyrics
+import dev.jyotiraditya.lyrics.TimedText
+import dev.jyotiraditya.lyrics.Voice
 import dev.jyotiraditya.dmt.ui.theme.TuiAccent
 import dev.jyotiraditya.dmt.ui.theme.TuiDim
+import java.util.Locale
 import dev.jyotiraditya.dmt.ui.theme.TuiFaint
 import dev.jyotiraditya.dmt.ui.theme.TuiFg
 import kotlin.math.ceil
@@ -263,13 +264,14 @@ private fun secondaryRunsFor(
         )
     }
 
-    val originals = if (runs.size == line.translation.size) {
+    val translations = line.translation.preferredTranslation()
+    val originals = if (runs.size == translations.size) {
         runs.map { it.text }
     } else {
         null
     }
 
-    line.translation.forEachIndexed { i, segment ->
+    translations.forEachIndexed { i, segment ->
         val original = originals?.get(i) ?: line.text
         if (!segment.text.equals(original, ignoreCase = true)) {
             add(
@@ -281,6 +283,15 @@ private fun secondaryRunsFor(
             )
         }
     }
+}
+
+private fun List<TimedText>.preferredTranslation(): List<TimedText> {
+    val distinctLangs = mapNotNull { it.lang }.distinct()
+    if (distinctLangs.size <= 1) return this
+
+    val deviceLang = Locale.getDefault().language
+    val match = firstOrNull { it.lang == deviceLang } ?: firstOrNull { it.lang == "en" } ?: first()
+    return listOf(match)
 }
 
 @Composable

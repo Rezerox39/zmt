@@ -1,9 +1,9 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.Lyrics
-import dev.jyotiraditya.dmt.domain.model.Voice
-
+/**
+ * Format-detecting entry point: picks [TtmlLyricsParser] or [LrcLyricsParser]
+ * by sniffing [raw], falling back to unsynced plain text.
+ */
 object LyricsParser {
 
     fun parse(raw: String): Lyrics? {
@@ -41,6 +41,7 @@ object LyricsParser {
     }
 }
 
+/** Fills in each line's [LyricLine.endMs] from the next line's start where the source left it unset. */
 fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
     mapIndexed { index, line ->
         if (line.endMs > line.startMs) {
@@ -51,6 +52,7 @@ fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
         }
     }
 
+/** Collapses back-to-back lines with identical text and overlapping time into one [Voice.GROUP] line. */
 fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
     val out = mutableListOf<LyricLine>()
 
@@ -75,6 +77,11 @@ fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
     return out
 }
 
+/**
+ * Assigns each non-group, non-interlude line a [Voice.PRIMARY]/[Voice.SECONDARY] side,
+ * flipping only when [LyricLine.singer] changes from the previous such line. See
+ * [Voice] for why this stays binary even when more than two singers are tagged.
+ */
 fun List<LyricLine>.alternateVoices(): List<LyricLine> {
     var side = Voice.SECONDARY
     var lastSinger = -1
@@ -91,6 +98,7 @@ fun List<LyricLine>.alternateVoices(): List<LyricLine> {
     }
 }
 
+/** Inserts a `* * *` marker line into gaps of 8s or more between lines. */
 fun List<LyricLine>.withInterludes(): List<LyricLine> {
     val out = mutableListOf<LyricLine>()
     var previousEnd = 0L
