@@ -236,24 +236,33 @@ class LrcLyricsParserTest {
         assertNotNull(lyrics)
         assertTrue(lyrics!!.synced)
 
+        // the "♪♪♪" intro is now an interlude, so one less than 45
         val sung = lyrics.lines.filter { !it.interlude }
-        assertEquals(45, sung.size)
+        assertEquals(44, sung.size)
 
         val singers = sung.map { it.singer }.filter { it >= 0 }.distinct()
         assertEquals(3, singers.size)
     }
 
     @Test
-    fun `real trio track keeps the intro bg pickup before the first vocal`() {
+    fun `real trio track folds the intro note-glyph pickup into an interlude marker`() {
         val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
         assertNotNull(lyrics)
 
-        // this bg line has no main line before it, so it can't inherit a singer
-        // from one, it should just fall back to 0 instead of blowing up
         val intro = lyrics!!.lines.first { it.startMs == 50L }
-        assertEquals("♪♪♪", intro.text)
-        assertTrue(intro.words.all { it.background })
-        assertEquals(0, intro.singer)
+        assertEquals("* * *", intro.text)
+        assertTrue(intro.interlude)
+        assertEquals(-1, intro.singer)
+    }
+
+    @Test
+    fun `a note-glyph line and a plain silence gap render the same marker`() {
+        // glyph intro vs a real silence gap, same marker either way
+        val glyphIntro = LrcLyricsParser.parse(fixture("duet.lrc"))!!.lines.first { it.interlude }
+        val gapIntro = LrcLyricsParser.parse(fixture("plain.lrc"))!!.lines.first { it.interlude }
+
+        assertEquals("* * *", glyphIntro.text)
+        assertEquals("* * *", gapIntro.text)
     }
 
     @Test

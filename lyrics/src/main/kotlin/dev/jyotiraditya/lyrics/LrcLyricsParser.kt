@@ -71,6 +71,7 @@ object LrcLyricsParser {
 
         return Lyrics(
             lines = lines.sortedBy { it.startMs }
+                .markInstrumentalLines()
                 .pairTransliterations()
                 .fillLineEnds()
                 .mergeSimultaneousDuplicates()

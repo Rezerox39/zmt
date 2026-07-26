@@ -263,6 +263,7 @@ object TtmlLyricsParser {
 
             Lyrics(
                 lines = lines.sortedBy { it.startMs }
+                    .markInstrumentalLines()
                     .fillLineEnds()
                     .mergeSimultaneousDuplicates()
                     .alternateVoices()

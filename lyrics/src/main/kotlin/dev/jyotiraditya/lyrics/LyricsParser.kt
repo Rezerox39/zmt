@@ -41,6 +41,19 @@ object LyricsParser {
     }
 }
 
+private const val INTERLUDE_MARKER = "* * *"
+private val NOTE_GLYPHS_ONLY = Regex("""^[\s♪♫♩♬🎵🎶]+$""")
+
+/** Turns a source line of pure music-note glyphs (`♪♪♪`) into an interlude marker. */
+fun List<LyricLine>.markInstrumentalLines(): List<LyricLine> =
+    map { line ->
+        if (!line.interlude && NOTE_GLYPHS_ONLY.matches(line.text)) {
+            line.copy(text = INTERLUDE_MARKER, interlude = true, singer = -1)
+        } else {
+            line
+        }
+    }
+
 /** Fills in each line's [LyricLine.endMs] from the next line's start where the source left it unset. */
 fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
     mapIndexed { index, line ->
@@ -115,7 +128,7 @@ fun List<LyricLine>.withInterludes(): List<LyricLine> {
             out += LyricLine(
                 startMs = previousEnd + 400,
                 endMs = line.startMs - 200,
-                text = "* * *",
+                text = INTERLUDE_MARKER,
                 voice = line.voice,
                 singer = -1,
                 interlude = true,
