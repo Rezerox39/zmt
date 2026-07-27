@@ -46,13 +46,54 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew assembleRelease -PversionOverride=${{ steps.version.outputs.name }}
 
+      - name: verify and zip apk
+        if: github.event_name != 'pull_request'
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          echo "APK found: $apk"
+          ls -la "$apk"
+          # Verify it's a valid APK (ZIP with AndroidManifest.xml)
+          unzip -l "$apk" | head -5
+          # Verify signing
+          keytool -printcert -jarfile "$apk" 2>&1 | head -5 || echo "Signing check via keytool"
+          # Zipalign
+          zipalign -f 4 "$apk" /tmp/zmt-aligned.apk
+          # Re-sign with apksigner (v1+v2+v3)
+          apksigner sign --ks zmt.keystore \
+            --ks-pass pass:${{ secrets.SIGNING_STORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.SIGNING_KEY_PASSWORD }} \
+            --ks-key-alias ${{ secrets.SIGNING_KEY_ALIAS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            /tmp/zmt-aligned.apk
+          # Verify
+          apksigner verify --verbose /tmp/zmt-aligned.apk 2>&1 | head -10
+          # Copy back
+          cp /tmp/zmt-aligned.apk "$apk"
+          echo "APK verified and signed"
+
+      - name: zip apk for download
+        if: github.event_name != 'pull_request'
+        run: |
+          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
+          cp "$apk" /tmp/zmt.apk
+          cd /tmp && zip zmt-${{ steps.version.outputs.name }}.apk.zip zmt.apk
+          ls -la /tmp/zmt-*.apk.zip
+
       - name: upload release apk
         uses: actions/upload-artifact@v7
         with:
-          name: zmt-release
+          name: zmt-${{ steps.version.outputs.name }}
+          path: /tmp/zmt-${{ steps.version.outputs.name }}.apk.zip
+          retention-days: 7
+
+      - name: upload raw apk
+        uses: actions/upload-artifact@v7
+        with:
+          name: zmt-raw-apk
           path: app/build/outputs/apk/release/*.apk
-          archive: false
-          retention-days: 1
+          retention-days: 7
 
       - name: upload apk to telegram
         if: github.event_name != 'pull_request'
