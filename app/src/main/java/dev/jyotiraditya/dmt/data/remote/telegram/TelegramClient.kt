@@ -25,18 +25,8 @@ private const val REQUEST_TIMEOUT_MS = 30_000L
 @Singleton
 class TelegramClient @Inject constructor() {
 
-    companion object {
-        init {
-            try {
-                System.loadLibrary("tdjni")
-                Log.i(TAG, "TDLib native library loaded successfully")
-            } catch (e: UnsatisfiedLinkError) {
-                Log.e(TAG, "Failed to load TDLib native library", e)
-            }
-        }
-    }
-
     private var client: Client? = null
+    private var nativeLoaded = false
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _authState = MutableStateFlow(TelegramAuthState())
@@ -71,6 +61,20 @@ class TelegramClient @Inject constructor() {
             return
         }
         databasePath = path
+
+        if (!nativeLoaded) {
+            try {
+                System.loadLibrary("tdjni")
+                nativeLoaded = true
+                Log.i(TAG, "TDLib native library loaded successfully")
+            } catch (e: UnsatisfiedLinkError) {
+                Log.e(TAG, "Failed to load TDLib native library", e)
+                return
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load TDLib native library", e)
+                return
+            }
+        }
 
         try {
             Client.execute(TdApi.SetLogVerbosityLevel(0))
