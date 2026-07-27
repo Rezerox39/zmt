@@ -1,4 +1,4 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -87,6 +87,21 @@ class LrcLyricsParserTest {
     }
 
     @Test
+    fun `non-nested bg adlib after a cjk line is not swallowed as its transliteration`() {
+        val lyrics = LrcLyricsParser.parse(fixture("voice_bg_cjk_adlib.lrc"))
+        assertNotNull(lyrics)
+        assertTrue(lyrics!!.synced)
+
+        val main = lyrics.lines.first { it.startMs == 11_891L }
+        assertEquals("天才的なアイドル様", main.text)
+        assertNotNull(main.transliteration)
+        assertEquals("tensaiteki na aidoru-sama", main.transliteration!!.text)
+
+        val adlib = lyrics.lines.first { it.words.isNotEmpty() && it.words.all { w -> w.background } }
+        assertEquals("(You're my savior, you're my saving grace)", adlib.text)
+    }
+
+    @Test
     fun `duet lrc keeps voice sides, own line ends, and bg singer`() {
         val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
         assertNotNull(lyrics)
@@ -98,9 +113,9 @@ class LrcLyricsParserTest {
         val v3 = lines.first { it.text.startsWith("だから") }
         assertEquals(68_820L, v3.endMs)
 
-        // the two singers land on different sides
+        // v1 and v3 are pinned to the same side (singer index parity), v2 to the other
         val v1 = lines.first { it.text.startsWith("限り有る") }
-        assertNotEquals(v3.voice, v1.voice)
+        assertEquals(v3.voice, v1.voice)
 
         // a standalone bg line keeps background words and inherits the singer it backs
         val bg = lines.first { it.startMs == 194_156L }
@@ -168,5 +183,152 @@ class LrcLyricsParserTest {
     @Test
     fun `parse returns null when there is nothing synced`() {
         assertNull(LrcLyricsParser.parse("no timestamps here at all"))
+    }
+
+    @Test
+    fun `id3-style header tags are ignored, not parsed as garbage lines`() {
+        val raw = """
+            [ti:Some Song]
+            [ar:Some Artist]
+            [al:Some Album]
+            [length:03:41.51]
+            [by:whoever ripped this]
+            [00:14.53]The end is distant
+        """.trimIndent()
+
+        val lyrics = LrcLyricsParser.parse(raw)
+        assertNotNull(lyrics)
+        assertEquals(1, lyrics!!.lines.count { !it.interlude })
+        assertEquals("The end is distant", lyrics.lines.first { !it.interlude }.text)
+    }
+
+    @Test
+    fun `a bare timestamp with no text after it is dropped, not kept as an empty line`() {
+        val raw = """
+            [00:14.53]The end is distant
+            [00:20.00]
+            [00:25.94]Yet one grain of hope remains here
+        """.trimIndent()
+
+        val lyrics = LrcLyricsParser.parse(raw)
+        assertNotNull(lyrics)
+        assertTrue(lyrics!!.lines.none { it.text.isBlank() })
+    }
+
+    @Test
+    fun `three-digit millisecond fractions parse the same as two-digit centiseconds`() {
+        val raw = """
+            [00:01.234]millisecond precision
+            [00:05.67]centisecond precision
+        """.trimIndent()
+
+        val lyrics = LrcLyricsParser.parse(raw)
+        assertNotNull(lyrics)
+
+        val lines = lyrics!!.lines.filter { !it.interlude }
+        assertEquals(1_234L, lines.first { it.text == "millisecond precision" }.startMs)
+        assertEquals(5_670L, lines.first { it.text == "centisecond precision" }.startMs)
+    }
+
+    @Test
+    fun `real trio track parses every line and resolves three distinct singers`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+        assertTrue(lyrics!!.synced)
+
+        // the "♪♪♪" intro is now an interlude, so one less than 45
+        val sung = lyrics.lines.filter { !it.interlude }
+        assertEquals(44, sung.size)
+
+        val singers = sung.map { it.singer }.filter { it >= 0 }.distinct()
+        assertEquals(3, singers.size)
+    }
+
+    @Test
+    fun `real trio track folds the intro note-glyph pickup into an interlude marker`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+
+        val intro = lyrics!!.lines.first { it.startMs == 50L }
+        assertEquals("* * *", intro.text)
+        assertTrue(intro.interlude)
+        assertEquals(-1, intro.singer)
+    }
+
+    @Test
+    fun `a note-glyph line and a plain silence gap render the same marker`() {
+        // glyph intro vs a real silence gap, same marker either way
+        val glyphIntro = LrcLyricsParser.parse(fixture("duet.lrc"))!!.lines.first { it.interlude }
+        val gapIntro = LrcLyricsParser.parse(fixture("plain.lrc"))!!.lines.first { it.interlude }
+
+        assertEquals("* * *", glyphIntro.text)
+        assertEquals("* * *", gapIntro.text)
+    }
+
+    @Test
+    fun `real trio track keeps a mid-song overlapping bg line separate from the main lyric`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+
+        // the main line here is a totally different sentence from the bg line
+        // that starts under it, so this has to stay two lines, not get merged
+        // as a transliteration pair the way the CJK/romaji bg cases do
+        val main = lyrics!!.lines.first { it.startMs == 193_265L }
+        assertEquals("有り余る愛の迷うまま", main.text)
+
+        val bg = lyrics.lines.first { it.startMs == 194_156L }
+        assertEquals("黒い感情も 君へ繋ぐPassion", bg.text)
+        assertTrue(bg.words.isNotEmpty())
+        assertTrue(bg.words.all { it.background })
+        assertEquals(main.singer, bg.singer)
+    }
+
+    @Test
+    fun `real trio track preserves a literal space inside a run of word-timed CJK`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+
+        // there's a real space between "闇と" and "孤独" in the source, word
+        // tags on both sides of it shouldn't make it disappear
+        val line = lyrics!!.lines.first { it.startMs == 29_843L }
+        assertEquals("永遠と見紛う闇と 孤独が疼く伽藍堂", line.text)
+    }
+
+    @Test
+    fun `real trio track has valid word bounds and no leaked tags anywhere`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+
+        for (line in lyrics!!.lines) {
+            assertFalse(line.text.contains("<"))
+            assertFalse(line.text.contains("v1:"))
+            assertFalse(line.text.contains("v2:"))
+            assertFalse(line.text.contains("v3:"))
+
+            for (word in line.words) {
+                assertTrue(word.start in 0..line.text.length)
+                assertTrue(word.end in word.start..line.text.length)
+                assertTrue(word.endMs >= word.startMs)
+            }
+        }
+    }
+
+    @Test
+    fun `real trio track pins each singer to one side for the whole song`() {
+        val lyrics = LrcLyricsParser.parse(fixture("duet.lrc"))
+        assertNotNull(lyrics)
+
+        val sung = lyrics!!.lines.filter { !it.interlude && it.voice != Voice.GROUP }
+        val sideBySinger = sung.associate { it.singer to it.voice }
+
+        // same singer, same side, every time it shows up, it shouldn't drift
+        // depending on who sang right before it
+        for (line in sung) {
+            assertEquals(sideBySinger.getValue(line.singer), line.voice)
+        }
+
+        // v1 and v3 share a side, v2 is on the other
+        assertEquals(sideBySinger.getValue(0), sideBySinger.getValue(2))
+        assertNotEquals(sideBySinger.getValue(0), sideBySinger.getValue(1))
     }
 }

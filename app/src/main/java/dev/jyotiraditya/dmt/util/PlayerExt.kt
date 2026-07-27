@@ -98,7 +98,9 @@ fun MediaController.queueLabels(): List<String> =
 
 fun Long.asTime(): String {
     val totalSeconds = (this / 1000).coerceAtLeast(0)
-    return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return if (seconds < 10) "$minutes:0$seconds" else "$minutes:$seconds"
 }
 
 fun String.codecLabel(): String =
@@ -153,6 +155,13 @@ fun MediaExtractor.probeFrames(limit: Int): List<Int> = runCatching {
     }
 }.getOrDefault(emptyList())
 
-fun Int.asKHz(): String = if (this % 1000 == 0) "${this / 1000}K" else "%.1fK".format(this / 1000.0)
+fun Int.asKHz(): String {
+    if (this % 1000 == 0) return "${this / 1000}K"
+    val tenths = Math.round(this / 100.0)
+    return "${tenths / 10}.${tenths % 10}K"
+}
 
-fun Long.asMB(): String = "%.1fMB".format(this / 1048576f)
+fun Long.asMB(): String {
+    val tenths = Math.round(this / 1048576.0 * 10)
+    return "${tenths / 10}.${tenths % 10}MB"
+}

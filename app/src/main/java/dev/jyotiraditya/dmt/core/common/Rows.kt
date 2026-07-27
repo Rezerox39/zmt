@@ -141,7 +141,7 @@ fun ListRow(
                 color = TuiBg,
             )
             Text(
-                text = "%03d".format(index + 1),
+                text = (index + 1).toString().padStart(3, '0'),
                 style = MaterialTheme.typography.labelSmall,
                 color = if (current) TuiBg.copy(alpha = 0.55f) else TuiFaint,
                 modifier = Modifier.padding(start = 4.dp, end = 10.dp),

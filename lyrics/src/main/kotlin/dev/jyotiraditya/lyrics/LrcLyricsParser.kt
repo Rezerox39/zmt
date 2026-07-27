@@ -1,12 +1,23 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
-
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.LyricWord
-import dev.jyotiraditya.dmt.domain.model.Lyrics
-import dev.jyotiraditya.dmt.domain.model.TimedText
+package dev.jyotiraditya.lyrics
 
 private enum class Script { LATIN, CJK, ARABIC, CYRILLIC }
 
+/**
+ * Parses the LRC family: plain line-synced LRC, the enhanced/A2 extension with
+ * per-word `<mm:ss.xxx>` timing, and the community voice/background conventions
+ * that got layered on top over the years.
+ *
+ * - `[mm:ss.xx]vN: text` is a line sung by voice `N`. `N` isn't capped at 2, we've
+ *   seen `v1`/`v2`/`v3` in real duet and trio releases, so each distinct `N`
+ *   becomes a stable [LyricLine.singer] index in the order it first shows up.
+ * - `[bg: ...]` is a backing vocal line. If it has its own leading timestamp and
+ *   reads in a different script than the line right before it, we treat it as
+ *   that line's [LyricLine.transliteration] instead of a separate background line.
+ * - When two or three lines share the same timestamp, they get folded into one:
+ *   the first pair with different scripts becomes text plus
+ *   [LyricLine.transliteration], anything after that becomes a
+ *   [LyricLine.translation] entry.
+ */
 object LrcLyricsParser {
 
     private val LINE_TIME = Regex("""\[(\d+):(\d{1,2})(?:[.:](\d{1,3}))?]""")
@@ -15,6 +26,7 @@ object LrcLyricsParser {
     private val BG_LINE = Regex("""^\[bg:(.*)]$""", RegexOption.IGNORE_CASE)
     private val LEADING_TIME = Regex("""^\[\d+:\d{1,2}(?:[.:]\d{1,3})?]""")
 
+    /** True if [raw] contains at least one `[mm:ss]`-style line timestamp. */
     fun matches(raw: String): Boolean = LINE_TIME.containsMatchIn(raw)
 
     fun parse(raw: String): Lyrics? {
@@ -59,6 +71,7 @@ object LrcLyricsParser {
 
         return Lyrics(
             lines = lines.sortedBy { it.startMs }
+                .markInstrumentalLines()
                 .pairTransliterations()
                 .fillLineEnds()
                 .mergeSimultaneousDuplicates()
@@ -69,13 +82,14 @@ object LrcLyricsParser {
     }
 
     private fun parseBackgroundLine(content: String, lines: MutableList<LyricLine>) {
+        val nested = LEADING_TIME.containsMatchIn(content.trim())
         val (stripped, _) = stripLinePrefix(content)
         val (text, words) = parseWordTags(stripped)
         if (text.isBlank() || words.isEmpty()) return
 
         val precedingMain = lines.lastOrNull()
 
-        if (precedingMain != null && isTransliterationOf(precedingMain.text, text)) {
+        if (nested && precedingMain != null && isTransliterationOf(precedingMain.text, text)) {
             lines[lines.size - 1] = precedingMain.copy(
                 transliteration = TimedText(
                     text = text,

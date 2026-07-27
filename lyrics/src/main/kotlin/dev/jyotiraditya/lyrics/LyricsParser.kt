@@ -1,9 +1,9 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
-import dev.jyotiraditya.dmt.domain.model.LyricLine
-import dev.jyotiraditya.dmt.domain.model.Lyrics
-import dev.jyotiraditya.dmt.domain.model.Voice
-
+/**
+ * Format-detecting entry point: picks [TtmlLyricsParser] or [LrcLyricsParser]
+ * by sniffing [raw], falling back to unsynced plain text.
+ */
 object LyricsParser {
 
     fun parse(raw: String): Lyrics? {
@@ -41,6 +41,20 @@ object LyricsParser {
     }
 }
 
+private const val INTERLUDE_MARKER = "* * *"
+private val NOTE_GLYPHS_ONLY = Regex("""^[\s♪♫♩♬🎵🎶]+$""")
+
+/** Turns a source line of pure music-note glyphs (`♪♪♪`) into an interlude marker. */
+fun List<LyricLine>.markInstrumentalLines(): List<LyricLine> =
+    map { line ->
+        if (!line.interlude && NOTE_GLYPHS_ONLY.matches(line.text)) {
+            line.copy(text = INTERLUDE_MARKER, interlude = true, singer = -1)
+        } else {
+            line
+        }
+    }
+
+/** Fills in each line's [LyricLine.endMs] from the next line's start where the source left it unset. */
 fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
     mapIndexed { index, line ->
         if (line.endMs > line.startMs) {
@@ -51,6 +65,14 @@ fun List<LyricLine>.fillLineEnds(): List<LyricLine> =
         }
     }
 
+/**
+ * Collapses back-to-back lines with identical text and overlapping time into one
+ * [Voice.GROUP] line. If either side already has a real declared identity (a named
+ * TTML group agent, not just two soloists who happened to overlap), that identity
+ * is kept instead of being thrown away, so the same named group always renders in
+ * the same color instead of falling back to a generic one whenever it happens to
+ * collide with someone else's duplicate line.
+ */
 fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
     val out = mutableListOf<LyricLine>()
 
@@ -62,10 +84,16 @@ fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
             last.text == line.text &&
             line.startMs < last.endMs
         ) {
+            val singer = when {
+                last.voice == Voice.GROUP -> last.singer
+                line.voice == Voice.GROUP -> line.singer
+                else -> -1
+            }
+
             out[out.size - 1] = last.copy(
                 endMs = maxOf(last.endMs, line.endMs),
                 voice = Voice.GROUP,
-                singer = -1,
+                singer = singer,
             )
         } else {
             out += line
@@ -75,22 +103,22 @@ fun List<LyricLine>.mergeSimultaneousDuplicates(): List<LyricLine> {
     return out
 }
 
-fun List<LyricLine>.alternateVoices(): List<LyricLine> {
-    var side = Voice.SECONDARY
-    var lastSinger = -1
+/**
+ * Assigns each non-group, non-interlude line a [Voice.PRIMARY]/[Voice.SECONDARY] side
+ * based on [LyricLine.singer], so the same singer always lands on the same side for
+ * the whole song (singer 0 and 2 on one side, 1 and 3 on the other, and so on) instead
+ * of flipping on every transition, which put a singer on the wrong side depending on
+ * how many other singers came before them.
+ */
+fun List<LyricLine>.alternateVoices(): List<LyricLine> =
+    map { line ->
+        if (line.voice == Voice.GROUP || line.interlude || line.singer < 0) return@map line
 
-    return map { line ->
-        if (line.voice == Voice.GROUP || line.interlude) return@map line
-
-        if (line.singer != lastSinger) {
-            side = if (side == Voice.PRIMARY) Voice.SECONDARY else Voice.PRIMARY
-            lastSinger = line.singer
-        }
-
+        val side = if (line.singer % 2 == 0) Voice.PRIMARY else Voice.SECONDARY
         line.copy(voice = side)
     }
-}
 
+/** Inserts a `* * *` marker line into gaps of 8s or more between lines. */
 fun List<LyricLine>.withInterludes(): List<LyricLine> {
     val out = mutableListOf<LyricLine>()
     var previousEnd = 0L
@@ -100,7 +128,7 @@ fun List<LyricLine>.withInterludes(): List<LyricLine> {
             out += LyricLine(
                 startMs = previousEnd + 400,
                 endMs = line.startMs - 200,
-                text = "* * *",
+                text = INTERLUDE_MARKER,
                 voice = line.voice,
                 singer = -1,
                 interlude = true,

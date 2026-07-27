@@ -1,4 +1,4 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
 private val WORD_TIMED_TAG = Regex("""<\d+:\d{1,2}""")
 private val LINE_TIMED_TAG = Regex("""\[\d+:\d{1,2}""")
@@ -21,6 +21,11 @@ private fun contentRank(text: String): Int =
         else -> 0
     }
 
+/**
+ * Some files have more than one lyrics-shaped tag lying around. This picks the
+ * best one: TTML beats enhanced/voice-tagged LRC beats plain word-timed LRC
+ * beats line-timed LRC beats plain text.
+ */
 object LyricsTags {
 
     fun bestOf(tags: Map<String, List<String>>): String? =

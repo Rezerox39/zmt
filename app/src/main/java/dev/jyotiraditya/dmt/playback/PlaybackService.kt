@@ -16,8 +16,6 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
-import dev.jyotiraditya.dmt.data.remote.telegram.CompositeDataSource
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
@@ -32,6 +30,8 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
+import dev.jyotiraditya.dmt.data.remote.telegram.CompositeDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -82,9 +82,6 @@ class PlaybackService : MediaLibraryService() {
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
-    @Inject
-    lateinit var compositeDataSourceFactory: CompositeDataSource.Factory
-
     companion object {
         const val KEY_END_AT = "end_at"
         const val KEY_AUDIO_SESSION = "audio_session"
@@ -103,6 +100,9 @@ class PlaybackService : MediaLibraryService() {
     private var sleepJob: Job? = null
     private var sleepEndAt: Long? = null
     private var normalizeVolume = false
+
+    @Inject
+    lateinit var compositeDataSourceFactory: CompositeDataSource.Factory
     private val gainCache = mutableMapOf<Long, Float>()
 
     @Volatile
@@ -121,7 +121,7 @@ class PlaybackService : MediaLibraryService() {
         )
         val handleAudioFocus = true
         val renderersFactory = DefaultRenderersFactory(this)
-            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+            .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         val mediaSourceFactory = DefaultMediaSourceFactory(compositeDataSourceFactory)
         val player = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)

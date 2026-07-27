@@ -1,14 +1,10 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
-import dev.jyotiraditya.dmt.domain.model.Voice
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
 private fun fixture(name: String): String =
     checkNotNull(object {}.javaClass.getResourceAsStream("/lyrics/$name")) {
@@ -17,8 +13,6 @@ private fun fixture(name: String): String =
         .bufferedReader(Charsets.UTF_8)
         .use { it.readText() }
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
 class TtmlLyricsParserTest {
 
     @Test
@@ -51,6 +45,23 @@ class TtmlLyricsParserTest {
 
         val distinctSingers = lyrics.lines.map { it.singer }.filter { it >= 0 }.toSet()
         assertTrue(distinctSingers.size > 1)
+    }
+
+    @Test
+    fun `a named group agent keeps its own color when it overlaps a soloist's duplicate line`() {
+        val lyrics = TtmlLyricsParser.parse(fixture("ttml_multivoice.ttml"))
+        assertNotNull(lyrics)
+
+        // ensemble line, no overlap, keeps its own singer
+        val firstEnsembleLine = lyrics!!.lines.first { it.startMs == 85_063L }
+        assertEquals(Voice.GROUP, firstEnsembleLine.voice)
+        assertTrue(firstEnsembleLine.singer >= 0)
+
+        // same ensemble, but Dolores echoes it right after, triggering a merge,
+        // singer should stay the same, not drop to -1
+        val mergedEnsembleLine = lyrics.lines.first { it.startMs == 89_713L }
+        assertEquals(Voice.GROUP, mergedEnsembleLine.voice)
+        assertEquals(firstEnsembleLine.singer, mergedEnsembleLine.singer)
     }
 
     @Test
@@ -89,6 +100,55 @@ class TtmlLyricsParserTest {
         assertEquals("shizumu you ni tokete yuku you ni", transliteration!!.text)
         assertEquals(7, transliteration.words.size)
         assertTrue(first.translation.isEmpty())
+    }
+
+    @Test
+    fun `inline x-translation and x-roman spans stay out of the sung text`() {
+        val lyrics = TtmlLyricsParser.parse(fixture("ttml_inline_translations.ttml"))
+        assertNotNull(lyrics)
+
+        val line = lyrics!!.lines.first { it.startMs == 29_990L }
+        assertEquals("永遠と見紛う闇と", line.text)
+        assertEquals("Eien to mimagau yami to", line.transliteration?.text)
+        assertTrue(
+            line.translation.any { it.lang == "en" && it.text == "With darkness mistaken for eternity" },
+        )
+        assertEquals(10, line.translation.size)
+    }
+
+    @Test
+    fun `multiple translation blocks in different languages all get captured`() {
+        val lyrics = TtmlLyricsParser.parse(fixture("ttml_multi_translation_blocks.ttml"))
+        assertNotNull(lyrics)
+
+        val line = lyrics!!.lines.first { it.startMs == 120_185L }
+        assertEquals(setOf("mn-Mong-CN", "zh-Hans"), line.translation.map { it.lang }.toSet())
+        assertTrue(line.translation.any { it.text == "十五的月亮升上了天空哟" })
+    }
+
+    @Test
+    fun `garbage input returns null instead of throwing`() {
+        assertNull(TtmlLyricsParser.parse("<tt><this is not valid xml"))
+    }
+
+    @Test
+    fun `distinct named group agents each get their own singer index`() {
+        val lyrics = TtmlLyricsParser.parse(fixture("ttml_named_groups.ttml"))
+        assertNotNull(lyrics)
+        assertTrue(lyrics!!.synced)
+
+        val groupLines = lyrics.lines.filter { it.voice == Voice.GROUP && !it.interlude }
+        assertTrue(groupLines.isNotEmpty())
+
+        // ten different group agents (v1000..v1009) are declared and used in this
+        // song, they shouldn't all collapse into the same generic singer
+        val distinctGroupSingers = groupLines.map { it.singer }.distinct()
+        assertTrue(distinctGroupSingers.size > 1)
+        assertTrue(distinctGroupSingers.none { it < 0 })
+
+        val firstGroupLine = lyrics.lines.first { it.startMs == 60_971L }
+        assertEquals(Voice.GROUP, firstGroupLine.voice)
+        assertTrue(firstGroupLine.singer >= 0)
     }
 
     @Test

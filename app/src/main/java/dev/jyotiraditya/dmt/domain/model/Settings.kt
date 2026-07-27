@@ -16,8 +16,9 @@ enum class LibrarySort(val label: String) {
 
     val comparator: Comparator<Track>
         get() = when (this) {
-            TITLE -> compareBy { it.title.lowercase() }
-            ARTIST -> compareBy({ it.artist.lowercase() }, { it.title.lowercase() })
+            TITLE -> Comparator { a, b -> a.title.compareTo(b.title, ignoreCase = true) }
+            ARTIST -> Comparator<Track> { a, b -> a.artist.compareTo(b.artist, ignoreCase = true) }
+                .thenComparator { a, b -> a.title.compareTo(b.title, ignoreCase = true) }
             RECENT_ADDED, RECENT -> compareByDescending { it.dateAdded }
             RECENT_MODIFIED -> compareByDescending { it.dateModified }
         }

@@ -212,7 +212,7 @@ private fun <T> GroupDetail(
                 onBack = { dispatch(spec.open(null)) },
             )
         }
-        itemsIndexed(tracks) { index, track ->
+        itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
             ListRow(
                 index = index,
                 line1 = track.title,

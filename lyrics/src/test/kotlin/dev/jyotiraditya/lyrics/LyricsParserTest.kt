@@ -1,13 +1,10 @@
-package dev.jyotiraditya.dmt.data.source.local.lyrics
+package dev.jyotiraditya.lyrics
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
 private fun fixture(name: String): String =
     checkNotNull(object {}.javaClass.getResourceAsStream("/lyrics/$name")) {
@@ -16,8 +13,6 @@ private fun fixture(name: String): String =
         .bufferedReader(Charsets.UTF_8)
         .use { it.readText() }
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
 class LyricsParserTest {
 
     @Test

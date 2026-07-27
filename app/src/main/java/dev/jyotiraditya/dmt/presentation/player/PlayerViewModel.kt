@@ -71,6 +71,7 @@ private data class FilteredLibrary(
     val albums: List<Album>,
     val artists: List<Artist>,
     val folders: List<Folder>,
+    val playlists: List<Playlist> = emptyList(),
 )
 
 @HiltViewModel
@@ -177,15 +178,38 @@ class PlayerViewModel @Inject constructor(
             }
 
             DmtAction.Rescan -> scan()
-            is DmtAction.Query -> reduce {
-                it.copy(
-                    query = intent.value,
-                    filtered = filter(it.tracks, intent.value, it.settings.librarySort),
-                    filteredAlbums = filterAlbums(it.albums, intent.value),
-                    filteredArtists = filterArtists(it.artists, intent.value),
-                    filteredFolders = filterFolders(it.folders, intent.value),
-                    filteredPlaylists = filterPlaylists(it.playlists, intent.value),
-                )
+            is DmtAction.Query -> {
+                reduce { it.copy(query = intent.value) }
+                val query = intent.value
+                val tracks = currentState.tracks
+                val albums = currentState.albums
+                val artists = currentState.artists
+                val folders = currentState.folders
+                val playlists = currentState.playlists
+                val sort = currentState.settings.librarySort
+                viewModelScope.launch {
+                    val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
+                        withContext(Dispatchers.Default) {
+                            FilteredLibrary(
+                                tracks = filter(tracks, query, sort),
+                                albums = filterAlbums(albums, query),
+                                artists = filterArtists(artists, query),
+                                folders = filterFolders(folders, query),
+                                playlists = filterPlaylists(playlists, query),
+                            )
+                        }
+                    if (currentState.query == query) {
+                        reduce {
+                            it.copy(
+                                filtered = filteredTracks,
+                                filteredAlbums = filteredAlbums,
+                                filteredArtists = filteredArtists,
+                                filteredFolders = filteredFolders,
+                                filteredPlaylists = filteredPlaylists,
+                            )
+                        }
+                    }
+                }
             }
 
             is DmtAction.Show -> {
