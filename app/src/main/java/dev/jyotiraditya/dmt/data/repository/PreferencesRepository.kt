@@ -14,6 +14,7 @@ import dev.jyotiraditya.dmt.data.source.local.KEY_LAST_QUEUE
 import dev.jyotiraditya.dmt.data.source.local.KEY_LIBRARY_SORT
 import dev.jyotiraditya.dmt.data.source.local.KEY_NORMALIZE
 import dev.jyotiraditya.dmt.data.source.local.KEY_RAW
+import dev.jyotiraditya.dmt.data.source.local.KEY_THEME
 import dev.jyotiraditya.dmt.data.source.local.KEY_ROMANIZED_LYRICS
 import dev.jyotiraditya.dmt.data.source.local.KEY_SOURCE_MODE
 import dev.jyotiraditya.dmt.data.source.local.KEY_SPECS

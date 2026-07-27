@@ -39,13 +39,13 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
+            val state by playerViewModel.state.collectAsState()
             DMTTheme(theme = state.settings.theme) {
                 TuiThemeProvider(theme = state.settings.theme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
                 ) {
-                    val state by playerViewModel.state.collectAsState()
                     val writeLauncher = rememberLauncherForActivityResult(
                         ActivityResultContracts.StartIntentSenderForResult(),
                     ) { result ->
