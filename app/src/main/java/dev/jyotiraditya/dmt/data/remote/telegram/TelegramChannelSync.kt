@@ -78,8 +78,8 @@ class TelegramChannelSync @Inject constructor(
 
     suspend fun resolveThumbnail(thumbnailFileId: Long): ByteArray? {
         return try {
-            client.downloadFile(thumbnailFileId, priority = 1)
-            client.readRemoteFile(thumbnailFileId, 0, 1024 * 1024)
+            client.downloadFile(thumbnailFileId)
+            null
         } catch (_: Exception) {
             null
         }

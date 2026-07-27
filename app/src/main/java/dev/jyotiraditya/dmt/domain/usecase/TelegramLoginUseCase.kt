@@ -5,7 +5,6 @@ import android.util.Log
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dev.jyotiraditya.dmt.data.remote.telegram.TelegramAuthStep
 import dev.jyotiraditya.dmt.data.remote.telegram.TelegramClient
-import dev.jyotiraditya.dmt.data.remote.telegram.TelegramNativeBridge
 import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.data.repository.PreferencesRepository
 import kotlinx.coroutines.Dispatchers
@@ -25,11 +24,6 @@ class TelegramLoginUseCase @Inject constructor(
 
     fun initialize(): String? {
         if (telegramClient.isInitialized()) return null
-        if (!TelegramNativeBridge.isAvailable()) {
-            val err = TelegramNativeBridge.getLoadError() ?: "TDLib library not available"
-            Log.e(TAG, "init failed: $err")
-            return "TDLib native library not available. Telegram sync requires a compiled TDLib JNI library."
-        }
         try {
             telegramClient.initialize(context.filesDir.absolutePath)
             Log.i(TAG, "TelegramClient initialized successfully")
