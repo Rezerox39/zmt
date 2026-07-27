@@ -142,7 +142,7 @@ class TelegramClient @Inject constructor() {
         c.send(TdApi.SetAuthenticationPhoneNumber(
             phoneNumber,
             TdApi.PhoneNumberAuthenticationSettings(
-                false, false, false, false, false, false, "us"
+                false, false, false, false, false, null, null
             )
         ), updateHandler)
     }
@@ -178,9 +178,9 @@ class TelegramClient @Inject constructor() {
         val result = sendRequest(
             TdApi.GetChatHistory(
                 channelId,
-                limit,
                 fromMessageId,
                 0,
+                limit,
                 false,
             )
         )
@@ -214,11 +214,11 @@ class TelegramClient @Inject constructor() {
     }
 
     suspend fun downloadFile(fileId: Long): TdApi.File {
-        return sendRequest(TdApi.DownloadFile(fileId, 1, 0, 0, true))
+        return sendRequest(TdApi.DownloadFile(fileId.toInt(), 1, 0, 0, true))
     }
 
     suspend fun getFile(fileId: Long): TdApi.File {
-        return sendRequest(TdApi.GetFile(fileId))
+        return sendRequest(TdApi.GetFile(fileId.toInt()))
     }
 
     private suspend fun <T : TdApi.Object> sendRequest(function: TdApi.Function<*>): T {
