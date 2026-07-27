@@ -1,7 +1,5 @@
 package dev.jyotiraditya.dmt.presentation.settings
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,8 +7,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,15 +32,202 @@ import dev.jyotiraditya.dmt.core.common.Caption
 import dev.jyotiraditya.dmt.core.common.TuiKey
 import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
+import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
 import dev.jyotiraditya.dmt.ui.theme.TuiAccent
 import dev.jyotiraditya.dmt.ui.theme.TuiDim
 import dev.jyotiraditya.dmt.ui.theme.TuiFg
 import dev.jyotiraditya.dmt.ui.theme.TuiLine
-import dev.jyotiraditya.dmt.util.localNetworkPermission
 
 @Composable
-fun SourceLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
+fun SourceLoginPane(mode: SourceMode, state: DmtState, dispatch: (DmtAction) -> Unit) {
+    when (mode) {
+        SourceMode.TELEGRAM -> TelegramLoginPane(state, dispatch)
+        else -> JellyfinLoginPane(mode, dispatch)
+    }
+}
+
+@Composable
+private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    var phoneNumber by remember { mutableStateOf("") }
+    var code by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var channelInput by remember { mutableStateOf("") }
+    var showMissing by remember { mutableStateOf(false) }
+
+    val authStep = state.telegramAuthStep
+
+    Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+        Caption(stringResource(R.string.source_login_title, SourceMode.TELEGRAM.label))
+
+        when {
+            authStep.isEmpty() || authStep == "phone" -> {
+                LoginField(
+                    label = stringResource(R.string.telegram_phone_label),
+                    value = phoneNumber,
+                    hint = stringResource(R.string.telegram_phone_hint),
+                    onValueChange = { phoneNumber = it },
+                    keyboardType = KeyboardType.Phone,
+                )
+
+                Row(modifier = Modifier.padding(top = 18.dp)) {
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_login_cancel)} ]",
+                        onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = true,
+                        onClick = {
+                            if (phoneNumber.isBlank()) {
+                                showMissing = true
+                            } else {
+                                showMissing = false
+                                dispatch(DmtAction.TelegramSendPhone(phoneNumber.trim()))
+                            }
+                        },
+                    )
+                }
+            }
+            authStep == "code" -> {
+                Text(
+                    text = stringResource(R.string.telegram_code_sent),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiDim,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                LoginField(
+                    label = stringResource(R.string.telegram_code_label),
+                    value = code,
+                    hint = stringResource(R.string.telegram_code_hint),
+                    onValueChange = { code = it },
+                    keyboardType = KeyboardType.Number,
+                )
+
+                Row(modifier = Modifier.padding(top = 18.dp)) {
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_login_cancel)} ]",
+                        onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = true,
+                        onClick = {
+                            if (code.isBlank()) {
+                                showMissing = true
+                            } else {
+                                showMissing = false
+                                dispatch(DmtAction.TelegramSubmitCode(code.trim()))
+                            }
+                        },
+                    )
+                }
+            }
+            authStep == "password" -> {
+                Text(
+                    text = stringResource(R.string.telegram_password_required),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiDim,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                LoginField(
+                    label = stringResource(R.string.source_pass_label),
+                    value = password,
+                    hint = stringResource(R.string.source_pass_hint),
+                    onValueChange = { password = it },
+                    keyboardType = KeyboardType.Password,
+                    mask = true,
+                )
+
+                Row(modifier = Modifier.padding(top = 18.dp)) {
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_login_cancel)} ]",
+                        onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = true,
+                        onClick = {
+                            if (password.isBlank()) {
+                                showMissing = true
+                            } else {
+                                showMissing = false
+                                dispatch(DmtAction.TelegramSubmitPassword(password))
+                            }
+                        },
+                    )
+                }
+            }
+            authStep == "logged_in" -> {
+                Text(
+                    text = stringResource(R.string.telegram_logged_in),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = TuiFg,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                LoginField(
+                    label = stringResource(R.string.telegram_channel_label),
+                    value = channelInput,
+                    hint = stringResource(R.string.telegram_channel_hint),
+                    onValueChange = { channelInput = it },
+                )
+
+                Row(modifier = Modifier.padding(top = 18.dp)) {
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_login_cancel)} ]",
+                        onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = true,
+                        onClick = {
+                            if (channelInput.isBlank()) {
+                                showMissing = true
+                            } else {
+                                showMissing = false
+                                dispatch(DmtAction.TelegramResolveChannel(channelInput.trim()))
+                            }
+                        },
+                    )
+                }
+
+                if (state.telegramSyncing) {
+                    Text(
+                        text = stringResource(R.string.telegram_syncing),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TuiAccent,
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
+                }
+            }
+        }
+
+        if (showMissing) {
+            Text(
+                text = stringResource(R.string.source_login_missing),
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiAccent,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+
+        state.error?.let { error ->
+            Text(
+                text = error,
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiAccent,
+                modifier = Modifier.padding(top = 10.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun JellyfinLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
     var url by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -48,23 +235,6 @@ fun SourceLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
 
     val submitLogin = {
         dispatch(DmtAction.SourceLogin(mode, url.trim(), username.trim(), password))
-    }
-    val networkPermissionLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) {
-        submitLogin()
-    }
-    val connect = {
-        val permission = localNetworkPermission
-        if (url.isBlank() || username.isBlank()) {
-            showMissing = true
-        } else if (permission != null) {
-            showMissing = false
-            networkPermissionLauncher.launch(permission)
-        } else {
-            showMissing = false
-            submitLogin()
-        }
     }
 
     Column {
@@ -100,7 +270,14 @@ fun SourceLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
             TuiKey(
                 label = "[ ${stringResource(R.string.source_connect)} ]",
                 bright = true,
-                onClick = connect,
+                onClick = {
+                    if (url.isBlank() || username.isBlank()) {
+                        showMissing = true
+                    } else {
+                        showMissing = false
+                        submitLogin()
+                    }
+                },
             )
         }
 

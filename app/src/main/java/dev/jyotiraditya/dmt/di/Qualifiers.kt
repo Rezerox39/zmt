@@ -9,3 +9,7 @@ annotation class Local
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class JellyfinSource
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TelegramSource

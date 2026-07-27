@@ -171,4 +171,15 @@
         <item quantity="one">search %1$d list</item>
         <item quantity="other">search %1$d lists</item>
     </plurals>
+
+    <string name="telegram_phone_label">phone</string>
+    <string name="telegram_phone_hint">+1234567890</string>
+    <string name="telegram_code_label">code</string>
+    <string name="telegram_code_hint">verification code</string>
+    <string name="telegram_code_sent">verification code sent to your phone</string>
+    <string name="telegram_password_required">two-factor authentication enabled</string>
+    <string name="telegram_channel_label">channel</string>
+    <string name="telegram_channel_hint">channel @username or ID</string>
+    <string name="telegram_logged_in">authenticated successfully</string>
+    <string name="telegram_syncing">syncing channel library…</string>
 </resources>

@@ -29,6 +29,9 @@ val KEY_LIBRARY_SORT = intPreferencesKey("library_sort")
 val KEY_JELLYFIN_URL = stringPreferencesKey("jellyfin_url")
 val KEY_JELLYFIN_USER_ID = stringPreferencesKey("jellyfin_user_id")
 val KEY_JELLYFIN_TOKEN = stringPreferencesKey("jellyfin_token")
+val KEY_TELEGRAM_CHANNEL_ID = longPreferencesKey("telegram_channel_id")
+val KEY_TELEGRAM_CHANNEL_NAME = stringPreferencesKey("telegram_channel_name")
+val KEY_TELEGRAM_AUTH_STATE = stringPreferencesKey("telegram_auth_state")
 
 fun String.toCounts(): Map<Long, Int> =
     split(';')

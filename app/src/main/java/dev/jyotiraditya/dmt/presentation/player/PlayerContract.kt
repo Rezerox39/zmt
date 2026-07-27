@@ -64,6 +64,9 @@ data class DmtState(
     val route: List<Spec> = emptyList(),
     val error: String? = null,
     val notice: String? = null,
+    val telegramAuthStep: String = "",
+    val telegramChannelInput: String = "",
+    val telegramSyncing: Boolean = false,
 )
 
 sealed interface DmtAction {
@@ -104,6 +107,11 @@ sealed interface DmtAction {
         val username: String,
         val password: String,
     ) : DmtAction
+    data class TelegramSendPhone(val phoneNumber: String) : DmtAction
+    data class TelegramSubmitCode(val code: String) : DmtAction
+    data class TelegramSubmitPassword(val password: String) : DmtAction
+    data class TelegramResolveChannel(val channelInput: String) : DmtAction
+    data object TelegramLogout : DmtAction
 }
 
 sealed interface PlayerEffect {

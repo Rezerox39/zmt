@@ -3,7 +3,7 @@ package dev.jyotiraditya.dmt.domain.model
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 
-enum class TrackSource { LOCAL, JELLYFIN }
+enum class TrackSource { LOCAL, JELLYFIN, TELEGRAM }
 
 @Immutable
 data class Track(

@@ -264,7 +264,7 @@ private fun PaneHost(
                 state.view == DmtView.PERMISSIONS -> PermissionsPane(state, dispatch)
                 state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch)
                 state.view == DmtView.SOURCES -> SourcesPane(state, dispatch)
-                state.view == DmtView.SOURCE_LOGIN -> SourceLoginPane(state.loginSource, dispatch)
+                state.view == DmtView.SOURCE_LOGIN -> SourceLoginPane(mode = state.loginSource, state = state, dispatch = dispatch)
                 state.scanning -> Caption(stringResource(R.string.scanning))
                 state.view == DmtView.ALBUMS -> AlbumsPane(state, dispatch)
                 state.view == DmtView.ARTISTS -> ArtistsPane(state, dispatch)

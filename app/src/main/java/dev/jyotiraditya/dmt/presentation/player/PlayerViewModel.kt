@@ -34,6 +34,9 @@ import dev.jyotiraditya.dmt.domain.usecase.EmbedLyricsUseCase
 import dev.jyotiraditya.dmt.domain.usecase.GetLyricsUseCase
 import dev.jyotiraditya.dmt.domain.usecase.GetTrackTechUseCase
 import dev.jyotiraditya.dmt.domain.usecase.JellyfinLoginUseCase
+import dev.jyotiraditya.dmt.domain.usecase.TelegramLoginUseCase
+import dev.jyotiraditya.dmt.data.remote.telegram.TelegramAuthStep
+import kotlinx.coroutines.flow.collectLatest
 import dev.jyotiraditya.dmt.domain.usecase.ScanLibraryUseCase
 import dev.jyotiraditya.dmt.playback.PlaybackService
 import dev.jyotiraditya.dmt.util.QUEUE_CAP
@@ -77,6 +80,7 @@ class PlayerViewModel @Inject constructor(
     private val preferencesRepository: PreferencesRepository,
     private val scanLibrary: ScanLibraryUseCase,
     private val jellyfinLogin: JellyfinLoginUseCase,
+    private val telegramLogin: TelegramLoginUseCase,
     private val getLyrics: GetLyricsUseCase,
     private val embedLyrics: EmbedLyricsUseCase,
     private val getTrackTech: GetTrackTechUseCase,
@@ -101,6 +105,15 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = preferencesRepository.settings.first()
             reduce { it.copy(settings = settings) }
+        }
+        viewModelScope.launch {
+            val initErr = telegramLogin.initialize()
+            if (initErr != null) {
+                reduce { it.copy(error = initErr) }
+            }
+            telegramLogin.observeAuthState().collectLatest { step ->
+                reduce { it.copy(telegramAuthStep = step) }
+            }
         }
         viewModelScope.launch {
             preferencesRepository.stats.collect { stats ->
@@ -316,6 +329,81 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.SourceLogin -> when (intent.mode) {
                 SourceMode.JELLYFIN -> loginToJellyfin(intent)
                 SourceMode.LOCAL -> Unit
+                SourceMode.TELEGRAM -> {
+                    viewModelScope.launch {
+                        val initErr = telegramLogin.initialize()
+                        if (initErr != null) {
+                            reduce { it.copy(error = initErr) }
+                            return@launch
+                        }
+                        val result = telegramLogin.sendPhoneNumber(intent.username)
+                        if (result.isFailure) {
+                            reduce { it.copy(error = result.exceptionOrNull()?.message ?: "Failed") }
+                        }
+                    }
+                }
+            }
+            is DmtAction.TelegramSendPhone -> {
+                viewModelScope.launch {
+                    val initErr = telegramLogin.initialize()
+                    if (initErr != null) {
+                        reduce { it.copy(error = initErr) }
+                        return@launch
+                    }
+                    val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
+                    if (result.isFailure) {
+                        reduce { it.copy(error = result.exceptionOrNull()?.message ?: "Failed to send phone number") }
+                    }
+                }
+            }
+            is DmtAction.TelegramSubmitCode -> {
+                viewModelScope.launch {
+                    val result = telegramLogin.submitCode(intent.code)
+                    if (result.isFailure) {
+                        reduce { it.copy(error = result.exceptionOrNull()?.message ?: "Invalid code") }
+                    }
+                }
+            }
+            is DmtAction.TelegramSubmitPassword -> {
+                viewModelScope.launch {
+                    val result = telegramLogin.submitPassword(intent.password)
+                    if (result.isFailure) {
+                        reduce { it.copy(error = result.exceptionOrNull()?.message ?: "Invalid password") }
+                    }
+                }
+            }
+            is DmtAction.TelegramResolveChannel -> {
+                viewModelScope.launch {
+                    reduce { it.copy(telegramSyncing = true) }
+                    val result = telegramLogin.resolveChannel(intent.channelInput)
+                    if (result.isSuccess) {
+                        val settings = preferencesRepository.settings.first()
+                        reduce {
+                            it.copy(
+                                settings = settings,
+                                telegramSyncing = false,
+                                notice = "Channel connected",
+                            )
+                        }
+                        scan()
+                        onIntent(DmtAction.Show(DmtView.LIBRARY))
+                    } else {
+                        reduce {
+                            it.copy(
+                                telegramSyncing = false,
+                                error = result.exceptionOrNull()?.message ?: "Failed to connect channel",
+                            )
+                        }
+                    }
+                }
+            }
+            is DmtAction.TelegramLogout -> {
+                viewModelScope.launch {
+                    telegramLogin.logout()
+                    val settings = preferencesRepository.settings.first()
+                    reduce { it.copy(settings = settings, telegramAuthStep = "") }
+                    onIntent(DmtAction.Show(DmtView.SOURCES))
+                }
             }
         }
     }
