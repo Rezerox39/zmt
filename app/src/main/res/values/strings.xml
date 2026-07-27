@@ -182,4 +182,7 @@
     <string name="telegram_channel_hint">channel @username or ID</string>
     <string name="telegram_logged_in">authenticated successfully</string>
     <string name="telegram_syncing">syncing channel library…</string>
+
+    <string name="widget_name">mini player</string>
+    <string name="widget_description">now playing widget</string>
 </resources>

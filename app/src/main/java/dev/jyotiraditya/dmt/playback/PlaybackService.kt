@@ -160,11 +160,13 @@ class PlaybackService : MediaLibraryService() {
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
                     if (!isPlaying) saveSession()
+                    updateWidget()
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     saveSession()
                     applyReplayGain(mediaItem)
+                    updateWidget()
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -666,6 +668,15 @@ class PlaybackService : MediaLibraryService() {
                 }
             }
         }
+    }
+
+    private fun updateWidget() {
+        val p = mediaSession?.player ?: return
+        val item = p.currentMediaItem ?: return
+        val title = item.mediaMetadata.title?.toString() ?: "unknown"
+        val artist = item.mediaMetadata.artist?.toString() ?: ""
+        val progress = if (p.duration > 0) (p.currentPosition * 1000 / p.duration).toInt() else 0
+        MiniPlayerWidget.updateAllWidgets(this, title, artist, p.isPlaying, progress)
     }
 
     private fun saveSession() {
