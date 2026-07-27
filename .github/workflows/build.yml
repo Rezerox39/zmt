@@ -44,15 +44,14 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > /tmp/zmt.keystore
-          apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
-          echo "Unsigned APK: $apk"
+          apk=$(ls app/build/outputs/apk/release/*-unsigned.apk 2>/dev/null || ls app/build/outputs/apk/release/*.apk | head -1)
+          echo "APK: $apk"
           ls -la "$apk"
-          # Verify unsigned
           keytool -printcert -jarfile "$apk" 2>&1 | head -3 || true
-          # Zipalign
-          zipalign -f 4 "$apk" /tmp/zmt-aligned.apk
-          # Sign with apksigner
-          apksigner sign \
+          BUILD_TOOLS=$(ls -d $ANDROID_HOME/build-tools/*/ | sort -V | tail -1)
+          echo "Build tools: $BUILD_TOOLS"
+          ${BUILD_TOOLS}zipalign -f 4 "$apk" /tmp/zmt-aligned.apk
+          ${BUILD_TOOLS}apksigner sign \
             --ks /tmp/zmt.keystore \
             --ks-pass pass:${{ secrets.SIGNING_STORE_PASSWORD }} \
             --key-pass pass:${{ secrets.SIGNING_KEY_PASSWORD }} \
@@ -61,11 +60,9 @@ jobs:
             --v2-signing-enabled true \
             --v3-signing-enabled true \
             /tmp/zmt-aligned.apk
-          # Verify signed
           keytool -printcert -jarfile /tmp/zmt-aligned.apk 2>&1 | head -10
-          # Replace
           cp /tmp/zmt-aligned.apk "$apk"
-          echo "Signed APK ready"
+          echo "Signed!"
 
       - name: upload release apk
         uses: actions/upload-artifact@v7
