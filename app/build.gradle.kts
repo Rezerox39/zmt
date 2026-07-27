@@ -3,6 +3,7 @@ import java.util.Properties
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
 }
@@ -100,6 +101,13 @@ dependencies {
     implementation(libs.hilt.android)
     implementation(libs.ktor.client.core)
     implementation(libs.ktor.client.cio)
+    implementation(libs.ktor.client.okhttp)
+    implementation(libs.ktor.client.content.negotiation)
+    implementation(libs.ktor.client.logging)
+    implementation(libs.ktor.client.encoding)
+    implementation(libs.ktor.serialization.json)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.logback.classic)
     implementation(libs.tdlib)
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
