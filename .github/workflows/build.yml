@@ -22,9 +22,17 @@ jobs:
       - name: set up gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: decode keystore
+      - name: setup signing
         if: github.event_name != 'pull_request'
-        run: echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore && ls -la zmt.keystore
+        run: |
+          echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore
+          cat > keystore.properties << EOF
+          storeFile=zmt.keystore
+          storePassword=${{ secrets.SIGNING_STORE_PASSWORD }}
+          keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
+          keyPassword=${{ secrets.SIGNING_KEY_PASSWORD }}
+          EOF
+          ls -la zmt.keystore keystore.properties
 
       - name: lint
         run: ./gradlew :app:lintRelease
@@ -40,13 +48,7 @@ jobs:
 
       - name: clean and build signed release
         if: github.event_name != 'pull_request'
-        env:
-          SIGNING_KEYSTORE_PATH: ${{ github.workspace }}/zmt.keystore
-          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
-          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
-          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
-          ls -la ${{ github.workspace }}/zmt.keystore
           ./gradlew clean assembleRelease -PversionOverride=${{ steps.version.outputs.name }}
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
           echo "Built APK: $apk"
