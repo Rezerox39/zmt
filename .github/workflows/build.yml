@@ -50,7 +50,6 @@ jobs:
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
           echo "Built APK: $apk"
           ls -la "$apk"
-          # Verify signing
           keytool -printcert -jarfile "$apk" 2>&1 | head -10
 
       - name: build unsigned (PR)
@@ -63,5 +62,3 @@ jobs:
           name: zmt-release
           path: app/build/outputs/apk/release/*.apk
           retention-days: 7
-
-            "https://api.telegram.org/bot${{ TELEGRAM_BOT_TOKEN }}/sendDocument" > /dev/null
