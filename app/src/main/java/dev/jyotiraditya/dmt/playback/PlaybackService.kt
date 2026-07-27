@@ -1,4 +1,5 @@
 package dev.jyotiraditya.dmt.playback
+import dev.jyotiraditya.dmt.presentation.widget.MiniPlayerWidget
 
 import android.app.PendingIntent
 import android.content.Intent
