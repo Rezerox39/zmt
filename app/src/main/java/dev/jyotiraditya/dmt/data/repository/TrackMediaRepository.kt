@@ -66,7 +66,7 @@ class TrackMediaRepository @Inject constructor(
 
     @OptIn(UnstableApi::class)
     fun techSpecs(uri: Uri, track: Track?): List<Spec> {
-        if (track?.source == TrackSource.JELLYFIN) {
+        if (track?.source == TrackSource.JELLYFIN || track?.source == TrackSource.TELEGRAM) {
             return buildList {
                 if (track.mime.isNotEmpty()) {
                     add(Spec(label = "FMT", value = track.mime.codecLabel()))
@@ -75,6 +75,9 @@ class TrackMediaRepository @Inject constructor(
                     add(Spec(label = "KBPS", value = "${track.bitrate / 1000}", hot = true))
                 }
                 track.size.takeIf { it > 0 }?.let { add(Spec(label = "SIZE", value = it.asMB())) }
+                if (track.source == TrackSource.TELEGRAM) {
+                    add(Spec(label = "SRC", value = "TG", hot = true))
+                }
                 addAll(decoderSpecs(track.mime))
             }
         }

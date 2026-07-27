@@ -3,6 +3,7 @@ package dev.jyotiraditya.dmt.domain.model
 enum class SourceMode(val label: String) {
     LOCAL("local"),
     JELLYFIN("jellyfin"),
+    TELEGRAM("telegram"),
 }
 
 enum class LibrarySort(val label: String) {
@@ -25,6 +26,7 @@ enum class LibrarySort(val label: String) {
         val cycle = when (mode) {
             SourceMode.LOCAL -> listOf(TITLE, ARTIST, RECENT_ADDED, RECENT_MODIFIED)
             SourceMode.JELLYFIN -> listOf(TITLE, ARTIST, RECENT)
+            SourceMode.TELEGRAM -> listOf(TITLE, ARTIST, RECENT)
         }
         return cycle[(cycle.indexOf(this) + 1) % cycle.size]
     }
@@ -43,6 +45,9 @@ data class DmtSettings(
     val jellyfinUrl: String? = null,
     val jellyfinUserId: String? = null,
     val jellyfinToken: String? = null,
+    val telegramChannelId: Long? = null,
+    val telegramChannelName: String? = null,
+    val telegramAuthState: String? = null,
 )
 
 data class LastSession(

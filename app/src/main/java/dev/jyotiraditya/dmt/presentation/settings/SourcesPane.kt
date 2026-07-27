@@ -63,6 +63,29 @@ private val SOURCE_REGISTRY = listOf(
             )
         },
     ),
+    SourceDescriptor(
+        mode = SourceMode.TELEGRAM,
+        label = SourceMode.TELEGRAM.label,
+        subtitle = { settings ->
+            if (settings.telegramChannelName != null) {
+                settings.telegramChannelName
+            } else if (settings.telegramChannelId != null) {
+                "channel #${settings.telegramChannelId}"
+            } else {
+                "not connected"
+            }
+        },
+        requiresAuth = true,
+        connected = { it.telegramChannelId != null },
+        logout = {
+            it.copy(
+                sourceMode = SourceMode.LOCAL,
+                telegramChannelId = null,
+                telegramChannelName = null,
+                telegramAuthState = null,
+            )
+        },
+    ),
 )
 
 @Composable

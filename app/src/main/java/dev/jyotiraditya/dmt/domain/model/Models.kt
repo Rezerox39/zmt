@@ -2,7 +2,7 @@ package dev.jyotiraditya.dmt.domain.model
 
 import android.net.Uri
 
-enum class TrackSource { LOCAL, JELLYFIN }
+enum class TrackSource { LOCAL, JELLYFIN, TELEGRAM }
 
 data class Track(
     val id: Long,

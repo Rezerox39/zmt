@@ -20,6 +20,9 @@ import dev.jyotiraditya.dmt.data.source.local.KEY_SPECS
 import dev.jyotiraditya.dmt.data.source.local.KEY_SPEED
 import dev.jyotiraditya.dmt.data.source.local.KEY_STAT_COUNTS
 import dev.jyotiraditya.dmt.data.source.local.KEY_STAT_TOTAL
+import dev.jyotiraditya.dmt.data.source.local.KEY_TELEGRAM_AUTH_STATE
+import dev.jyotiraditya.dmt.data.source.local.KEY_TELEGRAM_CHANNEL_ID
+import dev.jyotiraditya.dmt.data.source.local.KEY_TELEGRAM_CHANNEL_NAME
 import dev.jyotiraditya.dmt.data.source.local.KEY_WAVE
 import dev.jyotiraditya.dmt.data.source.local.dmtStore
 import dev.jyotiraditya.dmt.data.source.local.encodeCounts
@@ -58,6 +61,9 @@ class PreferencesRepository @Inject constructor(
             jellyfinUrl = prefs[KEY_JELLYFIN_URL],
             jellyfinUserId = prefs[KEY_JELLYFIN_USER_ID],
             jellyfinToken = prefs[KEY_JELLYFIN_TOKEN],
+            telegramChannelId = prefs[KEY_TELEGRAM_CHANNEL_ID],
+            telegramChannelName = prefs[KEY_TELEGRAM_CHANNEL_NAME],
+            telegramAuthState = prefs[KEY_TELEGRAM_AUTH_STATE],
         )
     }
 
@@ -81,6 +87,15 @@ class PreferencesRepository @Inject constructor(
             settings.jellyfinToken
                 ?.let { token -> it[KEY_JELLYFIN_TOKEN] = token }
                 ?: it.remove(KEY_JELLYFIN_TOKEN)
+            settings.telegramChannelId
+                ?.let { id -> it[KEY_TELEGRAM_CHANNEL_ID] = id }
+                ?: it.remove(KEY_TELEGRAM_CHANNEL_ID)
+            settings.telegramChannelName
+                ?.let { name -> it[KEY_TELEGRAM_CHANNEL_NAME] = name }
+                ?: it.remove(KEY_TELEGRAM_CHANNEL_NAME)
+            settings.telegramAuthState
+                ?.let { state -> it[KEY_TELEGRAM_AUTH_STATE] = state }
+                ?: it.remove(KEY_TELEGRAM_AUTH_STATE)
         }
     }
 

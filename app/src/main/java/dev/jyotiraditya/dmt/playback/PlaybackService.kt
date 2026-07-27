@@ -16,6 +16,8 @@ import androidx.media3.common.Timeline
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
+import dev.jyotiraditya.dmt.data.remote.telegram.CompositeDataSource
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
@@ -80,6 +82,9 @@ class PlaybackService : MediaLibraryService() {
     @Inject
     lateinit var preferencesRepository: PreferencesRepository
 
+    @Inject
+    lateinit var compositeDataSourceFactory: CompositeDataSource.Factory
+
     companion object {
         const val KEY_END_AT = "end_at"
         const val KEY_AUDIO_SESSION = "audio_session"
@@ -117,7 +122,9 @@ class PlaybackService : MediaLibraryService() {
         val handleAudioFocus = true
         val renderersFactory = DefaultRenderersFactory(this)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_ON)
+        val mediaSourceFactory = DefaultMediaSourceFactory(compositeDataSourceFactory)
         val player = ExoPlayer.Builder(this, renderersFactory)
+            .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
