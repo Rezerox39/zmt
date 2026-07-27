@@ -26,13 +26,12 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore
-          cat > keystore.properties << EOF
-          storeFile=zmt.keystore
-          storePassword=${{ secrets.SIGNING_STORE_PASSWORD }}
-          keyAlias=${{ secrets.SIGNING_KEY_ALIAS }}
-          keyPassword=${{ secrets.SIGNING_KEY_PASSWORD }}
-          EOF
-          ls -la zmt.keystore keystore.properties
+          printf 'storeFile=zmt.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
+            "${{ secrets.SIGNING_STORE_PASSWORD }}" \
+            "${{ secrets.SIGNING_KEY_ALIAS }}" \
+            "${{ secrets.SIGNING_KEY_PASSWORD }}" > keystore.properties
+          cat keystore.properties
+          ls -la zmt.keystore
 
       - name: lint
         run: ./gradlew :app:lintRelease
