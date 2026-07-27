@@ -1,0 +1,167 @@
+name: build tdlib
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v7
+
+      - name: set up android sdk
+        uses: android-actions/setup-android@v3
+
+      - name: install ndk
+        run: sdkmanager "ndk;26.1.10909125"
+
+      - name: install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake gperf zlib1g-dev
+
+      - name: clone tdlib
+        run: |
+          git clone --depth 1 --branch v1.8.0 https://github.com/tdlib/td.git /tmp/td
+          cd /tmp/td
+          git submodule update --init --recursive
+
+      - name: create jni wrapper
+        run: |
+          cat > /tmp/td_jni_wrapper.cpp << 'JNI_EOF'
+          #include <jni.h>
+          #include <string>
+          #include <atomic>
+          #include <mutex>
+          #include <unordered_map>
+          #include "td/telegram/td_json_client.h"
+          
+          static std::atomic<long> next_id{1};
+          static std::mutex map_mutex;
+          static std::unordered_map<long, void*> clients;
+          
+          extern "C" {
+          
+          JNIEXPORT jlong JNICALL
+          Java_dev_jyotiraditya_dmt_data_remote_telegram_TelegramNativeBridge_nativeCreate(
+              JNIEnv* env, jobject thiz) {
+              void* client = td_json_client_create();
+              if (!client) return 0;
+              long id = next_id.fetch_add(1);
+              std::lock_guard<std::mutex> lock(map_mutex);
+              clients[id] = client;
+              return id;
+          }
+          
+          JNIEXPORT void JNICALL
+          Java_dev_jyotiraditya_dmt_data_remote_telegram_TelegramNativeBridge_nativeSend(
+              JNIEnv* env, jobject thiz, jlong clientId, jstring request) {
+              std::lock_guard<std::mutex> lock(map_mutex);
+              auto it = clients.find(clientId);
+              if (it == clients.end()) return;
+              const char* req = env->GetStringUTFChars(request, nullptr);
+              td_json_client_send(it->second, req);
+              env->ReleaseStringUTFChars(request, req);
+          }
+          
+          JNIEXPORT jstring JNICALL
+          Java_dev_jyotiraditya_dmt_data_remote_telegram_TelegramNativeBridge_nativeReceive(
+              JNIEnv* env, jobject thiz, jlong clientId) {
+              std::lock_guard<std::mutex> lock(map_mutex);
+              auto it = clients.find(clientId);
+              if (it == clients.end()) return nullptr;
+              const char* result = td_json_client_receive(it->second, 1.0);
+              if (!result) return nullptr;
+              return env->NewStringUTF(result);
+          }
+          
+          JNIEXPORT jstring JNICALL
+          Java_dev_jyotiraditya_dmt_data_remote_telegram_TelegramNativeBridge_nativeExecute(
+              JNIEnv* env, jobject thiz, jstring request) {
+              const char* req = env->GetStringUTFChars(request, nullptr);
+              void* client = td_json_client_create();
+              if (!client) {
+                  env->ReleaseStringUTFChars(request, req);
+                  return nullptr;
+              }
+              const char* result = td_json_client_execute(client, req);
+              env->ReleaseStringUTFChars(request, req);
+              jstring ret = result ? env->NewStringUTF(result) : nullptr;
+              td_json_client_destroy(client);
+              return ret;
+          }
+          
+          JNIEXPORT void JNICALL
+          Java_dev_jyotiraditya_dmt_data_remote_telegram_TelegramNativeBridge_nativeDestroy(
+              JNIEnv* env, jobject thiz, jlong clientId) {
+              std::lock_guard<std::mutex> lock(map_mutex);
+              auto it = clients.find(clientId);
+              if (it == clients.end()) return;
+              td_json_client_destroy(it->second);
+              clients.erase(it);
+          }
+          
+          }
+          JNI_EOF
+          echo "JNI wrapper created"
+
+      - name: build for arm64-v8a
+        run: |
+          mkdir -p /tmp/td-arm64
+          cd /tmp/td-arm64
+          cmake /tmp/td \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/26.1.10909125/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=arm64-v8a \
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DTD_ENABLE_JNI=ON \
+            -DTD_ENABLE_DOTNET=OFF \
+            -DTD_ENABLE_TDEXAMPLE=OFF \
+            -DTD_ENABLE_TGOPENSHELL=OFF \
+            -DBUILD_SHARED_LIBS=ON
+          cmake --build . -j$(nproc)
+          
+          # Build JNI wrapper as separate shared lib
+          $ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android24-clang++ \
+            -shared -fPIC -std=c++17 \
+            -I/tmp/td -I/tmp/td/td/telegram \
+            -I$ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include \
+            -L/tmp/td-arm64/lib \
+            /tmp/td_jni_wrapper.cpp \
+            -ltdjson -llog \
+            -o libtdjni.so
+
+      - name: build for armeabi-v7a
+        run: |
+          mkdir -p /tmp/td-armv7
+          cd /tmp/td-armv7
+          cmake /tmp/td \
+            -DCMAKE_TOOLCHAIN_FILE=$ANDROID_HOME/ndk/26.1.10909125/build/cmake/android.toolchain.cmake \
+            -DANDROID_ABI=armeabi-v7a \
+            -DANDROID_PLATFORM=android-24 \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DTD_ENABLE_JNI=ON \
+            -DTD_ENABLE_DOTNET=OFF \
+            -DTD_ENABLE_TDEXAMPLE=OFF \
+            -DTD_ENABLE_TGOPENSHELL=OFF \
+            -DBUILD_SHARED_LIBS=ON
+          cmake --build . -j$(nproc)
+          
+          $ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi24-clang++ \
+            -shared -fPIC -std=c++17 \
+            -I/tmp/td -I/tmp/td/td/telegram \
+            -I$ANDROID_HOME/ndk/26.1.10909125/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include \
+            -L/tmp/td-armv7/lib \
+            /tmp/td_jni_wrapper.cpp \
+            -ltdjson -llog \
+            -o libtdjni.so
+
+      - name: upload libraries
+        uses: actions/upload-artifact@v7
+        with:
+          name: tdlib-libs
+          path: |
+            /tmp/td-arm64/libtdjni.so
+            /tmp/td-armv7/libtdjni.so
+          retention-days: 30
