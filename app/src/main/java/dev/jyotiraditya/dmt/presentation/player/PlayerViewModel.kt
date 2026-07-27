@@ -345,14 +345,20 @@ class PlayerViewModel @Inject constructor(
             }
             is DmtAction.TelegramSendPhone -> {
                 viewModelScope.launch {
+                    reduce { it.copy(error = null) }
                     val initErr = telegramLogin.initialize()
                     if (initErr != null) {
                         reduce { it.copy(error = initErr) }
                         return@launch
                     }
-                    val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
-                    if (result.isFailure) {
-                        reduce { it.copy(error = result.exceptionOrNull()?.message ?: "Failed to send phone number") }
+                    try {
+                        val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
+                        if (result.isFailure) {
+                            val errMsg = result.exceptionOrNull()?.message ?: "Failed to send phone number"
+                            reduce { it.copy(error = "Error: $errMsg") }
+                        }
+                    } catch (e: Exception) {
+                        reduce { it.copy(error = "Connection error: ${e.message}") }
                     }
                 }
             }

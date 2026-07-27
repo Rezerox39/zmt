@@ -140,10 +140,10 @@
     <string name="stat_folders">@string/auto_folders</string>
     <string name="stat_empty">nothing played yet</string>
     <string name="about">about</string>
-    <string name="about_title">zmt · dear music, thanks</string>
+    <string name="about_title">⚡ zmt · feel the beat ⚡</string>
     <string name="about_body">a tui-inspired local music player.\nmusic helped a lot; this is the thank-you note.</string>
-    <string name="credit">made by jyotiraditya panda</string>
-    <string name="credit_url" translatable="false">https://github.com/imjyotiraditya</string>
+    <string name="credit">made by Abhi ❤️</string>
+    <string name="credit_url" translatable="false">https://github.com/Rezerox39</string>
 
 
     <string name="info_title">title</string>

@@ -28,7 +28,7 @@ class TelegramLoginUseCase @Inject constructor(
         if (!TelegramNativeBridge.isAvailable()) {
             val err = TelegramNativeBridge.getLoadError() ?: "TDLib library not available"
             Log.e(TAG, "init failed: $err")
-            return err
+            return "TDLib native library not available. Telegram sync requires a compiled TDLib JNI library."
         }
         try {
             telegramClient.initialize(context.filesDir.absolutePath)
@@ -56,6 +56,10 @@ class TelegramLoginUseCase @Inject constructor(
     suspend fun sendPhoneNumber(phoneNumber: String): Result<Unit> =
         withContext(Dispatchers.IO) {
             runCatching {
+                if (!telegramClient.isInitialized()) {
+                    val initErr = initialize()
+                    if (initErr != null) throw IllegalStateException(initErr)
+                }
                 telegramClient.requestPhoneNumber(phoneNumber)
             }
         }

@@ -25,6 +25,7 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.PlayerEffect
 import dev.jyotiraditya.dmt.presentation.player.PlayerViewModel
 import dev.jyotiraditya.dmt.ui.theme.DMTTheme
+import dev.jyotiraditya.dmt.ui.theme.TuiThemeProvider
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -38,7 +39,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            DMTTheme {
+            DMTTheme(theme = state.settings.theme) {
+                TuiThemeProvider(theme = state.settings.theme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -70,6 +72,7 @@ class MainActivity : ComponentActivity() {
                         state = state,
                         dispatch = playerViewModel::onIntent,
                     )
+                }
                 }
             }
         }

@@ -33,6 +33,13 @@ enum class LibrarySort(val label: String) {
     }
 }
 
+enum class ThemeOption(val label: String) {
+    AMOLED_BLACK("amoled"),
+    RED_AMOLED("red amoled"),
+    LIQUID_GLASS("liquid glass"),
+    ;
+}
+
 data class DmtSettings(
     val wave: Boolean = true,
     val normalizeVolume: Boolean = false,
@@ -40,6 +47,7 @@ data class DmtSettings(
     val listSpecs: Boolean = true,
     val romanizedLyrics: Boolean = false,
     val rawArt: Boolean = false,
+    val theme: ThemeOption = ThemeOption.AMOLED_BLACK,
     val blockedFolders: Set<String> = emptySet(),
     val sourceMode: SourceMode = SourceMode.LOCAL,
     val librarySort: LibrarySort = LibrarySort.TITLE,

@@ -23,6 +23,7 @@ import dev.jyotiraditya.dmt.core.common.Caption
 import dev.jyotiraditya.dmt.core.common.TuiKey
 import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.domain.model.SourceMode
+import dev.jyotiraditya.dmt.domain.model.ThemeOption
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
@@ -43,6 +44,14 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Caption(stringResource(R.string.config))
 
+        SettingRow(
+            label = "theme",
+            value = settings.theme.label,
+        ) {
+            val themes = ThemeOption.entries
+            val nextIndex = (themes.indexOf(settings.theme) + 1) % themes.size
+            dispatch(DmtAction.Config(settings.copy(theme = themes[nextIndex])))
+        }
         SettingRow(
             label = stringResource(R.string.set_wave),
             value = if (settings.wave) on else off,

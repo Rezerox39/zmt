@@ -28,6 +28,7 @@ import dev.jyotiraditya.dmt.data.source.local.dmtStore
 import dev.jyotiraditya.dmt.data.source.local.encodeCounts
 import dev.jyotiraditya.dmt.data.source.local.toCounts
 import dev.jyotiraditya.dmt.domain.model.DmtSettings
+import dev.jyotiraditya.dmt.domain.model.ThemeOption
 import dev.jyotiraditya.dmt.domain.model.DmtStats
 import dev.jyotiraditya.dmt.domain.model.LastSession
 import dev.jyotiraditya.dmt.domain.model.LibrarySort
@@ -53,6 +54,7 @@ class PreferencesRepository @Inject constructor(
             listSpecs = prefs[KEY_SPECS] ?: true,
             romanizedLyrics = prefs[KEY_ROMANIZED_LYRICS] ?: false,
             rawArt = prefs[KEY_RAW] ?: false,
+            theme = runCatching { ThemeOption.valueOf(prefs[KEY_THEME] ?: "AMOLED_BLACK") }.getOrDefault(ThemeOption.AMOLED_BLACK),
             blockedFolders = prefs[KEY_BLOCKED_FOLDERS] ?: emptySet(),
             sourceMode = SourceMode.entries[(prefs[KEY_SOURCE_MODE]
                 ?: 0).mod(SourceMode.entries.size)],
@@ -75,6 +77,7 @@ class PreferencesRepository @Inject constructor(
             it[KEY_SPECS] = settings.listSpecs
             it[KEY_ROMANIZED_LYRICS] = settings.romanizedLyrics
             it[KEY_RAW] = settings.rawArt
+            it[KEY_THEME] = settings.theme.name
             it[KEY_BLOCKED_FOLDERS] = settings.blockedFolders
             it[KEY_SOURCE_MODE] = settings.sourceMode.ordinal
             it[KEY_LIBRARY_SORT] = settings.librarySort.ordinal

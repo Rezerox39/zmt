@@ -51,13 +51,16 @@ class TelegramClient @Inject constructor() {
             return
         }
         if (!TelegramNativeBridge.isAvailable()) {
-            Log.e("TelegramClient", "TDLib not available: ${TelegramNativeBridge.getLoadError()}")
+            val err = TelegramNativeBridge.getLoadError() ?: "TDLib library not available"
+            Log.e("TelegramClient", "TDLib not available: $err")
+            _authState.value = TelegramAuthState(step = TelegramAuthStep.Error("TDLib library not available. The app needs a compiled TDLib native library to connect to Telegram."))
             return
         }
 
         val b = TelegramNativeBridge()
         if (!b.create()) {
             Log.e("TelegramClient", "Failed to create TDLib client")
+            _authState.value = TelegramAuthState(step = TelegramAuthStep.Error("Failed to create TDLib client"))
             return
         }
         bridge = b
@@ -66,6 +69,18 @@ class TelegramClient @Inject constructor() {
         b.send(JSONObject().put("@type", "getOption").put("option", "version"))
 
         receiveJob = launchReceiveLoop(b)
+
+        // Check if TDLib is actually responding after a timeout
+        scope.launch {
+            delay(5000)
+            if (!authenticated && _authState.value.step is TelegramAuthStep.NeedPhoneNumber) {
+                // Check if we got any response from TDLib
+                val state = _authState.value
+                if (state.step is TelegramAuthStep.NeedPhoneNumber && state.phoneNumber.isEmpty()) {
+                    Log.w("TelegramClient", "TDLib may not be responding - stub library detected")
+                }
+            }
+        }
     }
 
     private fun launchReceiveLoop(b: TelegramNativeBridge): kotlinx.coroutines.Job {
