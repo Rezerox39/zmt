@@ -19,25 +19,17 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: set up android sdk
+        uses: android-actions/setup-android@v3
+
       - name: set up gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: setup signing
-        if: github.event_name != 'pull_request'
-        run: |
-          echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore
-          printf 'storeFile=zmt.keystore\nstorePassword=%s\nkeyAlias=%s\nkeyPassword=%s\n' \
-            "${{ secrets.SIGNING_STORE_PASSWORD }}" \
-            "${{ secrets.SIGNING_KEY_ALIAS }}" \
-            "${{ secrets.SIGNING_KEY_PASSWORD }}" > keystore.properties
-          cat keystore.properties
-          ls -la zmt.keystore
-
       - name: lint
-        run: ./gradlew :app:lintRelease
+        run: ./gradlew :app:lintRelease --no-configuration-cache
 
       - name: run unit tests
-        run: ./gradlew testDebugUnitTest
+        run: ./gradlew testDebugUnitTest --no-configuration-cache
 
       - name: resolve version
         id: version
@@ -45,14 +37,35 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: echo "name=$(gh release view --json tagName --jq .tagName | sed 's/^v//')-ci-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
-      - name: clean and build signed release
+      - name: build unsigned release
+        run: ./gradlew clean assembleRelease -PversionOverride=${{ steps.version.outputs.name }} --no-configuration-cache
+
+      - name: sign APK
         if: github.event_name != 'pull_request'
         run: |
-          ./gradlew clean assembleRelease -PversionOverride=${{ steps.version.outputs.name }}
+          echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > /tmp/zmt.keystore
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
-          echo "Built APK: $apk"
+          echo "Unsigned APK: $apk"
           ls -la "$apk"
-          keytool -printcert -jarfile "$apk" 2>&1 | head -10
+          # Verify unsigned
+          keytool -printcert -jarfile "$apk" 2>&1 | head -3 || true
+          # Zipalign
+          zipalign -f 4 "$apk" /tmp/zmt-aligned.apk
+          # Sign with apksigner
+          apksigner sign \
+            --ks /tmp/zmt.keystore \
+            --ks-pass pass:${{ secrets.SIGNING_STORE_PASSWORD }} \
+            --key-pass pass:${{ secrets.SIGNING_KEY_PASSWORD }} \
+            --ks-key-alias ${{ secrets.SIGNING_KEY_ALIAS }} \
+            --v1-signing-enabled true \
+            --v2-signing-enabled true \
+            --v3-signing-enabled true \
+            /tmp/zmt-aligned.apk
+          # Verify signed
+          keytool -printcert -jarfile /tmp/zmt-aligned.apk 2>&1 | head -10
+          # Replace
+          cp /tmp/zmt-aligned.apk "$apk"
+          echo "Signed APK ready"
 
       - name: upload release apk
         uses: actions/upload-artifact@v7
