@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name" translatable="false">dmt</string>
+    <string name="app_name" translatable="false">zmt</string>
 
     <string name="tab_library">1:library</string>
     <string name="tab_albums">2:albums</string>
@@ -140,7 +140,7 @@
     <string name="stat_folders">@string/auto_folders</string>
     <string name="stat_empty">nothing played yet</string>
     <string name="about">about</string>
-    <string name="about_title">dmt · dear music, thanks</string>
+    <string name="about_title">zmt · dear music, thanks</string>
     <string name="about_body">a tui-inspired local music player.\nmusic helped a lot; this is the thank-you note.</string>
     <string name="credit">made by jyotiraditya panda</string>
     <string name="credit_url" translatable="false">https://github.com/imjyotiraditya</string>

@@ -27,7 +27,7 @@ fun signingValue(propertyKey: String, envKey: String): String? =
     keystoreProps?.getProperty(propertyKey) ?: System.getenv(envKey)
 
 base {
-    archivesName.set("dmt-$appVersionName")
+    archivesName.set("zmt-$appVersionName")
 }
 
 android {
@@ -50,7 +50,7 @@ android {
             if (storePath != null && rootProject.file(storePath).exists()) {
                 storeFile = rootProject.file(storePath)
                 storePassword = signingValue("storePassword", "SIGNING_STORE_PASSWORD")
-                keyAlias = signingValue("keyAlias", "SIGNING_KEY_ALIAS") ?: "dmt"
+                keyAlias = signingValue("keyAlias", "SIGNING_KEY_ALIAS") ?: "zmt"
                 keyPassword = signingValue("keyPassword", "SIGNING_KEY_PASSWORD")
             }
         }

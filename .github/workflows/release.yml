@@ -29,11 +29,11 @@ jobs:
         run: echo "name=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
 
       - name: decode keystore
-        run: echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > dmt.keystore
+        run: echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore
 
       - name: build signed release apk and aab
         env:
-          SIGNING_KEYSTORE_PATH: dmt.keystore
+          SIGNING_KEYSTORE_PATH: zmt.keystore
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
