@@ -9,7 +9,7 @@ import android.content.Intent
 import android.view.KeyEvent
 import android.widget.RemoteViews
 import dev.jyotiraditya.dmt.R
-import dev.jyotiraditya.dmt.presentation.MainActivity
+import dev.jyotiraditya.dmt.MainActivity
 
 class MiniPlayerWidget : AppWidgetProvider() {
 
