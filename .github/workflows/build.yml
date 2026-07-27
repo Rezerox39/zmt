@@ -24,7 +24,7 @@ jobs:
 
       - name: decode keystore
         if: github.event_name != 'pull_request'
-        run: echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore
+        run: echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > zmt.keystore && ls -la zmt.keystore
 
       - name: lint
         run: ./gradlew :app:lintRelease
@@ -41,20 +41,17 @@ jobs:
       - name: clean and build signed release
         if: github.event_name != 'pull_request'
         env:
-          SIGNING_KEYSTORE_PATH: zmt.keystore
+          SIGNING_KEYSTORE_PATH: ${{ github.workspace }}/zmt.keystore
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: |
+          ls -la ${{ github.workspace }}/zmt.keystore
           ./gradlew clean assembleRelease -PversionOverride=${{ steps.version.outputs.name }}
           apk=$(ls app/build/outputs/apk/release/*.apk | head -1)
           echo "Built APK: $apk"
           ls -la "$apk"
           keytool -printcert -jarfile "$apk" 2>&1 | head -10
-
-      - name: build unsigned (PR)
-        if: github.event_name == 'pull_request'
-        run: ./gradlew assembleRelease
 
       - name: upload release apk
         uses: actions/upload-artifact@v7
