@@ -166,7 +166,7 @@ class TelegramClient @Inject constructor() {
         return TelegramChannelInfo(
             id = result.id,
             title = result.title,
-            username = result.username,
+            username = username,
         )
     }
 
@@ -190,27 +190,22 @@ class TelegramClient @Inject constructor() {
             if (content is TdApi.MessageAudio) {
                 val audio = content.audio
                 val file = audio.audio
-                val thumbnail = content.albumCoverThumbnails?.firstOrNull()
                 TelegramAudioMessage(
                     messageId = msg.id,
-                    fileId = file.id,
-                    fileUniqueId = file.remote.uniqueId,
+                    fileId = file.id.toLong(),
+                    fileUniqueId = file.remote?.uniqueId ?: "",
                     title = audio.title.ifBlank { "unknown title" },
                     performer = audio.performer.ifBlank { "unknown artist" },
                     durationMs = audio.duration * 1000L,
-                    mimeType = file.mimeType ?: "audio/unknown",
-                    fileSize = file.expectedSize.toLong(),
-                    thumbnailFileId = thumbnail?.let { findFileId(it) },
+                    mimeType = audio.mimeType.ifBlank { "audio/unknown" },
+                    fileSize = file.expectedSize,
+                    thumbnailFileId = audio.albumCoverThumbnail?.file?.id?.toLong(),
                     date = msg.date.toLong(),
                 )
             } else {
                 null
             }
         } ?: emptyList()
-    }
-
-    private fun findFileId(photo: TdApi.Photo): Long? {
-        return photo.sizes.lastOrNull()?.photo?.id
     }
 
     suspend fun downloadFile(fileId: Long): TdApi.File {
@@ -221,7 +216,8 @@ class TelegramClient @Inject constructor() {
         return sendRequest(TdApi.GetFile(fileId.toInt()))
     }
 
-    private suspend fun <T : TdApi.Object> sendRequest(function: TdApi.Function<*>): T {
+    @Suppress("UNCHECKED_CAST")
+    private suspend fun <T : TdApi.Object> sendRequest(function: TdApi.Function<T>): T {
         val c = client ?: throw IllegalStateException("Telegram client not initialized")
         return withTimeout(REQUEST_TIMEOUT_MS) {
             suspendCancellableCoroutine { continuation ->
@@ -231,7 +227,6 @@ class TelegramClient @Inject constructor() {
                             Result.failure(Exception("TDLib error \${result.code}: \${result.message}"))
                         )
                     } else {
-                        @Suppress("UNCHECKED_CAST")
                         continuation.resume(result as T)
                     }
                 }
