@@ -178,6 +178,8 @@
     <string name="telegram_code_hint">verification code</string>
     <string name="telegram_code_sent">verification code sent to your phone</string>
     <string name="telegram_password_required">two-factor authentication enabled</string>
+    <string name="telegram_password_label">password</string>
+    <string name="telegram_password_hint">2FA password</string>
     <string name="telegram_channel_label">channel</string>
     <string name="telegram_channel_hint">channel @username or ID</string>
     <string name="telegram_logged_in">authenticated successfully</string>
