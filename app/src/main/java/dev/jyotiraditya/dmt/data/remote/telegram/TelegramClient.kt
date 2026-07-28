@@ -1,7 +1,6 @@
 package dev.jyotiraditya.dmt.data.remote.telegram
 
 import android.util.Log
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -13,13 +12,12 @@ import kotlinx.coroutines.withTimeout
 import org.drinkless.tdlib.Client
 import org.drinkless.tdlib.TdApi
 import java.io.File
-import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicLong
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.resume
 
 private const val TAG = "TelegramClient"
+private const val DEBUG_TAG = "TDLibDebug"
 private const val REQUEST_TIMEOUT_MS = 30_000L
 
 @Singleton
@@ -43,15 +41,19 @@ class TelegramClient @Inject constructor() {
     private val updateHandler = Client.ResultHandler { update ->
         when (update) {
             is TdApi.UpdateAuthorizationState -> {
+                val stateName = update.authorizationState::class.simpleName ?: "Unknown"
+                Log.d(DEBUG_TAG, "Auth state shifted to: $stateName")
                 onAuthorizationStateUpdated(update.authorizationState)
             }
             is TdApi.UpdateFile -> {
-                // File download updates
+                Log.d(DEBUG_TAG, "File update: ${update.file?.id}")
             }
             is TdApi.Error -> {
-                Log.e(TAG, "TDLib error: \${update.code} - \${update.message}")
+                Log.e(DEBUG_TAG, "TDLib error: ${update.code} - ${update.message}")
             }
-            else -> {}
+            else -> {
+                Log.d(DEBUG_TAG, "TDLib update: ${update::class.simpleName}")
+            }
         }
     }
 
@@ -77,18 +79,21 @@ class TelegramClient @Inject constructor() {
         }
 
         try {
-            Client.execute(TdApi.SetLogVerbosityLevel(0))
+            Client.execute(TdApi.SetLogVerbosityLevel(3))
+            Log.d(DEBUG_TAG, "TDLib verbosity set to 3")
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to set log verbosity: \${e.message}")
+            Log.w(TAG, "Failed to set log verbosity: ${e.message}")
         }
 
         client = Client.create(updateHandler, null, null)
         Log.i(TAG, "TDLib client created successfully")
+        Log.d(DEBUG_TAG, "Client instance: $client")
     }
 
     private fun onAuthorizationStateUpdated(authState: TdApi.AuthorizationState) {
         when (authState) {
             is TdApi.AuthorizationStateWaitTdlibParameters -> {
+                Log.d(DEBUG_TAG, "Setting TDLib parameters...")
                 val dbDir = File(databasePath, "tdb").absolutePath
                 val filesDir = File(databasePath, "tdf").absolutePath
                 File(dbDir).mkdirs()
@@ -112,50 +117,78 @@ class TelegramClient @Inject constructor() {
                 ), updateHandler)
             }
             is TdApi.AuthorizationStateWaitPhoneNumber -> {
+                Log.d(DEBUG_TAG, "Ready for phone number input")
                 authenticated = false
                 _authState.value = TelegramAuthState(step = TelegramAuthStep.NeedPhoneNumber)
             }
             is TdApi.AuthorizationStateWaitCode -> {
+                Log.d(DEBUG_TAG, "Ready for code input")
                 authenticated = false
                 _authState.value = _authState.value.copy(step = TelegramAuthStep.NeedCode)
             }
             is TdApi.AuthorizationStateWaitPassword -> {
+                Log.d(DEBUG_TAG, "Ready for password input")
                 authenticated = false
                 _authState.value = _authState.value.copy(step = TelegramAuthStep.NeedPassword)
             }
             is TdApi.AuthorizationStateReady -> {
+                Log.d(DEBUG_TAG, "Authorization successful!")
                 authenticated = true
                 _authState.value = TelegramAuthState(step = TelegramAuthStep.LoggedIn)
                 Log.i(TAG, "Telegram authorized successfully")
             }
             is TdApi.AuthorizationStateLoggingOut -> {
+                Log.d(DEBUG_TAG, "Logging out")
                 authenticated = false
                 Log.i(TAG, "Logging out")
             }
             is TdApi.AuthorizationStateClosed -> {
+                Log.d(DEBUG_TAG, "Client closed")
                 authenticated = false
                 Log.i(TAG, "TDLib client closed")
             }
-            else -> {}
+            is TdApi.AuthorizationStateWaitRegistration -> {
+                Log.d(DEBUG_TAG, "Need registration")
+                authenticated = false
+                _authState.value = TelegramAuthState(step = TelegramAuthStep.NeedCode)
+            }
+            else -> {
+                Log.d(DEBUG_TAG, "Unhandled auth state: ${authState::class.simpleName}")
+            }
         }
     }
 
+    private fun sanitizePhoneNumber(phoneNumber: String): String {
+        val cleaned = phoneNumber.replace(Regex("[\\s\\-()]+"), "")
+        return if (cleaned.startsWith("+")) cleaned else "+$cleaned"
+    }
+
     suspend fun requestPhoneNumber(phoneNumber: String) {
-        _authState.value = _authState.value.copy(phoneNumber = phoneNumber)
-        val c = client ?: return
+        val sanitized = sanitizePhoneNumber(phoneNumber)
+        Log.d(DEBUG_TAG, "Sending phone number: $sanitized")
+        _authState.value = _authState.value.copy(phoneNumber = sanitized)
+        val c = client
+        if (c == null) {
+            Log.e(DEBUG_TAG, "Client is null! Cannot send phone number.")
+            return
+        }
+        Log.d(DEBUG_TAG, "Client instance is alive: $c")
         c.send(TdApi.SetAuthenticationPhoneNumber(
-            phoneNumber,
+            sanitized,
             TdApi.PhoneNumberAuthenticationSettings(
                 false, false, false, false, false, null, null
             )
         ), updateHandler)
+        Log.d(DEBUG_TAG, "Phone number request sent to TDLib")
     }
 
     suspend fun submitCode(code: String) {
+        Log.d(DEBUG_TAG, "Submitting code: ${code.take(2)}**")
         client?.send(TdApi.CheckAuthenticationCode(code), updateHandler)
     }
 
     suspend fun submitPassword(password: String) {
+        Log.d(DEBUG_TAG, "Submitting password")
         client?.send(TdApi.CheckAuthenticationPassword(password), updateHandler)
     }
 
@@ -227,8 +260,9 @@ class TelegramClient @Inject constructor() {
             suspendCancellableCoroutine { continuation ->
                 c.send(function) { result ->
                     if (result is TdApi.Error) {
+                        Log.e(DEBUG_TAG, "Request failed: ${result.code} - ${result.message}")
                         continuation.resumeWith(
-                            Result.failure(Exception("TDLib error \${result.code}: \${result.message}"))
+                            Result.failure(Exception("TDLib error ${result.code}: ${result.message}"))
                         )
                     } else {
                         continuation.resume(result as T)

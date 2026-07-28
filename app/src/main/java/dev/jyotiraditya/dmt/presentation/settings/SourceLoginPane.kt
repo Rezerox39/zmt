@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -56,6 +57,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
     var showMissing by remember { mutableStateOf(false) }
 
     val authStep = state.telegramAuthStep
+    val isScanning = state.scanning
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
         Caption(stringResource(R.string.source_login_title, SourceMode.TELEGRAM.label))
@@ -77,9 +79,10 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     TuiKey(
-                        label = "[ ${stringResource(R.string.source_connect)} ]",
-                        bright = true,
+                        label = if (isScanning) "[ connecting... ]" else "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = !isScanning,
                         onClick = {
+                            if (isScanning) return@TuiKey
                             if (phoneNumber.isBlank()) {
                                 showMissing = true
                             } else {
@@ -88,6 +91,25 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                             }
                         },
                     )
+                }
+
+                if (isScanning) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            color = TuiAccent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.height(16.dp).width(16.dp),
+                        )
+                        Text(
+                            text = " connecting to telegram...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TuiDim,
+                        )
+                    }
                 }
             }
             authStep == "code" -> {
@@ -127,15 +149,15 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             }
             authStep == "password" -> {
                 Text(
-                    text = stringResource(R.string.telegram_password_required),
+                    text = "2FA password required",
                     style = MaterialTheme.typography.labelSmall,
                     color = TuiDim,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
-                    label = stringResource(R.string.source_pass_label),
+                    label = stringResource(R.string.telegram_password_label),
                     value = password,
-                    hint = stringResource(R.string.source_pass_hint),
+                    hint = stringResource(R.string.telegram_password_hint),
                     onValueChange = { password = it },
                     keyboardType = KeyboardType.Password,
                     mask = true,
@@ -155,23 +177,77 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                                 showMissing = true
                             } else {
                                 showMissing = false
-                                dispatch(DmtAction.TelegramSubmitPassword(password))
+                                dispatch(DmtAction.TelegramSubmitPassword(password.trim()))
                             }
                         },
                     )
                 }
             }
-            authStep == "logged_in" -> {
+            authStep == "channel" -> {
                 Text(
-                    text = stringResource(R.string.telegram_logged_in),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = TuiFg,
+                    text = "enter channel username or id",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiDim,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
-                    label = stringResource(R.string.telegram_channel_label),
+                    label = "channel",
                     value = channelInput,
-                    hint = stringResource(R.string.telegram_channel_hint),
+                    hint = "@channel or numeric id",
+                    onValueChange = { channelInput = it },
+                )
+
+                Row(modifier = Modifier.padding(top = 18.dp)) {
+                    TuiKey(
+                        label = "[ ${stringResource(R.string.source_login_cancel)} ]",
+                        onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    TuiKey(
+                        label = if (state.telegramSyncing) "[ syncing... ]" else "[ ${stringResource(R.string.source_connect)} ]",
+                        bright = !state.telegramSyncing,
+                        onClick = {
+                            if (state.telegramSyncing) return@TuiKey
+                            if (channelInput.isBlank()) {
+                                showMissing = true
+                            } else {
+                                showMissing = false
+                                dispatch(DmtAction.TelegramResolveChannel(channelInput.trim()))
+                            }
+                        },
+                    )
+                }
+
+                if (state.telegramSyncing) {
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 12.dp),
+                    ) {
+                        CircularProgressIndicator(
+                            color = TuiAccent,
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.height(16.dp).width(16.dp),
+                        )
+                        Text(
+                            text = " syncing channel...",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = TuiDim,
+                        )
+                    }
+                }
+            }
+            authStep == "logged_in" -> {
+                Text(
+                    text = "logged in!",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TuiAccent,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                LoginField(
+                    label = "channel",
+                    value = channelInput,
+                    hint = "@channel or numeric id",
                     onValueChange = { channelInput = it },
                 )
 
@@ -195,14 +271,23 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                     )
                 }
 
-                if (state.telegramSyncing) {
-                    Text(
-                        text = stringResource(R.string.telegram_syncing),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = TuiAccent,
-                        modifier = Modifier.padding(top = 10.dp),
-                    )
-                }
+                Spacer(modifier = Modifier.width(8.dp))
+                TuiKey(
+                    label = "[ logout ]",
+                    onClick = { dispatch(DmtAction.TelegramLogout) },
+                )
+            }
+            authStep.startsWith("error") -> {
+                Text(
+                    text = authStep.removePrefix("error: "),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiAccent,
+                    modifier = Modifier.padding(bottom = 8.dp),
+                )
+                TuiKey(
+                    label = "[ try again ]",
+                    onClick = { dispatch(DmtAction.Show(DmtView.SOURCES)) },
+                )
             }
         }
 

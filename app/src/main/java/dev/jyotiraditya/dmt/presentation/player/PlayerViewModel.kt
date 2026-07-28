@@ -183,29 +183,37 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.Query -> {
                 reduce { it.copy(query = intent.value) }
                 val query = intent.value
-                viewModelScope.launch {
-                    if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                    viewModelScope.launch {
                         if (query.isBlank()) {
-                            reduce {
-                                it.copy(
-                                    tracks = emptyList(),
-                                    filtered = emptyList(),
-                                )
-                            }
+                            reduce { it.copy(tracks = emptyList(), filtered = emptyList()) }
                             return@launch
                         }
                         reduce { it.copy(scanning = true) }
-                        val results = youtubeRepository.search(query)
-                        if (currentState.query == query) {
-                            reduce {
-                                it.copy(
-                                    scanning = false,
-                                    tracks = results,
-                                    filtered = results,
-                                )
+                        try {
+                            val results = youtubeRepository.search(query)
+                            if (currentState.query == query) {
+                                reduce {
+                                    it.copy(
+                                        scanning = false,
+                                        tracks = results,
+                                        filtered = results,
+                                    )
+                                }
+                            }
+                        } catch (e: Exception) {
+                            if (currentState.query == query) {
+                                reduce {
+                                    it.copy(
+                                        scanning = false,
+                                        error = "YouTube search failed: ${e.message}",
+                                    )
+                                }
                             }
                         }
-                    } else {
+                    }
+                } else {
+                    viewModelScope.launch {
                         val tracks = currentState.tracks
                         val albums = currentState.albums
                         val artists = currentState.artists
@@ -374,18 +382,23 @@ class PlayerViewModel @Inject constructor(
                     reduce { it.copy(error = null, scanning = true) }
                     val initErr = telegramLogin.initialize()
                     if (initErr != null) {
-                        reduce { it.copy(error = initErr, scanning = false) }
+                        android.util.Log.e("TDLibDebug", "Init failed: $initErr")
+                        reduce { it.copy(error = "Init failed: $initErr", scanning = false) }
                         return@launch
                     }
+                    android.util.Log.d("TDLibDebug", "Init OK, sending phone: ${intent.phoneNumber.take(4)}****")
                     try {
                         val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
                         if (result.isFailure) {
                             val errMsg = result.exceptionOrNull()?.message ?: "Failed to send phone number"
+                            android.util.Log.e("TDLibDebug", "Send phone failed: $errMsg")
                             reduce { it.copy(error = "Error: $errMsg", scanning = false) }
                         } else {
+                            android.util.Log.d("TDLibDebug", "Send phone OK, waiting for auth state...")
                             reduce { it.copy(scanning = false) }
                         }
                     } catch (e: Exception) {
+                        android.util.Log.e("TDLibDebug", "Send phone exception: ${e.message}", e)
                         reduce { it.copy(error = "Connection error: ${e.message}", scanning = false) }
                     }
                 }
