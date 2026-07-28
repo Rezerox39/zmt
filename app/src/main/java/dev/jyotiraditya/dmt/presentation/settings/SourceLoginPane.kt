@@ -35,13 +35,11 @@ import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun SourceLoginPane(mode: SourceMode, state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     when (mode) {
         SourceMode.TELEGRAM -> TelegramLoginPane(state, dispatch)
         else -> JellyfinLoginPane(mode, dispatch)
@@ -50,6 +48,7 @@ fun SourceLoginPane(mode: SourceMode, state: DmtState, dispatch: (DmtAction) -> 
 
 @Composable
 private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     var phoneNumber by remember { mutableStateOf("") }
     var code by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -100,14 +99,14 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                         modifier = Modifier.padding(start = 12.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = TuiAccent,
+                            color = p.accent,
                             strokeWidth = 2.dp,
                             modifier = Modifier.height(16.dp).width(16.dp),
                         )
                         Text(
                             text = " connecting to telegram...",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TuiDim,
+                            color = p.dim,
                         )
                     }
                 }
@@ -116,7 +115,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = stringResource(R.string.telegram_code_sent),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
@@ -151,7 +150,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = "2FA password required",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
@@ -187,7 +186,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = "enter channel username or id",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
@@ -225,14 +224,14 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                         modifier = Modifier.padding(start = 12.dp),
                     ) {
                         CircularProgressIndicator(
-                            color = TuiAccent,
+                            color = p.accent,
                             strokeWidth = 2.dp,
                             modifier = Modifier.height(16.dp).width(16.dp),
                         )
                         Text(
                             text = " syncing channel...",
                             style = MaterialTheme.typography.labelSmall,
-                            color = TuiDim,
+                            color = p.dim,
                         )
                     }
                 }
@@ -241,7 +240,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = "logged in!",
                     style = MaterialTheme.typography.labelMedium,
-                    color = TuiAccent,
+                    color = p.accent,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 LoginField(
@@ -281,7 +280,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = authStep.removePrefix("error: "),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiAccent,
+                    color = p.accent,
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
                 TuiKey(
@@ -295,7 +294,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Text(
                 text = stringResource(R.string.source_login_missing),
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiAccent,
+                color = p.accent,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -304,7 +303,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Text(
                 text = error,
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiAccent,
+                color = p.accent,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -313,6 +312,7 @@ private fun TelegramLoginPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
 @Composable
 private fun JellyfinLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     var url by remember { mutableStateOf("") }
     var username by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
@@ -370,7 +370,7 @@ private fun JellyfinLoginPane(mode: SourceMode, dispatch: (DmtAction) -> Unit) {
             Text(
                 text = stringResource(R.string.source_login_missing),
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiAccent,
+                color = p.accent,
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
@@ -386,6 +386,7 @@ private fun LoginField(
     keyboardType: KeyboardType = KeyboardType.Text,
     mask: Boolean = false,
 ) {
+    val p = LocalTuiColors.current
     Column(modifier = Modifier.padding(bottom = 6.dp)) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -396,22 +397,22 @@ private fun LoginField(
             Text(
                 text = label.padEnd(6),
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiDim,
+                color = p.dim,
             )
             Text(
                 text = " > ",
                 style = MaterialTheme.typography.bodyLarge,
-                color = TuiAccent,
+                color = p.accent,
             )
             BasicTextField(
                 value = value,
                 onValueChange = onValueChange,
                 singleLine = true,
                 textStyle = MaterialTheme.typography.bodyLarge.copy(
-                    color = TuiFg,
+                    color = p.fg,
                     fontFeatureSettings = if (mask) "calt off" else null,
                 ),
-                cursorBrush = SolidColor(TuiAccent),
+                cursorBrush = SolidColor(p.accent),
                 keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
                 visualTransformation = if (mask) {
                     PasswordVisualTransformation('*')
@@ -424,13 +425,13 @@ private fun LoginField(
                         Text(
                             text = hint,
                             style = MaterialTheme.typography.bodyMedium,
-                            color = TuiDim.copy(alpha = 0.55f),
+                            color = p.dim.copy(alpha = 0.55f),
                         )
                     }
                     inner()
                 },
             )
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

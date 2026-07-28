@@ -74,10 +74,7 @@ import dev.jyotiraditya.dmt.presentation.settings.SettingsPane
 import dev.jyotiraditya.dmt.presentation.settings.SourceLoginPane
 import dev.jyotiraditya.dmt.presentation.settings.SourcesPane
 import dev.jyotiraditya.dmt.presentation.settings.StatsPane
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBg
-import dev.jyotiraditya.dmt.ui.theme.TuiBright
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -85,6 +82,8 @@ fun DmtScreen(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     var showQueueSheet by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
     var miniAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -134,7 +133,7 @@ fun DmtScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(TuiBg),
+            .background(p.bg),
     ) {
         if (landscape) {
             FitScaled(fitScaleFor(designHeightDp = 400f, minScale = 0.85f)) {
@@ -239,6 +238,8 @@ private fun MiniPlayerAnchor(
     state: DmtState,
     onAnchor: (Rect) -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -256,6 +257,8 @@ private fun PaneHost(
     dispatch: (DmtAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
+    val p = LocalTuiColors.current
     Column(modifier = modifier) {
         ScrollMemory(state.view.name) {
             when {
@@ -278,6 +281,8 @@ private fun PaneHost(
 
 @Composable
 private fun SideRail(state: DmtState, dispatch: (DmtAction) -> Unit) {
+
+    val p = LocalTuiColors.current
     Column(
         modifier = Modifier
             .width(IntrinsicSize.Max)
@@ -290,15 +295,15 @@ private fun SideRail(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Box(
                 modifier = Modifier
                     .size(9.dp)
-                    .background(TuiAccent),
+                    .background(p.accent),
             )
             Text(
                 text = " " + stringResource(R.string.app_name),
                 style = MaterialTheme.typography.titleMedium,
-                color = TuiBright,
+                color = p.bright,
             )
         }
-        HorizontalDivider(color = TuiLine, modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(color = p.line, modifier = Modifier.padding(top = 8.dp))
 
         Spacer(modifier = Modifier.height(12.dp))
         libraryTabs(state).forEachIndexed { index, (label, view) ->
@@ -326,6 +331,8 @@ private fun SourcesTab(
     dispatch: (DmtAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
+    val p = LocalTuiColors.current
     val active = state.view == DmtView.SOURCES || state.view == DmtView.SOURCE_LOGIN
     TuiTab(
         label = stringResource(R.string.tab_sources),
@@ -342,6 +349,8 @@ private fun ConfigTab(
     dispatch: (DmtAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
+    val p = LocalTuiColors.current
     val active = state.view == DmtView.SETTINGS ||
             state.view == DmtView.STATS ||
             state.view == DmtView.PERMISSIONS
@@ -356,6 +365,8 @@ private fun ConfigTab(
 
 @Composable
 private fun Titlebar(state: DmtState, dispatch: (DmtAction) -> Unit) {
+
+    val p = LocalTuiColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -365,14 +376,14 @@ private fun Titlebar(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Box(
             modifier = Modifier
                 .size(9.dp)
-                .background(TuiAccent),
+                .background(p.accent),
         )
         Text(
             text = " " + stringResource(R.string.app_name) + " ",
             style = MaterialTheme.typography.titleMedium,
-            color = TuiBright,
+            color = p.bright,
         )
-        HorizontalDivider(color = TuiLine, modifier = Modifier.weight(1f))
+        HorizontalDivider(color = p.line, modifier = Modifier.weight(1f))
         Spacer(modifier = Modifier.width(10.dp))
         SourcesTab(state, dispatch)
         Spacer(modifier = Modifier.width(8.dp))
@@ -394,6 +405,8 @@ private fun libraryTabs(state: DmtState): List<Pair<String, DmtView>> =
 
 @Composable
 private fun TabsRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
+
+    val p = LocalTuiColors.current
     val tabs = libraryTabs(state)
     val requester = remember { BringIntoViewRequester() }
     LaunchedEffect(state.view) { requester.bringIntoView() }

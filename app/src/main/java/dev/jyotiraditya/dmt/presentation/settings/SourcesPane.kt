@@ -25,12 +25,7 @@ import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBright
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private data class SourceDescriptor(
     val mode: SourceMode,
@@ -96,6 +91,7 @@ private val SOURCE_REGISTRY = listOf(
 
 @Composable
 fun SourcesPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val settings = state.settings
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
@@ -132,7 +128,7 @@ fun SourcesPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = stringResource(R.string.sources_hint),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             modifier = Modifier.padding(top = 12.dp),
         )
     }
@@ -148,6 +144,7 @@ private fun SourceRow(
     onLogout: (() -> Unit)?,
     onGrant: (() -> Unit)?,
 ) {
+    val p = LocalTuiColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -162,7 +159,7 @@ private fun SourceRow(
             Text(
                 text = if (active) "(*) " else "( ) ",
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (active) TuiAccent else TuiFaint,
+                color = if (active) p.accent else p.faint,
             )
             Column(
                 modifier = Modifier
@@ -174,12 +171,12 @@ private fun SourceRow(
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
                     ),
-                    color = if (active) TuiBright else TuiFg,
+                    color = if (active) p.bright else p.fg,
                 )
                 Text(
                     text = subtitle,
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 2.dp),
@@ -204,6 +201,6 @@ private fun SourceRow(
                 )
             }
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

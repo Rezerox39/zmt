@@ -38,16 +38,12 @@ import dev.jyotiraditya.dmt.core.common.Caption
 import dev.jyotiraditya.dmt.core.common.TuiKey
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
 import dev.jyotiraditya.dmt.util.allFilesAccess
 import dev.jyotiraditya.dmt.util.allFilesAccessIntent
 import dev.jyotiraditya.dmt.util.audioPermission
 import dev.jyotiraditya.dmt.util.localNetworkPermission
 import dev.jyotiraditya.dmt.util.notificationPermission
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private data class PermissionEntry(
     val permission: String,
@@ -90,6 +86,7 @@ private val PERMISSION_REGISTRY: List<PermissionEntry> =
 
 @Composable
 fun PermissionsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val context = LocalContext.current
     var refresh by remember { mutableIntStateOf(0) }
 
@@ -190,7 +187,7 @@ fun PermissionsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = stringResource(R.string.perms_hint),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             modifier = Modifier.padding(top = 12.dp),
         )
     }
@@ -205,6 +202,7 @@ private fun PermissionRow(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -215,7 +213,7 @@ private fun PermissionRow(
             Text(
                 text = if (granted) "[x] " else "[ ] ",
                 style = MaterialTheme.typography.bodyLarge,
-                color = if (granted) TuiAccent else TuiFaint,
+                color = if (granted) p.accent else p.faint,
                 modifier = Modifier.align(Alignment.Top),
             )
             Column(
@@ -226,18 +224,18 @@ private fun PermissionRow(
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyLarge,
-                    color = TuiFg,
+                    color = p.fg,
                 )
                 Text(
                     text = why,
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     modifier = Modifier.padding(top = 2.dp),
                 )
                 Text(
                     text = whenOff,
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiFaint,
+                    color = p.faint,
                     modifier = Modifier.padding(top = 2.dp),
                 )
             }
@@ -246,6 +244,6 @@ private fun PermissionRow(
                 onClick = onAction,
             )
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

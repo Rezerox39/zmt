@@ -37,13 +37,12 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.SheetHeader
 import dev.jyotiraditya.dmt.presentation.player.TuiSheet
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
 import dev.jyotiraditya.dmt.util.asTime
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun PlaylistsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val playlist: Playlist? = state.playlists.find { it.name == state.openPlaylist }
 
     ScrollMemory(state.openPlaylist ?: "list") {
@@ -57,6 +56,7 @@ fun PlaylistsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
 @Composable
 private fun PlaylistList(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     var showCreate by remember { mutableStateOf(false) }
     if (showCreate) {
         CreateSheet(
@@ -69,25 +69,25 @@ private fun PlaylistList(state: DmtState, dispatch: (DmtAction) -> Unit) {
     }
 
     var sheetPlaylist by remember { mutableStateOf<Playlist?>(null) }
-    sheetPlaylist?.let { p ->
+    sheetPlaylist?.let { playlist ->
         TuiSheet(onDismiss = { sheetPlaylist = null }) {
-            SheetHeader(title = p.name.lowercase())
+            SheetHeader(title = playlist.name.lowercase())
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.padding(vertical = 8.dp),
             ) {
-                if (p.tracks.isNotEmpty()) {
+                if (playlist.tracks.isNotEmpty()) {
                     TuiKey(label = "[ ${stringResource(R.string.action_play)} ]") {
-                        dispatch(DmtAction.PlayAt(p.tracks, 0))
+                        dispatch(DmtAction.PlayAt(playlist.tracks, 0))
                         sheetPlaylist = null
                     }
                     TuiKey(label = "[ ${stringResource(R.string.action_queue)} ]") {
-                        dispatch(DmtAction.Enqueue(p.tracks, p.name))
+                        dispatch(DmtAction.Enqueue(playlist.tracks, playlist.name))
                         sheetPlaylist = null
                     }
                 }
                 TuiKey(label = "[ ${stringResource(R.string.action_delete)} ]") {
-                    dispatch(DmtAction.DeletePlaylist(p.name))
+                    dispatch(DmtAction.DeletePlaylist(playlist.name))
                     sheetPlaylist = null
                 }
             }
@@ -125,19 +125,19 @@ private fun PlaylistList(state: DmtState, dispatch: (DmtAction) -> Unit) {
                     )
                 }
             }
-            itemsIndexed(state.filteredPlaylists, key = { _, p -> p.name }) { index, p ->
+            itemsIndexed(state.filteredPlaylists, key = { _, pl -> pl.name }) { index, pl ->
                 ListRow(
                     index = index,
-                    line1 = p.name,
-                    line2 = "${p.tracks.size} trk",
+                    line1 = pl.name,
+                    line2 = "${pl.tracks.size} trk",
                     current = false,
-                    onClick = { dispatch(DmtAction.OpenPlaylist(p.name)) },
-                    onLongClick = { sheetPlaylist = p },
+                    onClick = { dispatch(DmtAction.OpenPlaylist(pl.name)) },
+                    onLongClick = { sheetPlaylist = pl },
                     trailing = {
                         Text(
                             text = stringResource(R.string.open_album),
                             style = MaterialTheme.typography.labelMedium,
-                            color = TuiFaint,
+                            color = p.faint,
                             modifier = Modifier.padding(horizontal = 8.dp),
                         )
                     },
@@ -153,6 +153,7 @@ private fun PlaylistDetail(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val p = LocalTuiColors.current
     var showPicker by remember { mutableStateOf(false) }
     if (showPicker) {
         PickerSheet(
@@ -188,7 +189,7 @@ private fun PlaylistDetail(
                     Text(
                         text = stringResource(R.string.clear),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TuiFaint,
+                        color = p.faint,
                         modifier = Modifier
                             .tuiClickable {
                                 dispatch(
@@ -205,6 +206,7 @@ private fun PlaylistDetail(
 
 @Composable
 private fun CreateSheet(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
+    val p = LocalTuiColors.current
     var name by remember { mutableStateOf("") }
 
     TuiSheet(onDismiss = onDismiss) {
@@ -216,21 +218,21 @@ private fun CreateSheet(onCreate: (String) -> Unit, onDismiss: () -> Unit) {
             Text(
                 text = " > ",
                 style = MaterialTheme.typography.bodyLarge,
-                color = TuiAccent,
+                color = p.accent,
             )
             BasicTextField(
                 value = name,
                 onValueChange = { name = it },
                 singleLine = true,
-                textStyle = MaterialTheme.typography.bodyLarge.copy(color = TuiFg),
-                cursorBrush = SolidColor(TuiAccent),
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.fg),
+                cursorBrush = SolidColor(p.accent),
                 modifier = Modifier.weight(1f),
                 decorationBox = { inner ->
                     if (name.isEmpty()) {
                         Text(
                             text = stringResource(R.string.playlist_name_hint),
                             style = MaterialTheme.typography.bodyLarge,
-                            color = TuiFaint,
+                            color = p.faint,
                         )
                     }
                     inner()
@@ -250,6 +252,7 @@ private fun PickerSheet(
     dispatch: (DmtAction) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val inPlaylist = playlist.tracks.map { it.path }.toSet()
     val candidates = state.tracks.filter { it.path.isNotEmpty() && it.path !in inPlaylist }
 

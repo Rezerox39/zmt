@@ -26,14 +26,11 @@ import dev.jyotiraditya.dmt.domain.model.Track
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBright
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun StatsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val top = state.stats.counts.entries
         .sortedByDescending { it.value }
         .take(10)
@@ -79,7 +76,7 @@ fun StatsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 Text(
                     text = stringResource(R.string.stat_empty),
                     style = MaterialTheme.typography.bodyMedium,
-                    color = TuiFaint,
+                    color = p.faint,
                 )
             }
         }
@@ -97,6 +94,7 @@ fun StatsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
 @Composable
 private fun StatRow(label: String, value: String) {
+    val p = LocalTuiColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -106,12 +104,12 @@ private fun StatRow(label: String, value: String) {
         Text(
             text = label,
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiFg,
+            color = p.fg,
         )
         Text(
             text = ".".repeat(200),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             maxLines = 1,
             softWrap = false,
             overflow = TextOverflow.Clip,
@@ -122,7 +120,7 @@ private fun StatRow(label: String, value: String) {
         Text(
             text = value,
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiBright,
+            color = p.bright,
         )
     }
 }
@@ -135,6 +133,7 @@ private fun TopTrackRow(
     fraction: Float,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -149,7 +148,7 @@ private fun TopTrackRow(
             Text(
                 text = "%02d  %s".format(index + 1, track.title),
                 style = MaterialTheme.typography.bodyMedium,
-                color = TuiFg,
+                color = p.fg,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
@@ -159,15 +158,15 @@ private fun TopTrackRow(
             Text(
                 text = "$count",
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiDim,
+                color = p.dim,
             )
         }
         val cols = 28
         val filled = (fraction.coerceIn(0f, 1f) * cols).toInt().coerceAtLeast(1)
         Text(
             text = buildAnnotatedString {
-                withStyle(SpanStyle(color = TuiAccent)) { append("█".repeat(filled)) }
-                withStyle(SpanStyle(color = TuiFaint)) { append("░".repeat(cols - filled)) }
+                withStyle(SpanStyle(color = p.accent)) { append("█".repeat(filled)) }
+                withStyle(SpanStyle(color = p.faint)) { append("░".repeat(cols - filled)) }
             },
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,

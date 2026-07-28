@@ -64,13 +64,7 @@ import dev.jyotiraditya.dmt.core.common.isCompactWindow
 import dev.jyotiraditya.dmt.core.common.isLandscapeWindow
 import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.core.common.windowDpSize
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBg
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
-import dev.jyotiraditya.dmt.ui.theme.TuiSurface
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 import dev.jyotiraditya.dmt.util.asTime
 import kotlin.math.abs
 
@@ -83,6 +77,8 @@ fun ExpandedPlayer(
     onInfo: () -> Unit,
     onQueue: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     val windowSize = windowDpSize()
     val landscape = isLandscapeWindow()
     var showLyrics by rememberSaveable { mutableStateOf(false) }
@@ -147,6 +143,8 @@ private fun PortraitPlayer(
     onToggleLyrics: () -> Unit,
     compact: Boolean = false,
 ) {
+
+    val p = LocalTuiColors.current
     Column(modifier = Modifier.fillMaxSize()) {
         PlayerHeader(
             dispatch = dispatch,
@@ -193,6 +191,8 @@ private fun LandscapePlayer(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     Row(modifier = Modifier.fillMaxSize()) {
         PlayerRail(
             dispatch = dispatch,
@@ -241,6 +241,8 @@ private fun PlayerRail(
     dispatch: (DmtAction) -> Unit,
     onInfo: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     Box(
         modifier = Modifier
             .fillMaxHeight()
@@ -258,7 +260,7 @@ private fun PlayerRail(
         Text(
             text = stringResource(R.string.now_playing).replace(' ', '\n'),
             style = MaterialTheme.typography.labelMedium,
-            color = TuiDim,
+            color = p.dim,
             textAlign = TextAlign.Center,
             modifier = Modifier
                 .fillMaxWidth()
@@ -282,6 +284,8 @@ private fun ControlsBlock(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     TrackMeta(state)
     SeekRow(state, dispatch)
     TransportRow(state, dispatch)
@@ -304,6 +308,8 @@ private fun PlayerHeader(
     dispatch: (DmtAction) -> Unit,
     onInfo: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -318,7 +324,7 @@ private fun PlayerHeader(
         Text(
             text = stringResource(R.string.now_playing),
             style = MaterialTheme.typography.labelMedium,
-            color = TuiDim,
+            color = p.dim,
             modifier = Modifier.align(Alignment.Center),
         )
         Box(modifier = Modifier.align(Alignment.CenterEnd)) {
@@ -337,6 +343,8 @@ private fun ArtSlot(
     showLyrics: Boolean,
     modifier: Modifier = Modifier,
 ) {
+
+    val p = LocalTuiColors.current
     val lyrics = state.lyrics
     if (showLyrics && lyrics != null) {
         val aspect = state.cover?.let { it.width.toFloat() / it.height } ?: 1f
@@ -361,6 +369,8 @@ private fun ArtSlot(
 
 @Composable
 private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
+
+    val p = LocalTuiColors.current
     val rawArt = state.artRaw
 
     TuiPanel(modifier = modifier) {
@@ -396,7 +406,7 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
                     Text(
                         text = stringResource(R.string.no_cover),
                         style = MaterialTheme.typography.labelMedium,
-                        color = TuiFaint,
+                        color = p.faint,
                     )
                 }
             }
@@ -406,6 +416,8 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
 
 @Composable
 private fun TrackMeta(state: DmtState) {
+
+    val p = LocalTuiColors.current
     CursorTitle(
         text = state.title,
         style = MaterialTheme.typography.titleLarge,
@@ -417,7 +429,7 @@ private fun TrackMeta(state: DmtState) {
             .joinToString(" · ")
             .lowercase(),
         style = MaterialTheme.typography.bodyMedium,
-        color = TuiDim,
+        color = p.dim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.padding(top = 3.dp),
@@ -463,6 +475,8 @@ private fun TrackMeta(state: DmtState) {
 
 @Composable
 private fun SeekRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
+
+    val p = LocalTuiColors.current
     var scrub by remember { mutableStateOf<Float?>(null) }
     var seekPending by remember { mutableStateOf(false) }
     LaunchedEffect(state.positionMs) {
@@ -497,7 +511,7 @@ private fun SeekRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = shownPosition.asTime(),
             style = MaterialTheme.typography.labelSmall,
-            color = if (scrub != null) TuiAccent else TuiDim,
+            color = if (scrub != null) p.accent else p.dim,
         )
         ThinSlider(
             fraction = scrub ?: playFraction,
@@ -516,13 +530,15 @@ private fun SeekRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = state.durationMs.asTime(),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiDim,
+            color = p.dim,
         )
     }
 }
 
 @Composable
 private fun TransportRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
+
+    val p = LocalTuiColors.current
     Row(
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -560,6 +576,8 @@ private fun StatusRow(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
+
+    val p = LocalTuiColors.current
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -633,27 +651,29 @@ private fun StatusRow(
 
 @Composable
 private fun QueueFooter(state: DmtState, onQueue: () -> Unit) {
+
+    val p = LocalTuiColors.current
     val next = state.queue.getOrNull(state.queueIndex + 1)
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .border(1.dp, TuiLine)
-            .background(TuiSurface.copy(alpha = 0.4f))
+            .border(1.dp, p.line)
+            .background(p.surface.copy(alpha = 0.4f))
             .tuiClickable(onQueue)
             .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {
         Text(
             text = stringResource(R.string.queue_key, state.queueIndex + 1, state.queue.size),
             style = MaterialTheme.typography.labelMedium,
-            color = TuiFg,
+            color = p.fg,
         )
         Spacer(modifier = Modifier.width(10.dp))
         Text(
             text = next?.let { stringResource(R.string.next_up, it).lowercase() }
                 ?: stringResource(R.string.end_of_queue),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
             modifier = Modifier.weight(1f),

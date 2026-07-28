@@ -16,8 +16,7 @@ import androidx.compose.ui.unit.dp
 import dev.jyotiraditya.dmt.core.common.CursorTitle
 import dev.jyotiraditya.dmt.core.common.Hairline
 import dev.jyotiraditya.dmt.core.common.TuiKey
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 import dev.jyotiraditya.dmt.util.asTime
 
 @Composable
@@ -25,6 +24,7 @@ fun MiniPlayer(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val fraction =
         if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f
 
@@ -54,7 +54,7 @@ fun MiniPlayer(
                 Text(
                     text = "${state.artist} · $position/$duration".lowercase(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -62,7 +62,7 @@ fun MiniPlayer(
             Text(
                 text = "^",
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiFaint,
+                color = p.faint,
                 modifier = Modifier.padding(end = 10.dp),
             )
             TuiKey(if (state.isPlaying) "||" else "|>") { dispatch(DmtAction.TogglePlay) }

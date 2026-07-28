@@ -31,8 +31,8 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.SheetHeader
 import dev.jyotiraditya.dmt.presentation.player.TuiSheet
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
 import dev.jyotiraditya.dmt.util.asTime
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private class GroupSpec<T>(
     val items: List<T>,
@@ -50,6 +50,7 @@ private class GroupSpec<T>(
 
 @Composable
 fun AlbumsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     GroupPane(
         spec = GroupSpec(
             items = state.albums,
@@ -71,6 +72,7 @@ fun AlbumsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
 @Composable
 fun ArtistsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     GroupPane(
         spec = GroupSpec(
             items = state.artists,
@@ -92,6 +94,7 @@ fun ArtistsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
 @Composable
 fun FoldersPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     GroupPane(
         spec = GroupSpec(
             items = state.folders,
@@ -117,6 +120,7 @@ private fun <T> GroupPane(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val openItem: T? = spec.items.find { spec.key(it) == spec.openKey }
 
     ScrollMemory(spec.openKey ?: "list") {
@@ -134,6 +138,7 @@ private fun <T> GroupList(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val p = LocalTuiColors.current
     if (spec.items.isEmpty()) {
         Caption(stringResource(spec.emptyText))
         return
@@ -186,7 +191,7 @@ private fun <T> GroupList(
                         Text(
                             text = stringResource(R.string.open_album),
                             style = MaterialTheme.typography.labelMedium,
-                            color = TuiFaint,
+                            color = p.faint,
                             modifier = Modifier.padding(horizontal = 8.dp),
                         )
                     },
@@ -203,6 +208,7 @@ private fun <T> GroupDetail(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val tracks = spec.tracks(item)
     LazyColumn {
         item {

@@ -24,19 +24,15 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import dev.jyotiraditya.dmt.R
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBg
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun Caption(text: String) {
+    val p = LocalTuiColors.current
     Text(
         text = text,
         style = MaterialTheme.typography.labelMedium,
-        color = TuiDim,
+        color = p.dim,
         modifier = Modifier.padding(vertical = 10.dp),
     )
 }
@@ -50,6 +46,7 @@ fun SearchRow(
     sort: String? = null,
     onSort: (() -> Unit)? = null,
 ) {
+    val p = LocalTuiColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -59,21 +56,21 @@ fun SearchRow(
         Text(
             text = "/ ",
             style = MaterialTheme.typography.bodyLarge,
-            color = TuiAccent,
+            color = p.accent,
         )
         BasicTextField(
             value = query,
             onValueChange = onQuery,
             singleLine = true,
-            textStyle = MaterialTheme.typography.bodyLarge.copy(color = TuiFg),
-            cursorBrush = SolidColor(TuiAccent),
+            textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.fg),
+            cursorBrush = SolidColor(p.accent),
             modifier = Modifier.weight(1f),
             decorationBox = { inner ->
                 if (query.isEmpty()) {
                     Text(
                         text = hint,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = TuiDim,
+                        color = p.dim,
                     )
                 }
                 inner()
@@ -83,12 +80,12 @@ fun SearchRow(
             Text(
                 text = "$shown",
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiDim,
+                color = p.dim,
             )
             Text(
                 text = stringResource(R.string.clear),
                 style = MaterialTheme.typography.labelLarge,
-                color = TuiFg,
+                color = p.fg,
                 modifier = Modifier
                     .tuiClickable { onQuery("") }
                     .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -98,7 +95,7 @@ fun SearchRow(
             Text(
                 text = "[$sort]",
                 style = MaterialTheme.typography.labelLarge,
-                color = TuiDim,
+                color = p.dim,
                 modifier = Modifier
                     .tuiClickable(onSort)
                     .padding(horizontal = 8.dp, vertical = 6.dp),
@@ -118,6 +115,7 @@ fun ListRow(
     onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
+    val p = LocalTuiColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -132,18 +130,18 @@ fun ListRow(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .background(if (current) TuiFg else Color.Transparent)
+                .background(if (current) p.fg else Color.Transparent)
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
             Text(
                 text = if (current) ">" else " ",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = TuiBg,
+                color = p.bg,
             )
             Text(
                 text = (index + 1).toString().padStart(3, '0'),
                 style = MaterialTheme.typography.labelSmall,
-                color = if (current) TuiBg.copy(alpha = 0.55f) else TuiFaint,
+                color = if (current) p.bg.copy(alpha = 0.55f) else p.faint,
                 modifier = Modifier.padding(start = 4.dp, end = 10.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
@@ -152,7 +150,7 @@ fun ListRow(
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
                     ),
-                    color = if (current) TuiBg else TuiFg,
+                    color = if (current) p.bg else p.fg,
                     maxLines = 1,
                     modifier = if (current) {
                         Modifier.basicMarquee(iterations = Int.MAX_VALUE)
@@ -164,7 +162,7 @@ fun ListRow(
                     Text(
                         text = line2,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (current) TuiBg.copy(alpha = 0.7f) else TuiDim,
+                        color = if (current) p.bg.copy(alpha = 0.7f) else p.dim,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -172,7 +170,7 @@ fun ListRow(
             }
             trailing?.invoke()
         }
-        HorizontalDivider(color = if (current) Color.Transparent else TuiLine)
+        HorizontalDivider(color = if (current) Color.Transparent else p.line)
     }
 }
 
@@ -183,6 +181,7 @@ fun SubdirHeader(
     onBack: () -> Unit,
     action: (@Composable () -> Unit)? = null,
 ) {
+    val p = LocalTuiColors.current
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -191,7 +190,7 @@ fun SubdirHeader(
             Text(
                 text = "[${stringResource(R.string.back)}]",
                 style = MaterialTheme.typography.labelLarge,
-                color = TuiFg,
+                color = p.fg,
                 modifier = Modifier
                     .tuiClickable(onBack)
                     .padding(vertical = 8.dp)
@@ -204,7 +203,7 @@ fun SubdirHeader(
             Text(
                 text = title,
                 style = MaterialTheme.typography.bodyLarge,
-                color = TuiFg,
+                color = p.fg,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
@@ -213,21 +212,22 @@ fun SubdirHeader(
                 Text(
                     text = " · $meta",
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = p.dim,
                     maxLines = 1,
                 )
             }
         }
-        HorizontalDivider(color = TuiLine, modifier = Modifier.padding(top = 8.dp))
+        HorizontalDivider(color = p.line, modifier = Modifier.padding(top = 8.dp))
     }
 }
 
 @Composable
 fun HeaderAction(label: String, onClick: () -> Unit) {
+    val p = LocalTuiColors.current
     Text(
         text = "[$label]",
         style = MaterialTheme.typography.labelLarge,
-        color = TuiDim,
+        color = p.dim,
         modifier = Modifier
             .tuiClickable(onClick)
             .padding(vertical = 8.dp)
@@ -237,6 +237,7 @@ fun HeaderAction(label: String, onClick: () -> Unit) {
 
 @Composable
 fun NewEntryRow(label: String, onClick: () -> Unit) {
+    val p = LocalTuiColors.current
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -248,19 +249,19 @@ fun NewEntryRow(label: String, onClick: () -> Unit) {
                 .fillMaxWidth()
                 .padding(horizontal = 8.dp, vertical = 8.dp),
         ) {
-            Text(text = " ", style = MaterialTheme.typography.labelSmall, color = TuiBg)
+            Text(text = " ", style = MaterialTheme.typography.labelSmall, color = p.bg)
             Text(
                 text = "[+]",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = TuiAccent,
+                color = p.accent,
                 modifier = Modifier.padding(start = 4.dp, end = 10.dp),
             )
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
-                color = TuiFg,
+                color = p.fg,
             )
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

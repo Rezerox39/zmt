@@ -27,11 +27,7 @@ import dev.jyotiraditya.dmt.domain.model.ThemeOption
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private fun themeLabel(theme: dev.jyotiraditya.dmt.domain.model.ThemeOption): String = when (theme) {
     dev.jyotiraditya.dmt.domain.model.ThemeOption.AMOLED_BLACK -> "dmt classic"
@@ -42,6 +38,7 @@ private val COVER_COLS_STEPS = listOf(48, 64, 80, 96)
 
 @Composable
 fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val settings = state.settings
     val on = stringResource(R.string.on)
     val off = stringResource(R.string.off)
@@ -155,18 +152,18 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = stringResource(R.string.about_title),
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiFg,
+            color = p.fg,
         )
         Text(
             text = stringResource(R.string.about_body),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiDim,
+            color = p.dim,
             modifier = Modifier.padding(top = 4.dp),
         )
         Text(
             text = "v${BuildConfig.VERSION_NAME}",
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             modifier = Modifier.padding(top = 6.dp),
         )
 
@@ -181,17 +178,17 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Text(
                 text = "▪ ",
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiAccent,
+                color = p.accent,
             )
             Text(
                 text = stringResource(R.string.credit),
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiDim,
+                color = p.dim,
             )
             Text(
                 text = " ↗",
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiAccent,
+                color = p.accent,
             )
         }
     }
@@ -203,6 +200,7 @@ private fun SettingRow(
     value: String,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -214,13 +212,13 @@ private fun SettingRow(
             Text(
                 text = label,
                 style = MaterialTheme.typography.bodyLarge,
-                color = TuiFg,
+                color = p.fg,
             )
             TuiKey(
                 label = "[ $value ]",
                 onClick = onClick,
             )
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

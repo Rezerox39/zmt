@@ -33,15 +33,8 @@ import dev.jyotiraditya.dmt.R
 import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.domain.model.Spec
 import dev.jyotiraditya.dmt.domain.model.Track
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiBg
-import dev.jyotiraditya.dmt.ui.theme.TuiBright
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiGreen
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
-import dev.jyotiraditya.dmt.ui.theme.TuiRed
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.TuiColorPalette
 import dev.jyotiraditya.dmt.util.asTime
 
 private val TRACK_SPEC_LABELS = setOf("FMT", "BIT", "RATE", "CH", "KBPS", "VBR", "GAPLESS", "SIZE")
@@ -53,14 +46,16 @@ private const val CHAIN_LABEL_WIDTH = 8
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TuiSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
+
+    val p = LocalTuiColors.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
-        containerColor = TuiBg,
+        containerColor = p.bg,
         shape = RectangleShape,
         dragHandle = null,
     ) {
         Column {
-            HorizontalDivider(color = TuiLine)
+            HorizontalDivider(color = p.line)
             Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 content()
                 Spacer(modifier = Modifier.height(18.dp))
@@ -75,6 +70,7 @@ fun SheetHeader(
     meta: String? = null,
     actions: @Composable () -> Unit = {},
 ) {
+        val p = LocalTuiColors.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -89,12 +85,12 @@ fun SheetHeader(
             Box(
                 modifier = Modifier
                     .size(8.dp)
-                    .background(TuiAccent),
+                    .background(p.accent),
             )
             Text(
                 text = " $title",
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiDim,
+                color = p.dim,
                 maxLines = 1,
                 modifier = Modifier.basicMarquee(iterations = Int.MAX_VALUE),
             )
@@ -103,7 +99,7 @@ fun SheetHeader(
             Text(
                 text = meta,
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiFaint,
+                color = p.faint,
             )
         }
         actions()
@@ -116,6 +112,8 @@ fun QueueList(
     dispatch: (DmtAction) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+
+    val p = LocalTuiColors.current
     LazyColumn(modifier = modifier) {
         itemsIndexed(state.queue) { index, label ->
             val current = index == state.queueIndex
@@ -129,17 +127,17 @@ fun QueueList(
                 Box(
                     modifier = Modifier
                         .size(6.dp)
-                        .background(if (current) TuiAccent else TuiFaint),
+                        .background(if (current) p.accent else p.faint),
                 )
                 Text(
                     text = " %02d ".format(index + 1),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiFaint,
+                    color = p.faint,
                 )
                 Text(
                     text = label,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = if (current) TuiBright else TuiDim,
+                    color = if (current) p.bright else p.dim,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
@@ -147,7 +145,7 @@ fun QueueList(
                 Text(
                     text = stringResource(R.string.clear),
                     style = MaterialTheme.typography.labelMedium,
-                    color = TuiFaint,
+                    color = p.faint,
                     modifier = Modifier
                         .tuiClickable { dispatch(DmtAction.RemoveAt(index)) }
                         .padding(horizontal = 8.dp, vertical = 2.dp),
@@ -159,6 +157,8 @@ fun QueueList(
 
 @Composable
 fun InfoContent(state: DmtState) {
+
+    val p = LocalTuiColors.current
     val track: Track? = state.tracks.find { it.id.toString() == state.nowPlayingId }
 
     InfoRow(
@@ -195,7 +195,9 @@ fun InfoContent(state: DmtState) {
 
 @Composable
 fun ChainContent(state: DmtState) {
-    val stages = remember(state.tech, state.speed, state.route) { chainStages(state) }
+
+    val p = LocalTuiColors.current
+    val stages = remember(state.tech, state.speed, state.route) { chainStages(state, p) }
 
     Column(
         modifier = Modifier
@@ -214,6 +216,8 @@ fun ChainContent(state: DmtState) {
 
 @Composable
 private fun ChainStageBlock(stage: ChainStage, last: Boolean) {
+
+    val p = LocalTuiColors.current
     Row(verticalAlignment = Alignment.CenterVertically) {
         Text(
             text = "■ ",
@@ -223,7 +227,7 @@ private fun ChainStageBlock(stage: ChainStage, last: Boolean) {
         Text(
             text = stage.name,
             style = MaterialTheme.typography.labelMedium,
-            color = TuiBright,
+            color = p.bright,
         )
     }
     stage.specs.forEach { spec ->
@@ -233,7 +237,7 @@ private fun ChainStageBlock(stage: ChainStage, last: Boolean) {
         Text(
             text = "v",
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiFaint,
+            color = p.faint,
             modifier = Modifier.padding(vertical = 4.dp),
         )
     }
@@ -241,21 +245,23 @@ private fun ChainStageBlock(stage: ChainStage, last: Boolean) {
 
 @Composable
 private fun ChainSpecRow(spec: Spec) {
+
+    val p = LocalTuiColors.current
     Row(modifier = Modifier.padding(top = 4.dp)) {
         Text(
             text = "┊ ",
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiFaint,
+            color = p.faint,
         )
         Text(
             text = spec.label.lowercase().padEnd(CHAIN_LABEL_WIDTH),
             style = MaterialTheme.typography.bodyMedium,
-            color = TuiDim,
+            color = p.dim,
         )
         Text(
             text = spec.value.lowercase(),
             style = MaterialTheme.typography.bodyMedium,
-            color = if (spec.hot) TuiAccent else TuiFg,
+            color = if (spec.hot) p.accent else p.fg,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -268,7 +274,7 @@ private data class ChainStage(
     val specs: List<Spec>,
 )
 
-private fun chainStages(state: DmtState): List<ChainStage> {
+private fun chainStages(state: DmtState, p: TuiColorPalette): List<ChainStage> {
     val trackRate = state.tech.firstOrNull { it.label == "RATE" }?.value
     val trackBits = state.tech.firstOrNull { it.label == "BIT" }?.value
     val output = state.route.filter { it.label in OUTPUT_ROUTE_LABELS }.map { spec ->
@@ -287,28 +293,30 @@ private fun chainStages(state: DmtState): List<ChainStage> {
     return buildList {
         state.tech.filter { it.label in TRACK_SPEC_LABELS }
             .takeIf { it.isNotEmpty() }
-            ?.let { add(ChainStage(name = "track", color = TuiAccent, specs = it)) }
+            ?.let { add(ChainStage(name = "track", color = p.accent, specs = it)) }
         state.tech.filter { it.label in DECODER_SPEC_LABELS }
             .takeIf { it.isNotEmpty() }
-            ?.let { add(ChainStage(name = "decoder", color = TuiGreen, specs = it)) }
+            ?.let { add(ChainStage(name = "decoder", color = p.green, specs = it)) }
         add(
             ChainStage(
                 name = "dsp",
-                color = TuiFg,
+                color = p.fg,
                 specs = listOf(Spec(label = "SPEED", value = "%.2fx".format(state.speed))),
             ),
         )
         if (output.isNotEmpty()) {
-            add(ChainStage(name = "output", color = TuiRed, specs = output))
+            add(ChainStage(name = "output", color = p.red, specs = output))
         }
         if (device.isNotEmpty()) {
-            add(ChainStage(name = "device", color = TuiDim, specs = device))
+            add(ChainStage(name = "device", color = p.dim, specs = device))
         }
     }
 }
 
 @Composable
 private fun InfoRow(label: String, value: String) {
+
+    val p = LocalTuiColors.current
     Column {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -320,17 +328,17 @@ private fun InfoRow(label: String, value: String) {
             Text(
                 text = label,
                 style = MaterialTheme.typography.labelMedium,
-                color = TuiDim,
+                color = p.dim,
                 modifier = Modifier.padding(end = 16.dp),
             )
             Text(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
-                color = TuiFg,
+                color = p.fg,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        HorizontalDivider(color = TuiLine)
+        HorizontalDivider(color = p.line)
     }
 }

@@ -22,12 +22,12 @@ import dev.jyotiraditya.dmt.core.common.SearchRow
 import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 import dev.jyotiraditya.dmt.util.asTime
 
 @Composable
 fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val isYouTube = state.settings.sourceMode == SourceMode.YOUTUBE
 
     Column {
@@ -65,7 +65,7 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Text(
                 text = "type a song name above to search",
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiDim,
+                color = p.dim,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
@@ -78,14 +78,14 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             Spacer(modifier = Modifier.height(16.dp))
             CircularProgressIndicator(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
-                color = TuiAccent,
+                color = p.accent,
                 strokeWidth = 2.dp,
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = if (isYouTube) "searching..." else "scanning...",
                 style = MaterialTheme.typography.labelSmall,
-                color = TuiDim,
+                color = p.dim,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }

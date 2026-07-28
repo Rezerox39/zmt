@@ -41,9 +41,6 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
-import dev.jyotiraditya.dmt.ui.theme.TuiBg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
-import dev.jyotiraditya.dmt.ui.theme.TuiSurface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -52,6 +49,7 @@ import kotlinx.coroutines.launch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private const val EXPAND_VELOCITY_THRESHOLD = 150f
 
@@ -64,6 +62,7 @@ fun PlayerSheet(
     onInfo: () -> Unit,
     onQueue: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     if (state.nowPlayingId == null || anchor == null) return
 
     BoxWithConstraints(modifier = Modifier.fillMaxSize()) {
@@ -185,11 +184,11 @@ fun PlayerSheet(
                 }
                 .drawBehind {
                     val f = fraction.value
-                    drawRect(lerp(TuiSurface.copy(alpha = 0.85f), TuiBg, f))
+                    drawRect(lerp(p.surface.copy(alpha = 0.85f), p.bg, f))
                     if (f < 1f) {
                         val inset = 0.5.dp.toPx()
                         drawRect(
-                            color = TuiLine.copy(alpha = TuiLine.alpha * (1f - f)),
+                            color = p.line.copy(alpha = p.line.alpha * (1f - f)),
                             topLeft = Offset(inset, inset),
                             size = Size(
                                 size.width - inset * 2,

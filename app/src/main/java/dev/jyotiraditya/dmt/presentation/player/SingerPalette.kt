@@ -1,12 +1,11 @@
 package dev.jyotiraditya.dmt.presentation.player
 
 import androidx.compose.ui.graphics.Color
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
 
 val GroupVoice = Color(0xFFCBBFA3)
 
 val singerPalette = listOf(
-    TuiAccent,
+    Color(0xFFE8A33D),
     Color(0xFF7A9BB3),
     Color(0xFF98A96F),
     Color(0xFFAF87A3),

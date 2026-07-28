@@ -21,14 +21,11 @@ import dev.jyotiraditya.dmt.core.common.Caption
 import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
-import dev.jyotiraditya.dmt.ui.theme.TuiLine
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun BlocklistPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    val p = LocalTuiColors.current
     val blocked = state.settings.blockedFolders
     val paths = remember {
         (state.folders.map { it.path } + blocked)
@@ -45,7 +42,7 @@ fun BlocklistPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Text(
             text = stringResource(R.string.blocklist_hint),
             style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
+            color = p.faint,
             modifier = Modifier.padding(bottom = 4.dp),
         )
         LazyColumn {
@@ -71,17 +68,17 @@ fun BlocklistPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                         Text(
                             text = if (hidden) "[x]" else "[ ]",
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (hidden) TuiAccent else TuiFaint,
+                            color = if (hidden) p.accent else p.faint,
                         )
                         Text(
                             text = " " + path.removePrefix("/storage/emulated/0/").ifEmpty { "/" },
                             style = MaterialTheme.typography.bodyMedium,
-                            color = if (hidden) TuiDim else TuiFg,
+                            color = if (hidden) p.dim else p.fg,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    HorizontalDivider(color = TuiLine)
+                    HorizontalDivider(color = p.line)
                 }
             }
         }

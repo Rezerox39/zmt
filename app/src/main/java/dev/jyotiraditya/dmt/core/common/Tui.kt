@@ -53,6 +53,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import dev.jyotiraditya.dmt.ui.theme.TuiAccent
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 import dev.jyotiraditya.dmt.ui.theme.TuiBg
 import dev.jyotiraditya.dmt.ui.theme.TuiBright
 import dev.jyotiraditya.dmt.ui.theme.TuiDim
@@ -70,12 +71,13 @@ fun TuiNotice(
     modifier: Modifier = Modifier,
     reserveSpace: Boolean = false,
 ) {
+    val p = LocalTuiColors.current
     val text = error ?: notice
     if (text == null && !reserveSpace) return
     Text(
         text = text.orEmpty(),
         style = MaterialTheme.typography.labelSmall,
-        color = if (error != null) MaterialTheme.colorScheme.error else TuiDim,
+        color = if (error != null) MaterialTheme.colorScheme.error else p.dim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
         modifier = modifier.padding(bottom = 4.dp),
@@ -88,16 +90,17 @@ fun CursorTitle(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
+    val p = LocalTuiColors.current
     val cursorAlpha = rememberCursorAlpha()
     Text(
         text = buildAnnotatedString {
             append(text)
-            withStyle(SpanStyle(color = TuiAccent.copy(alpha = cursorAlpha))) {
+            withStyle(SpanStyle(color = p.accent.copy(alpha = cursorAlpha))) {
                 append("_")
             }
         },
         style = style,
-        color = TuiBright,
+        color = p.bright,
         maxLines = 1,
         modifier = modifier.basicMarquee(iterations = Int.MAX_VALUE),
     )
@@ -194,11 +197,12 @@ fun TuiPanel(
     onClick: (() -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val p = LocalTuiColors.current
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .border(1.dp, TuiLine)
-            .background(TuiSurface.copy(alpha = 0.85f))
+            .border(1.dp, p.line)
+            .background(p.surface.copy(alpha = 0.85f))
             .let { if (onClick != null) it.tuiClickable(onClick) else it }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         content = content,
@@ -213,13 +217,14 @@ fun TuiKey(
     big: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val press = rememberTuiPress()
-    val restText = if (bright) TuiBg else TuiFg
-    val restBorder = if (bright) TuiFg else TuiLine
-    val restBg = if (bright) TuiFg else TuiSurface.copy(alpha = 0.4f)
-    val pressText = if (bright) TuiFg else TuiBg
-    val pressBorder = if (bright) TuiLine else TuiFg
-    val pressBg = if (bright) TuiSurface.copy(alpha = 0.4f) else TuiFg
+    val restText = if (bright) p.bg else p.fg
+    val restBorder = if (bright) p.fg else p.line
+    val restBg = if (bright) p.fg else p.surface.copy(alpha = 0.4f)
+    val pressText = if (bright) p.fg else p.bg
+    val pressBorder = if (bright) p.line else p.fg
+    val pressBg = if (bright) p.surface.copy(alpha = 0.4f) else p.fg
     Text(
         text = label,
         style = MaterialTheme.typography.labelLarge,
@@ -248,13 +253,14 @@ fun TuiTab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     Text(
         text = label,
         style = MaterialTheme.typography.labelMedium,
-        color = if (active) TuiBg else TuiDim,
+        color = if (active) p.bg else p.dim,
         modifier = modifier
-            .border(1.dp, if (active) TuiFg else TuiLine)
-            .background(if (active) TuiFg else TuiSurface.copy(alpha = 0.4f))
+            .border(1.dp, if (active) p.fg else p.line)
+            .background(if (active) p.fg else p.surface.copy(alpha = 0.4f))
             .tuiClickable(onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp),
     )
@@ -262,12 +268,13 @@ fun TuiTab(
 
 @Composable
 fun TuiChip(text: String) {
+    val p = LocalTuiColors.current
     Text(
         text = text,
         style = MaterialTheme.typography.labelSmall,
-        color = TuiDim,
+        color = p.dim,
         modifier = Modifier
-            .border(1.dp, TuiLine)
+            .border(1.dp, p.line)
             .padding(horizontal = 6.dp, vertical = 4.dp),
     )
 }
@@ -280,14 +287,15 @@ fun TuiStatus(
     busy: Boolean = false,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val press = rememberTuiPress()
-    val restText = if (on) TuiBright else TuiDim
+    val restText = if (on) p.bright else p.dim
     val blink = if (busy) rememberCursorAlpha() else 1f
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
-            .border(1.dp, lerp(TuiLine, TuiFg, press.fraction))
-            .background(lerp(TuiSurface.copy(alpha = 0.4f), TuiFg, press.fraction))
+            .border(1.dp, lerp(p.line, p.fg, press.fraction))
+            .background(lerp(p.surface.copy(alpha = 0.4f), p.fg, press.fraction))
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
@@ -301,26 +309,27 @@ fun TuiStatus(
                 .size(7.dp)
                 .background(
                     when {
-                        busy -> TuiAccent.copy(alpha = blink)
-                        on -> TuiAccent
-                        else -> TuiFaint
+                        busy -> p.accent.copy(alpha = blink)
+                        on -> p.accent
+                        else -> p.faint
                     },
                 ),
         )
         Text(
             text = " $label:$value",
             style = MaterialTheme.typography.labelMedium,
-            color = lerp(restText, TuiBg, press.fraction),
+            color = lerp(restText, p.bg, press.fraction),
         )
     }
 }
 
 @Composable
 fun Hairline(fraction: Float, modifier: Modifier = Modifier) {
+    val p = LocalTuiColors.current
     LinearProgressIndicator(
         progress = { fraction.coerceIn(0f, 1f) },
-        color = TuiFg,
-        trackColor = TuiFaint,
+        color = p.fg,
+        trackColor = p.faint,
         strokeCap = StrokeCap.Butt,
         gapSize = 0.dp,
         drawStopIndicator = {},
@@ -337,8 +346,9 @@ fun ThinSlider(
     onSeek: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val filledColor = TuiFg
-    val emptyColor = TuiFaint
+    val p = LocalTuiColors.current
+    val filledColor = p.fg
+    val emptyColor = p.faint
     val paint = remember {
         Paint().apply {
             typeface = Typeface.MONOSPACE
@@ -381,7 +391,7 @@ fun ThinSlider(
                     val filled = col < filledCols
                     val glyph = if (filled) "█" else "░"
                     paint.color = when {
-                        col == filledCols - 1 -> TuiAccent.toArgb()
+                        col == filledCols - 1 -> p.accent.toArgb()
                         filled -> filledColor.toArgb()
                         else -> emptyColor.toArgb()
                     }

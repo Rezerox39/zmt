@@ -36,12 +36,9 @@ import dev.jyotiraditya.lyrics.LyricWord
 import dev.jyotiraditya.lyrics.Lyrics
 import dev.jyotiraditya.lyrics.TimedText
 import dev.jyotiraditya.lyrics.Voice
-import dev.jyotiraditya.dmt.ui.theme.TuiAccent
-import dev.jyotiraditya.dmt.ui.theme.TuiDim
 import java.util.Locale
-import dev.jyotiraditya.dmt.ui.theme.TuiFaint
-import dev.jyotiraditya.dmt.ui.theme.TuiFg
 import kotlin.math.ceil
+import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 private enum class LineState { ACTIVE, PASSED, UPCOMING }
 
@@ -57,6 +54,7 @@ fun LyricsPanel(
     onSeekFraction: (Float) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val p = LocalTuiColors.current
     val position = smoothPositionMs(positionMs, isPlaying)
     val listState = rememberLazyListState()
     val scrollTarget = remember(position, lyrics) {
@@ -192,6 +190,7 @@ private fun LyricLineRows(
     seekable: Boolean,
     onClick: () -> Unit,
 ) {
+    val p = LocalTuiColors.current
     val translit = line.transliteration
     val shown = if (romanized && translit != null) {
         line.copy(
@@ -301,14 +300,15 @@ private fun InterludeRow(
     positionMs: Long,
     modifier: Modifier,
 ) {
+    val p = LocalTuiColors.current
     val annotated = if (state == LineState.ACTIVE) {
         val span = (line.endMs - line.startMs).coerceAtLeast(1)
         val fraction = ((positionMs - line.startMs).toFloat() / span).coerceIn(0f, 1f)
         val filled = ceil(fraction * line.text.length).toInt().coerceIn(0, line.text.length)
         buildAnnotatedString {
             append(line.text)
-            addStyle(SpanStyle(color = TuiAccent), 0, filled)
-            addStyle(SpanStyle(color = TuiFaint), filled, line.text.length)
+            addStyle(SpanStyle(color = p.accent), 0, filled)
+            addStyle(SpanStyle(color = p.faint), filled, line.text.length)
         }
     } else {
         AnnotatedString(line.text)
@@ -316,7 +316,7 @@ private fun InterludeRow(
     Text(
         text = annotated,
         style = MaterialTheme.typography.headlineSmall,
-        color = if (state == LineState.PASSED) TuiFaint else TuiDim,
+        color = if (state == LineState.PASSED) p.faint else p.dim,
         textAlign = TextAlign.Center,
         modifier = modifier.fillMaxWidth(),
     )
@@ -351,17 +351,18 @@ private fun LyricRunText(
     hasSinger: Boolean,
     align: TextAlign,
 ) {
+    val p = LocalTuiColors.current
     val sweepState = runState(run, positionMs, state)
     val karaoke = sweepState == LineState.ACTIVE && run.words.isNotEmpty()
     val sweepColors = if (run.background) {
         SweepColors(
-            sung = TuiFg,
-            unsung = TuiFaint,
+            sung = p.fg,
+            unsung = p.faint,
         )
     } else {
         SweepColors(
             sung = singerColor,
-            unsung = TuiDim,
+            unsung = p.dim,
         )
     }
 
@@ -400,14 +401,14 @@ private fun LyricRunText(
     }
 
     val lineColor = when {
-        run.background && sweepState == LineState.ACTIVE -> TuiFg
-        run.background && sweepState == LineState.PASSED -> TuiFaint
-        run.background -> TuiDim
-        sweepState == LineState.ACTIVE && karaoke -> TuiDim
+        run.background && sweepState == LineState.ACTIVE -> p.fg
+        run.background && sweepState == LineState.PASSED -> p.faint
+        run.background -> p.dim
+        sweepState == LineState.ACTIVE && karaoke -> p.dim
         sweepState == LineState.ACTIVE -> singerColor
-        sweepState == LineState.PASSED && hasSinger -> lerp(singerColor, TuiFaint, 0.8f)
-        sweepState == LineState.PASSED -> TuiFaint
-        else -> TuiDim
+        sweepState == LineState.PASSED && hasSinger -> lerp(singerColor, p.faint, 0.8f)
+        sweepState == LineState.PASSED -> p.faint
+        else -> p.dim
     }
 
     val baseStyle = if (run.background) {
@@ -437,6 +438,7 @@ private fun LyricRunText(
 
 @Composable
 private fun smoothPositionMs(positionMs: Long, isPlaying: Boolean): Long {
+    val p = LocalTuiColors.current
     var display by remember { mutableLongStateOf(positionMs) }
     LaunchedEffect(positionMs, isPlaying) {
         if (!isPlaying) {
