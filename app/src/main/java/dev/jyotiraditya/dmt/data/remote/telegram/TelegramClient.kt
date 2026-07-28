@@ -163,7 +163,7 @@ class TelegramClient @Inject constructor() {
                         false,
                         dbDir,
                         filesDir,
-                        null as String?,
+                        null as ByteArray?,
                         true,
                         true,
                         true,
