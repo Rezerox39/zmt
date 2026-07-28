@@ -36,8 +36,7 @@ enum class LibrarySort(val label: String) {
 }
 
 enum class ThemeOption(val label: String) {
-    AMOLED_BLACK("amoled"),
-    CRIMSON_NOIR("crimson noir"),
+    AMOLED_BLACK("dmt classic"),
     AQUA_GLASS("aqua glass"),
     ;
 }

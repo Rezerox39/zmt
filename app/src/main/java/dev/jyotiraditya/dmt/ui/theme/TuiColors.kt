@@ -7,17 +7,18 @@ import androidx.compose.runtime.staticCompositionLocalOf
 import dev.jyotiraditya.dmt.domain.model.ThemeOption
 
 /**
- * Complete color palette for a UI theme.
- * Every visual attribute maps to a consistent design language.
+ * Complete visual palette for a UI theme.
  *
- * Extends the basic palette with card-specific colors for
- * glass/droplet/matte surface rendering across all components.
+ * Every colour here is read from [LocalTuiColors] at runtime,
+ * so a theme switch instantly updates every composable without
+ * any hardcoded fallback.
  */
 @Immutable
 data class TuiColorPalette(
     val bg: androidx.compose.ui.graphics.Color,
     val surface: androidx.compose.ui.graphics.Color,
     val card: androidx.compose.ui.graphics.Color,
+    val cardBorder: androidx.compose.ui.graphics.Color,
     val fg: androidx.compose.ui.graphics.Color,
     val bright: androidx.compose.ui.graphics.Color,
     val dim: androidx.compose.ui.graphics.Color,
@@ -25,6 +26,8 @@ data class TuiColorPalette(
     val line: androidx.compose.ui.graphics.Color,
     val accent: androidx.compose.ui.graphics.Color,
     val accentDim: androidx.compose.ui.graphics.Color,
+    val highlight: androidx.compose.ui.graphics.Color,
+    val glow: androidx.compose.ui.graphics.Color,
     val red: androidx.compose.ui.graphics.Color,
     val green: androidx.compose.ui.graphics.Color,
 )
@@ -32,44 +35,59 @@ data class TuiColorPalette(
 // ── Palettes ────────────────────────────────────────────────────
 
 val AmoledPalette = TuiColorPalette(
-    bg = TuiBg, surface = TuiSurface, card = TuiSurface,
-    fg = TuiFg, bright = TuiBright,
-    dim = TuiDim, faint = TuiFaint, line = TuiLine,
-    accent = TuiAccent, accentDim = TuiAccent.copy(alpha = 0.6f),
-    red = TuiRed, green = TuiGreen,
+    bg = TuiBg,
+    surface = TuiSurface,
+    card = TuiSurface,
+    cardBorder = TuiLine,
+    fg = TuiFg,
+    bright = TuiBright,
+    dim = TuiDim,
+    faint = TuiFaint,
+    line = TuiLine,
+    accent = TuiAccent,
+    accentDim = TuiAccent.copy(alpha = 0.6f),
+    highlight = TuiBright.copy(alpha = 0.08f),
+    glow = TuiAccent.copy(alpha = 0.04f),
+    red = TuiRed,
+    green = TuiGreen,
 )
 
 val AquaGlassPalette = TuiColorPalette(
-    bg = AquaBg, surface = AquaSurface, card = AquaCard,
-    fg = AquaFg, bright = AquaBright,
-    dim = AquaDim, faint = AquaFaint, line = AquaLine,
-    accent = AquaAccent, accentDim = AquaAccentDim,
-    red = AquaRed, green = AquaGreen,
-)
-
-val CrimsonNoirPalette = TuiColorPalette(
-    bg = NoirBg, surface = NoirSurface, card = NoirCard,
-    fg = NoirFg, bright = NoirBright,
-    dim = NoirDim, faint = NoirFaint, line = NoirLine,
-    accent = NoirAccent, accentDim = NoirAccentDim,
-    red = NoirRed, green = NoirGreen,
+    bg = AquaBg,
+    surface = AquaSurface,
+    card = AquaCardBase,
+    cardBorder = AquaCardBorder,
+    fg = AquaFg,
+    bright = AquaBright,
+    dim = AquaDim,
+    faint = AquaFaint,
+    line = AquaCardBorder,
+    accent = AquaAccent,
+    accentDim = AquaAccentDim,
+    highlight = AquaHighlight,
+    glow = AquaGlow,
+    red = AquaRed,
+    green = AquaGreen,
 )
 
 // ── Composition Local ───────────────────────────────────────────
 
 val LocalTuiColors = staticCompositionLocalOf { AmoledPalette }
+val LocalAquaPhysics = staticCompositionLocalOf { ClassicPhysics }
 
 @Composable
 fun TuiThemeProvider(
     theme: ThemeOption,
     content: @Composable () -> Unit,
 ) {
-    val palette = when (theme) {
-        ThemeOption.AMOLED_BLACK -> AmoledPalette
-        ThemeOption.AQUA_GLASS -> AquaGlassPalette
-        ThemeOption.CRIMSON_NOIR -> CrimsonNoirPalette
+    val (palette, physics) = when (theme) {
+        ThemeOption.AMOLED_BLACK -> AmoledPalette to ClassicPhysics
+        ThemeOption.AQUA_GLASS -> AquaGlassPalette to AquaGlassPhysics
     }
-    CompositionLocalProvider(LocalTuiColors provides palette) {
+    CompositionLocalProvider(
+        LocalTuiColors provides palette,
+        LocalAquaPhysics provides physics,
+    ) {
         content()
     }
 }

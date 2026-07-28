@@ -35,25 +35,8 @@ private val AquaGlassScheme = darkColorScheme(
     onSurface = AquaFg,
     surfaceVariant = AquaSurface,
     onSurfaceVariant = AquaDim,
-    outline = AquaLine,
+    outline = AquaCardBorder,
     error = AquaRed,
-)
-
-private val CrimsonNoirScheme = darkColorScheme(
-    primary = NoirBright,
-    onPrimary = NoirBg,
-    secondary = NoirFg,
-    onSecondary = NoirBg,
-    tertiary = NoirDim,
-    onTertiary = NoirBg,
-    background = NoirBg,
-    onBackground = NoirFg,
-    surface = NoirBg,
-    onSurface = NoirFg,
-    surfaceVariant = NoirSurface,
-    onSurfaceVariant = NoirDim,
-    outline = NoirLine,
-    error = NoirRed,
 )
 
 @Composable
@@ -64,7 +47,6 @@ fun DMTTheme(
     val colorScheme = when (theme) {
         ThemeOption.AMOLED_BLACK -> AmoledBlackScheme
         ThemeOption.AQUA_GLASS -> AquaGlassScheme
-        ThemeOption.CRIMSON_NOIR -> CrimsonNoirScheme
     }
     MaterialTheme(
         colorScheme = colorScheme,

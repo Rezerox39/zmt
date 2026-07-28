@@ -1,10 +1,15 @@
 package dev.jyotiraditya.dmt.ui.theme
 
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import dev.jyotiraditya.dmt.domain.model.ThemeOption
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -21,13 +27,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,64 +44,106 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
+import kotlin.math.PI
+import kotlin.math.sin
 
 // ═══════════════════════════════════════════════════════════════════
-// THEMED REUSABLE COMPONENTS
-// All components read from LocalTuiColors for theme consistency.
+// AQUA GLASS COMPONENT SYSTEM
+//
+// Every component reads LocalTuiColors + LocalAquaPhysics at runtime,
+// so switching themes instantly updates the entire UI.
 // ═══════════════════════════════════════════════════════════════════
 
-private fun TuiColorPalette.p() = this
+// ── helpers ──────────────────────────────────────────────────────
 
-// ── GLASS CARD ────────────────────────────────────────────────────
+private fun DrawScope.glassHighlight(
+    p: TuiColorPalette,
+    cornerRadius: CornerRadius,
+    highlightHeightPx: Float,
+) {
+    // Top-edge light reflection
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(p.highlight.copy(alpha = 0.15f), Color.Transparent),
+            startY = 0f,
+            endY = highlightHeightPx,
+        ),
+        cornerRadius = cornerRadius,
+    )
+    // Bottom ambient glow
+    drawRoundRect(
+        brush = Brush.verticalGradient(
+            colors = listOf(Color.Transparent, p.glow.copy(alpha = 0.06f)),
+            startY = size.height * 0.75f,
+            endY = size.height,
+        ),
+        topLeft = Offset(0f, size.height * 0.75f),
+        size = Size(size.width, size.height * 0.25f),
+        cornerRadius = cornerRadius,
+    )
+}
+
+// ── GLASS CARD ───────────────────────────────────────────────────
+// Renders as a suspended water droplet on AMOLED black.
+// Uses surface tension bulge, top-edge reflection, and internal glow.
 
 @Composable
 fun GlassCard(
     modifier: Modifier = Modifier,
-    shape: androidx.compose.ui.graphics.Shape = RoundedCornerShape(20.dp),
     content: @Composable () -> Unit,
 ) {
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerSmall.toPx() }
+    val cornerRadius = CornerRadius(cornerPx, cornerPx)
+    val highlightPx = with(LocalDensity.current) { physics.highlightHeight.toPx() }
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = spring(
-            dampingRatio = Spring.DampingRatioMediumBouncy,
-            stiffness = Spring.StiffnessLow,
+        targetValue = if (isPressed) 1f - physics.rippleIntensity * 0.15f else 1f,
+        animationSpec = spring<Float>(
+            dampingRatio = physics.springDamping,
+            stiffness = physics.springStiffness,
         ),
-        label = "pressScale",
+        label = "cardScale",
     )
 
     Box(
         modifier = modifier
             .scale(pressScale)
-            .clip(shape)
+            .clip(RoundedCornerShape(physics.cornerSmall))
             .drawBehind {
-                drawRoundRect(color = p.card, cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx()))
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(p.fg.copy(alpha = 0.08f), Color.Transparent),
-                        startY = 0f, endY = size.height * 0.3f,
-                    ),
-                    size = Size(size.width, size.height * 0.3f),
-                )
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(Color.Transparent, p.accent.copy(alpha = 0.04f)),
-                        startY = size.height * 0.7f, endY = size.height,
-                    ),
-                    topLeft = Offset(0f, size.height * 0.7f),
-                    size = Size(size.width, size.height * 0.3f),
-                )
+                // Base glass surface
+                drawRoundRect(color = p.card.copy(alpha = physics.transparency), cornerRadius = cornerRadius)
+
+                // Internal refraction gradient
                 drawRoundRect(
-                    color = p.line, style = Stroke(width = 1.dp.toPx()),
-                    cornerRadius = CornerRadius(20.dp.toPx(), 20.dp.toPx()),
+                    brush = Brush.radialGradient(
+                        colors = listOf(p.card.copy(alpha = 0.3f), Color.Transparent),
+                        center = center,
+                        radius = size.minDimension * 0.6f,
+                    ),
+                    cornerRadius = cornerRadius,
+                )
+
+                // Glass highlight
+                glassHighlight(p, cornerRadius, highlightPx)
+
+                // Border
+                drawRoundRect(
+                    color = p.cardBorder.copy(alpha = 0.5f),
+                    style = Stroke(width = 1.dp.toPx()),
+                    cornerRadius = cornerRadius,
                 )
             }
     ) {
@@ -105,7 +151,8 @@ fun GlassCard(
     }
 }
 
-// ── DROPLET BUTTON ────────────────────────────────────────────────
+// ── DROPLET BUTTON ───────────────────────────────────────────────
+// Floating pill-shaped button with glass shine.
 
 @Composable
 fun DropletButton(
@@ -113,115 +160,64 @@ fun DropletButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
-    accentColor: Color? = null,
+    primary: Boolean = true,
 ) {
     val p = LocalTuiColors.current
-    val accent = accentColor ?: p.accent
+    val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerButton.toPx() }
+    val cornerRadius = CornerRadius(cornerPx, cornerPx)
+    val highlightPx = with(LocalDensity.current) { physics.highlightHeight.toPx() }
+
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
-    val scope = rememberCoroutineScope()
-    val glowAlpha = remember { Animatable(0f) }
-
     val pressScale by animateFloatAsState(
-        targetValue = if (isPressed) 0.93f else 1f,
-        animationSpec = spring(dampingRatio = 0.5f, stiffness = 400f),
+        targetValue = if (isPressed && enabled) 0.96f else 1f,
+        animationSpec = spring<Float>(
+            dampingRatio = physics.springDamping,
+            stiffness = physics.springStiffness,
+        ),
         label = "btnScale",
     )
 
     Box(
         modifier = modifier
             .scale(pressScale)
-            .clip(RoundedCornerShape(28.dp))
+            .clip(RoundedCornerShape(physics.cornerButton))
             .drawBehind {
-                drawRoundRect(color = p.card, cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx()))
-                drawRoundRect(
-                    color = if (enabled) accent else p.faint,
-                    style = Stroke(width = 1.5f),
-                    cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx()),
-                )
-                if (isPressed) {
+                val bg = if (primary) p.accent.copy(alpha = if (enabled) 0.2f else 0.08f) else Color.Transparent
+                drawRoundRect(color = bg, cornerRadius = cornerRadius)
+                if (!primary) {
+                    drawRoundRect(color = p.cardBorder, cornerRadius = cornerRadius, style = Stroke(1.dp.toPx()))
+                }
+                if (primary && enabled) {
+                    glassHighlight(p, cornerRadius, highlightPx)
+                }
+                if (primary) {
                     drawRoundRect(
-                        color = accent.copy(alpha = 0.15f),
-                        cornerRadius = CornerRadius(28.dp.toPx(), 28.dp.toPx()),
+                        color = p.accent.copy(alpha = if (enabled) 0.5f else 0.2f),
+                        cornerRadius = cornerRadius,
+                        style = Stroke(1.dp.toPx()),
                     )
                 }
-                drawRect(
-                    brush = Brush.verticalGradient(
-                        colors = listOf(p.fg.copy(alpha = 0.06f), Color.Transparent),
-                    ), size = Size(size.width, size.height * 0.4f),
-                )
             }
             .clickable(
-                interactionSource = interactionSource, indication = null,
-                enabled = enabled,
-                onClick = {
-                    scope.launch {
-                        glowAlpha.snapTo(1f)
-                        onClick()
-                        glowAlpha.animateTo(0f, animationSpec = tween(300))
-                    }
-                },
+                interactionSource = interactionSource,
+                indication = null,
+                onClick = onClick,
             )
             .padding(horizontal = 24.dp, vertical = 14.dp),
     ) {
         Text(
             text = text,
             style = MaterialTheme.typography.labelLarge,
-            color = if (enabled) accent else p.faint,
-            fontWeight = FontWeight.Medium,
+            color = if (primary) p.accent else p.fg,
+            fontWeight = FontWeight.Bold,
         )
     }
 }
 
-// ── GLASS TILE ────────────────────────────────────────────────────
-
-@Composable
-fun GlassTile(
-    title: String,
-    subtitle: String? = null,
-    icon: String? = null,
-    active: Boolean = false,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val p = LocalTuiColors.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val bgAlpha by animateFloatAsState(
-        targetValue = if (active) 0.25f else if (isPressed) 0.18f else 0.08f,
-        animationSpec = tween(250),
-        label = "tileBg",
-    )
-
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
-            .drawBehind {
-                drawRoundRect(color = p.accent.copy(alpha = bgAlpha), cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()))
-                if (active) {
-                    drawRoundRect(color = p.accent.copy(alpha = 0.3f), style = Stroke(width = 1.5f), cornerRadius = CornerRadius(16.dp.toPx(), 16.dp.toPx()))
-                }
-                drawRect(brush = Brush.verticalGradient(colors = listOf(p.fg.copy(alpha = 0.04f), Color.Transparent)), size = Size(size.width, size.height * 0.3f))
-            }
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (icon != null) {
-                Text(text = icon, style = MaterialTheme.typography.bodyLarge, color = if (active) p.accent else p.dim, modifier = Modifier.padding(end = 10.dp))
-            }
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = title, style = MaterialTheme.typography.bodyLarge, color = if (active) p.accent else p.fg, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                if (subtitle != null) {
-                    Text(text = subtitle, style = MaterialTheme.typography.labelSmall, color = p.dim, maxLines = 1)
-                }
-            }
-        }
-    }
-}
-
-// ── GLASS LIST ROW ────────────────────────────────────────────────
+// ── GLASS LIST ROW ───────────────────────────────────────────────
+// Track / item row with themed colours — no hardcoded Tui*.
 
 @Composable
 fun GlassListRow(
@@ -229,99 +225,171 @@ fun GlassListRow(
     line1: String,
     line2: String,
     current: Boolean,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     val p = LocalTuiColors.current
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+        modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .drawBehind {
-                if (current) {
-                    drawRoundRect(color = p.accent.copy(alpha = 0.15f), cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()))
-                    drawRoundRect(color = p.accent.copy(alpha = 0.4f), style = Stroke(width = 1f), cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()))
-                } else if (isPressed) {
-                    drawRoundRect(color = p.fg.copy(alpha = 0.05f), cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()))
-                }
-            }
-            .clickable(interactionSource = interactionSource, indication = null, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .clickable(onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 8.dp),
     ) {
         Text(
-            text = if (current) "▶" else (index + 1).toString().padStart(2, '0'),
+            text = (index + 1).toString().padStart(3, '0'),
             style = MaterialTheme.typography.labelSmall,
             color = if (current) p.accent else p.faint,
-            fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.width(28.dp), maxLines = 1,
+            modifier = Modifier.padding(end = 10.dp),
         )
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = if (current) "$line1  " else line1,
+                text = line1,
                 style = MaterialTheme.typography.bodyLarge,
                 color = if (current) p.accent else p.fg,
                 fontWeight = if (current) FontWeight.Bold else FontWeight.Normal,
-                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             if (line2.isNotEmpty()) {
                 Text(
-                    text = line2, style = MaterialTheme.typography.labelSmall,
+                    text = line2,
+                    style = MaterialTheme.typography.labelSmall,
                     color = if (current) p.accent.copy(alpha = 0.7f) else p.dim,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }
-        if (trailing != null) { trailing() }
+        trailing?.invoke()
     }
 }
 
-// ── GLASS PROGRESS BAR ────────────────────────────────────────────
+// ── LIQUID PROGRESS BAR ──────────────────────────────────────────
+// Single liquid wave progress bar with gentle undulation.
 
 @Composable
-fun GlassProgressBar(fraction: Float, modifier: Modifier = Modifier) {
+fun LiquidProgressBar(
+    fraction: Float,
+    modifier: Modifier = Modifier,
+    height: Dp = 3.dp,
+) {
     val p = LocalTuiColors.current
-    LinearProgressIndicator(
-        progress = { fraction.coerceIn(0f, 1f) },
-        color = p.accent.copy(alpha = 0.9f),
-        trackColor = p.faint,
-        strokeCap = StrokeCap.Round, gapSize = 0.dp, drawStopIndicator = {},
-        modifier = modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)),
+    val physics = LocalAquaPhysics.current
+    val infinite = rememberInfiniteTransition(label = "liquidBar")
+    val wavePhase by infinite.animateFloat(
+        initialValue = 0f,
+        targetValue = 4f * PI.toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = physics.wavePeriodMs,
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "wavePhase",
     )
+
+    Canvas(modifier = modifier.fillMaxWidth().height(height)) {
+        val barHeight = size.height
+        val barWidth = size.width
+        val filledWidth = barWidth * fraction.coerceIn(0f, 1f)
+
+        // Track
+        drawRoundRect(
+            color = p.faint,
+            cornerRadius = CornerRadius(barHeight / 2, barHeight / 2),
+            size = Size(barWidth, barHeight),
+        )
+
+        if (fraction > 0f) {
+            // Liquid wave fill
+            val wavePath = androidx.compose.ui.graphics.Path().apply {
+                moveTo(0f, barHeight)
+                for (x in 0..barWidth.toInt()) {
+                    val wave = sin(x.toFloat() * 0.05f + wavePhase) * 0.5f
+                    val y = (barHeight * 0.5f) + wave
+                    lineTo(x.toFloat(), y)
+                }
+                lineTo(filledWidth, barHeight)
+                close()
+            }
+
+            drawPath(
+                wavePath,
+                color = p.accent.copy(alpha = 0.85f),
+            )
+
+            // Gloss reflection on filled portion
+            drawRect(
+                brush = Brush.verticalGradient(
+                    colors = listOf(p.highlight.copy(alpha = 0.1f), Color.Transparent),
+                    startY = 0f,
+                    endY = barHeight * 0.3f,
+                ),
+                size = Size(filledWidth, barHeight * 0.3f),
+            )
+        }
+    }
 }
 
-// ── GLASS SEARCH BAR ──────────────────────────────────────────────
+// ── GLASS SEARCH BAR ─────────────────────────────────────────────
+// Frosted glass capsule.
 
 @Composable
 fun GlassSearchBar(
-    query: String, hint: String, onQuery: (String) -> Unit,
+    query: String,
+    hint: String,
+    onQuery: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerSearch.toPx() }
+    val cornerRadius = CornerRadius(cornerPx, cornerPx)
+    val highlightPx = with(LocalDensity.current) { physics.highlightHeight.toPx() }
+
+    val isFocused = query.isNotEmpty()
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(14.dp))
+            .clip(RoundedCornerShape(physics.cornerSearch))
             .drawBehind {
-                drawRoundRect(color = p.card, cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()))
-                drawRoundRect(color = p.line, style = Stroke(width = 1f), cornerRadius = CornerRadius(14.dp.toPx(), 14.dp.toPx()))
+                drawRoundRect(
+                    color = p.card.copy(alpha = physics.transparency * 0.9f),
+                    cornerRadius = cornerRadius,
+                )
+                if (isFocused) {
+                    drawRoundRect(
+                        color = p.accent.copy(alpha = 0.15f),
+                        cornerRadius = cornerRadius,
+                    )
+                }
+                glassHighlight(p, cornerRadius, highlightPx)
+                drawRoundRect(
+                    color = if (isFocused) p.accent.copy(alpha = 0.4f) else p.cardBorder,
+                    cornerRadius = cornerRadius,
+                    style = Stroke(if (isFocused) 1.5f else 1f),
+                )
             }
-            .padding(horizontal = 14.dp, vertical = 10.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
     ) {
         BasicTextField(
-            value = query, onValueChange = onQuery,
+            value = query,
+            onValueChange = onQuery,
             singleLine = true,
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = p.fg),
             cursorBrush = SolidColor(p.accent),
             modifier = Modifier.fillMaxWidth(),
             decorationBox = { inner ->
                 if (query.isEmpty()) {
-                    Text(text = hint, style = MaterialTheme.typography.bodyMedium, color = p.dim)
+                    Text(
+                        text = hint,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = p.dim,
+                    )
                 }
                 inner()
             },
@@ -329,39 +397,13 @@ fun GlassSearchBar(
     }
 }
 
-// ── GLASS TAB ─────────────────────────────────────────────────────
-
-@Composable
-fun GlassTab(
-    label: String, active: Boolean,
-    modifier: Modifier = Modifier, onClick: () -> Unit,
-) {
-    val p = LocalTuiColors.current
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
-            .drawBehind {
-                if (active) {
-                    drawRoundRect(color = p.accent.copy(alpha = 0.2f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
-                    drawRoundRect(color = p.accent.copy(alpha = 0.5f), style = Stroke(width = 1f), cornerRadius = CornerRadius(10.dp.toPx(), 10.dp.toPx()))
-                }
-            }
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        Text(
-            text = label, style = MaterialTheme.typography.labelMedium,
-            color = if (active) p.accent else p.dim,
-            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
-        )
-    }
-}
-
-// ── GLASS TOGGLE ──────────────────────────────────────────────────
+// ── GLASS TOGGLE ─────────────────────────────────────────────────
+// Neon cyber toggle — turns accent-coloured when active.
 
 @Composable
 fun GlassToggle(
-    checked: Boolean, onCheckedChange: (Boolean) -> Unit,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val p = LocalTuiColors.current
@@ -370,33 +412,93 @@ fun GlassToggle(
             .size(width = 44.dp, height = 24.dp)
             .clip(RoundedCornerShape(12.dp))
             .drawBehind {
-                val fillColor = if (checked) p.accent.copy(alpha = 0.6f) else p.faint
+                val fillColor = if (checked) p.accent.copy(alpha = 0.5f) else p.faint
                 drawRoundRect(color = fillColor, cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()))
-                if (checked) {
-                    drawRoundRect(color = p.accent.copy(alpha = 0.3f), style = Stroke(width = 1f), cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()))
-                }
+                drawRoundRect(
+                    color = if (checked) p.accent.copy(alpha = 0.3f) else p.cardBorder,
+                    style = Stroke(width = 1f),
+                    cornerRadius = CornerRadius(12.dp.toPx(), 12.dp.toPx()),
+                )
             }
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { onCheckedChange(!checked) }),
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = { onCheckedChange(!checked) },
+            ),
         contentAlignment = if (checked) Alignment.CenterEnd else Alignment.CenterStart,
     ) {
         Box(
             modifier = Modifier
                 .size(18.dp)
                 .padding(4.dp)
-                .drawBehind { drawCircle(color = if (checked) p.accent else p.dim, radius = 9.dp.toPx()) },
+                .drawBehind {
+                    drawCircle(
+                        color = if (checked) p.accent else p.dim,
+                        radius = 9.dp.toPx(),
+                    )
+                },
         )
     }
 }
 
-// ── AMBIENT GLOW DIVIDER ──────────────────────────────────────────
+// ── GLASS DIVIDER ────────────────────────────────────────────────
 
 @Composable
 fun GlassDivider(modifier: Modifier = Modifier) {
     val p = LocalTuiColors.current
-    Box(modifier = modifier.fillMaxWidth().height(1.dp).drawBehind { drawRect(color = p.line) })
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .drawBehind { drawRect(color = p.line.copy(alpha = 0.6f)) },
+    )
 }
 
-// ── THEMED BOTTOM NAV ─────────────────────────────────────────────
+// ── GLASS TAB ────────────────────────────────────────────────────
+
+@Composable
+fun GlassTab(
+    label: String,
+    active: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(physics.cornerSmall / 2))
+            .drawBehind {
+                if (active) {
+                    drawRoundRect(
+                        color = p.accent.copy(alpha = 0.15f),
+                        cornerRadius = CornerRadius(physics.cornerSmall.toPx() / 2, physics.cornerSmall.toPx() / 2),
+                    )
+                    drawRoundRect(
+                        color = p.accent.copy(alpha = 0.4f),
+                        style = Stroke(width = 1f),
+                        cornerRadius = CornerRadius(physics.cornerSmall.toPx() / 2, physics.cornerSmall.toPx() / 2),
+                    )
+                }
+            }
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = onClick,
+            )
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelMedium,
+            color = if (active) p.accent else p.dim,
+            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal,
+        )
+    }
+}
+
+// ── GLASS BOTTOM NAV ─────────────────────────────────────────────
 
 @Composable
 fun GlassBottomNav(
@@ -406,16 +508,25 @@ fun GlassBottomNav(
     modifier: Modifier = Modifier,
 ) {
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+
     Row(
         horizontalArrangement = Arrangement.SpaceEvenly,
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .clip(RoundedCornerShape(24.dp))
+            .clip(RoundedCornerShape(physics.cornerSmall))
             .drawBehind {
-                drawRoundRect(color = p.surface, cornerRadius = CornerRadius(24.dp.toPx(), 24.dp.toPx()))
-                drawRoundRect(color = p.line, style = Stroke(width = 0.5f), cornerRadius = CornerRadius(24.dp.toPx(), 24.dp.toPx()))
+                drawRoundRect(
+                    color = p.surface,
+                    cornerRadius = CornerRadius(physics.cornerSmall.toPx(), physics.cornerSmall.toPx()),
+                )
+                drawRoundRect(
+                    color = p.cardBorder,
+                    style = Stroke(width = 0.5f),
+                    cornerRadius = CornerRadius(physics.cornerSmall.toPx(), physics.cornerSmall.toPx()),
+                )
             }
             .padding(vertical = 6.dp),
     ) {
@@ -425,37 +536,179 @@ fun GlassBottomNav(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 modifier = Modifier
                     .weight(1f)
-                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = { onSelect(index) })
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { onSelect(index) },
+                    )
                     .padding(vertical = 4.dp),
             ) {
-                Text(text = icon, style = MaterialTheme.typography.bodyLarge, color = if (active) p.accent else p.dim)
-                Text(text = label, style = MaterialTheme.typography.labelSmall, color = if (active) p.accent else p.dim)
+                Text(
+                    text = icon,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = if (active) p.accent else p.dim,
+                )
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (active) p.accent else p.dim,
+                )
             }
         }
     }
 }
 
-// ── GLASS SHEET BACKGROUND ────────────────────────────────────────
+// ── GLASS SHEET BACKGROUND ───────────────────────────────────────
 
 @Composable
 fun GlassSheetBackground(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerLarge.toPx() }
+    val cornerRadius = CornerRadius(cornerPx, cornerPx)
+
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+            .clip(RoundedCornerShape(topStart = physics.cornerLarge, topEnd = physics.cornerLarge))
             .drawBehind {
-                drawRoundRect(color = p.surface, cornerRadius = CornerRadius(24.dp.toPx(), 24.dp.toPx()))
+                drawRoundRect(color = p.surface, cornerRadius = cornerRadius)
                 drawRect(
                     brush = Brush.verticalGradient(
-                        colors = listOf(p.fg.copy(alpha = 0.03f), Color.Transparent),
-                        startY = 0f, endY = size.height * 0.08f,
+                        colors = listOf(p.highlight.copy(alpha = 0.03f), Color.Transparent),
+                        startY = 0f,
+                        endY = size.height * 0.08f,
                     ),
                     size = Size(size.width, size.height * 0.08f),
                 )
             }
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
+        content()
+    }
+}
+
+// ── GLASS ALBUM ART FRAME ────────────────────────────────────────
+// Wraps album art in a frosted water glass frame.
+
+@Composable
+fun GlassAlbumFrame(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerAlbum.toPx() }
+    val cornerRadius = CornerRadius(cornerPx, cornerPx)
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(physics.cornerAlbum))
+            .drawBehind {
+                // Glass frame border
+                drawRoundRect(color = p.cardBorder, cornerRadius = cornerRadius, style = Stroke(2.dp.toPx()))
+                // Soft glow inside frame
+                drawRoundRect(color = p.glow.copy(alpha = 0.08f), cornerRadius = cornerRadius)
+                // Top reflection
+                drawRoundRect(
+                    brush = Brush.verticalGradient(
+                        colors = listOf(p.highlight.copy(alpha = 0.1f), Color.Transparent),
+                        startY = 0f,
+                        endY = size.height * 0.15f,
+                    ),
+                    cornerRadius = cornerRadius,
+                )
+            },
+    ) {
+        content()
+    }
+}
+
+// ── GLASS CAPSULE BADGE ──────────────────────────────────────────
+// Liquid capsule for tags like "TG", "FLAC", "SYNCED".
+
+@Composable
+fun GlassBadge(
+    text: String,
+    modifier: Modifier = Modifier,
+    accent: Boolean = false,
+) {
+    val p = LocalTuiColors.current
+    val clr = if (accent) p.accent else p.dim
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .drawBehind {
+                drawRoundRect(
+                    color = clr.copy(alpha = 0.15f),
+                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+                )
+                drawRoundRect(
+                    color = clr.copy(alpha = 0.3f),
+                    style = Stroke(0.5f),
+                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+                )
+            }
+            .padding(horizontal = 6.dp, vertical = 2.dp),
+    ) {
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = clr,
+            fontWeight = FontWeight.Bold,
+        )
+    }
+}
+
+// ── GLASS CHIP ───────────────────────────────────────────────────
+
+@Composable
+fun GlassChip(text: String, modifier: Modifier = Modifier) {
+    val p = LocalTuiColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelSmall,
+        color = p.dim,
+        modifier = modifier
+            .clip(RoundedCornerShape(6.dp))
+            .drawBehind {
+                drawRoundRect(
+                    color = p.cardBorder,
+                    cornerRadius = CornerRadius(6.dp.toPx(), 6.dp.toPx()),
+                    style = Stroke(0.5f),
+                )
+            }
+            .padding(horizontal = 6.dp, vertical = 4.dp),
+    )
+}
+
+// ── THEMED CAPTION ───────────────────────────────────────────────
+
+@Composable
+fun GlassCaption(text: String, modifier: Modifier = Modifier) {
+    val p = LocalTuiColors.current
+    Text(
+        text = text,
+        style = MaterialTheme.typography.labelMedium,
+        color = p.dim,
+        modifier = modifier.padding(vertical = 10.dp),
+    )
+}
+
+// ── ANIMATED THEME WRAPPER ──────────────────────────────────────
+// Crossfade wrapper for theme switching.
+
+@Composable
+fun ThemeAnimatedContent(
+    targetTheme: ThemeOption,
+    content: @Composable () -> Unit,
+) {
+    val fadeAlpha by animateFloatAsState(
+        targetValue = 1f,
+        animationSpec = tween(durationMillis = 500),
+        label = "themeFade",
+    )
+    Box(modifier = Modifier.drawBehind { drawRect(color = Color.Black.copy(alpha = 1f - fadeAlpha)) }) {
         content()
     }
 }
