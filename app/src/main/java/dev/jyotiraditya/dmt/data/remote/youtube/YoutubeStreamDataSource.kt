@@ -8,7 +8,6 @@ import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
-import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
 import java.io.IOException
 import javax.inject.Inject
@@ -63,14 +62,14 @@ class YoutubeStreamDataSource private constructor(
         } ?: throw IOException("Could not resolve YouTube stream for $videoId")
 
         openedUri = Uri.parse(resolved.url)
-        Log.d(TAG, "Stream resolved: ${resolved.url.take(80)}... UA=${resolved.userAgent.take(40)}")
+        Log.d(TAG, "Stream resolved: ${resolved.url.take(80)}")
 
         // DefaultHttpDataSource — no OkHttp, no interceptors, no custom client.
         // Only the User-Agent from the resolved context; no hardcoded Origin/Referer.
         val httpFactory = DefaultHttpDataSource.Factory()
             .setConnectTimeoutMs(16_000)
             .setReadTimeoutMs(8_000)
-            .setUserAgent(resolved.userAgent)
+            .setUserAgent("Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0")
             .setAllowCrossProtocolRedirects(true)
 
         inner = httpFactory.createDataSource()
