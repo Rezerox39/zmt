@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
+    alias(libs.plugins.chaquo)
 }
 
 val appVersionName = (project.findProperty("versionOverride") as String?) ?: "1.0"
@@ -48,16 +49,28 @@ base {
 
 android {
     namespace = "dev.jyotiraditya.dmt"
+    ndkVersion = "29.0.14206865"
+    externalNativeBuild {
+        cmake {
+            version = "4.1.2"
+            path = file("src/main/cpp/CMakeLists.txt")
+        }
+    }
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
+
         applicationId = "dev.jyotiraditya.dmt"
         minSdk = 30
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
+
+        ndk {
+            abiFilters += listOf("arm64-v8a", "x86_64")
+        }
 
         buildConfigField("int", "TELEGRAM_API_ID", telegramApiId)
         buildConfigField("String", "TELEGRAM_API_HASH", "\"$telegramApiHash\"")
@@ -91,6 +104,23 @@ android {
         }
     }
     compileOptions {
+
+    packaging {
+        jniLibs.useLegacyPackaging = true
+    }
+
+chaquopy {
+    defaultConfig {
+
+        version = "3.12"
+        pip {
+            install("yt-dlp>=2026.07.04")
+            install("yt-dlp-ejs>=0.8.0")
+            install("pip")
+        }
+    }
+}
+
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
     }
@@ -147,4 +177,28 @@ dependencies {
     ksp(libs.hilt.compiler)
     testImplementation(libs.junit)
     testImplementation(libs.robolectric)
+}
+
+afterEvaluate {
+    val jniLibs = file("${layout.projectDirectory}/src/main/jniLibs").also { it.mkdirs() }
+    android.buildTypes.forEach { type ->
+        val typeCapitalized = type.name.let {
+            it.first().uppercase() + it.substring(1)
+        }
+        tasks.named("assemble${typeCapitalized}").configure {
+            doFirst {
+                val cxxDir = file("${layout.buildDirectory.get()}/intermediates/cxx/${if (typeCapitalized == "Debug") "Debug" else "RelWithDebInfo"}")
+                cxxDir.walkTopDown().forEach cxx@{ f ->
+                    if (f.name != "qjs") return@cxx
+                    f.copyTo(
+                        target = jniLibs
+                            .resolve(f.parentFile.name)
+                            .also { it.mkdirs() }
+                            .resolve("libqjs.so"),
+                        overwrite = true
+                    )
+                }
+            }
+        }
+    }
 }

@@ -37,3 +37,15 @@
 # Keep OkHttp
 -keep class okhttp3.** { *; }
 -dontwarn okhttp3.**
+
+# Chaquopy / Python
+-keep class com.chaquo.python.** { *; }
+-dontwarn com.chaquo.python.**
+
+# yt-dlp
+-keep class org.bouncycastle.jsse.** { *; }
+-dontwarn org.bouncycastle.jsse.**
+-keep class org.conscrypt.** { *; }
+-dontwarn org.conscrypt.**
+-keep class org.openjsse.** { *; }
+-dontwarn org.openjsse.**

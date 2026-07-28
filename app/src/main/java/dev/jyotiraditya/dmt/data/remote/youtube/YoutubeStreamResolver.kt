@@ -1,7 +1,8 @@
 package dev.jyotiraditya.dmt.data.remote.youtube
 
-import android.net.Uri
 import android.util.Log
+import dev.jyotiraditya.dmt.data.remote.youtubedl.YouTubeDLBridge
+import dev.jyotiraditya.dmt.data.remote.youtubedl.YouTubeDLResponse
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.Innertube
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.models.bodies.PlayerBody
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.requests.player
@@ -12,64 +13,94 @@ private const val TAG = "YoutubeStreamResolver"
 
 /**
  * Resolved YouTube stream URL.
- *
- * User-Agent is set to a generic Firefox desktop browser string,
- * matching ViTune's approach. YouTube CDN does NOT require the
- * Innertube client context User-Agent — a standard browser UA works.
  */
 data class ResolvedStream(
     val url: String,
-    val userAgent: String = "Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0",
+    val contentLength: Long = 0L,
 )
 
 /**
  * Resolves YouTube Music stream URLs.
  *
- * Strategy matches ViTune:
- * - Primary: Innertube player API with IOS→Web→AndroidMusic→TV contexts
- * - User-Agent: Firefox desktop browser (not Innertube context UA)
- * - Returns direct playable URLs without signatureCipher
+ * Strategy matches ViTune's architecture:
+ * 1. yt-dlp via Python/Chaquopy (PRIMARY) — handles JS signature deciphering,
+ *    n-parameter transforms, and returns reliable playable URLs
+ * 2. Innertube player API (FALLBACK) — used when yt-dlp is unavailable
+ *
+ * yt-dlp requires the QuickJS binary for JavaScript signature deciphering,
+ * compiled from source via CMake in build process.
  */
 @Singleton
-class YoutubeStreamResolver @Inject constructor() {
-
-    // In-memory cache: videoId -> (streamUrl, timestamp)
-    private val urlCache = mutableMapOf<String, Pair<String, Long>>()
-    private val cacheTtlMs = 15 * 60 * 1000L // 15 min
+class YoutubeStreamResolver @Inject constructor(
+    private val youTubeDLBridge: YouTubeDLBridge,
+) {
 
     /**
      * Resolve a YouTube videoId to a playable stream URL.
-     *
-     * Uses Innertube player API with multiple client contexts.
-     * Returns the first context that provides a direct URL (no signatureCipher).
      */
     suspend fun resolve(videoId: String): ResolvedStream? {
-        // 1. Check in-memory cache
-        urlCache[videoId]?.let { (url, timestamp) ->
-            if (System.currentTimeMillis() - timestamp < cacheTtlMs) {
-                Log.d(TAG, "Cache hit for $videoId")
-                return ResolvedStream(url = url)
-            }
-        }
+        // 1. Try yt-dlp (PRIMARY) — matches ViTune's architecture
+        val ytdl = resolveViaYtDlp(videoId)
+        if (ytdl != null) return ytdl
 
-        // 2. Resolve via Innertube player API
-        val url = resolveViaInnertube(videoId)
-        if (url != null) {
-            urlCache[videoId] = url to System.currentTimeMillis()
-            return ResolvedStream(url = url)
-        }
+        // 2. Fallback to Innertube
+        val inner = resolveViaInnertube(videoId)
+        if (inner != null) return inner
 
         Log.e(TAG, "All resolvers failed for $videoId")
         return null
     }
 
     /**
-     * Resolve via Innertube player API.
-     *
-     * Tries contexts in order: IOS → Web → AndroidMusic → TV
-     * Only returns formats with a direct [url] field (no signatureCipher).
+     * Resolve via yt-dlp (Python/Chaquopy).
+     * Requires:
+     * - Chaquopy Gradle plugin
+     * - Python 3.14 bundled via Chaquopy
+     * - yt-dlp and yt-dlp-ejs pip packages
+     * - QuickJS binary compiled via CMake (libqjs.so)
      */
-    private suspend fun resolveViaInnertube(videoId: String): String? {
+    private suspend fun resolveViaYtDlp(videoId: String): ResolvedStream? {
+        if (!youTubeDLBridge.isReady()) {
+            Log.w(TAG, "yt-dlp bridge not ready")
+            return null
+        }
+
+        return try {
+            val jsonStr = youTubeDLBridge.runDownload(videoId) ?: return null
+            val response = YouTubeDLResponse.fromString(jsonStr)
+
+            if (response.id != videoId) {
+                Log.w(TAG, "yt-dlp returned wrong video ID: ${response.id} != $videoId")
+                return null
+            }
+
+            val url = response.url ?: run {
+                Log.w(TAG, "yt-dlp returned no URL for $videoId")
+                null
+            }
+
+            if (url != null) {
+                Log.d(TAG, "yt-dlp: ${response.formatId}, size=${response.fileSize}")
+                ResolvedStream(url = url, contentLength = response.fileSize)
+            } else {
+                // Fallback: use best format URL from formats list
+                response.formats
+                    ?.firstOrNull { it.url != null }
+                    ?.url
+                    ?.let { ResolvedStream(url = it) }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "yt-dlp failed for $videoId: ${e.message}")
+            null
+        }
+    }
+
+    /**
+     * Fallback: resolve via Innertube player API.
+     * Uses IOS → Web → AndroidMusic → TV contexts.
+     * Only returns formats with direct [url] (no signatureCipher).
+     */
+    private suspend fun resolveViaInnertube(videoId: String): ResolvedStream? {
         return try {
             val result = Innertube.player(
                 body = PlayerBody(videoId = videoId),
@@ -78,7 +109,6 @@ class YoutubeStreamResolver @Inject constructor() {
             val response = result?.getOrNull() ?: return null
             val streamingData = response.streamingData ?: return null
 
-            // Only use formats with a direct URL — skip signatureCipher-only formats
             val format = streamingData.adaptiveFormats
                 ?.filter { it.url != null }
                 ?.let { formats ->
@@ -87,16 +117,11 @@ class YoutubeStreamResolver @Inject constructor() {
                 } ?: return null
 
             val url = format.url ?: return null
-
-            Log.d(TAG, "Innertube: ${format.mimeType} (${format.bitrate}kbps), itag=${format.itag}")
-            url
+            Log.d(TAG, "Innertube fallback: ${format.mimeType} (${format.bitrate}kbps)")
+            ResolvedStream(url = url, contentLength = format.contentLength ?: 0L)
         } catch (e: Exception) {
             Log.e(TAG, "Innertube failed: ${e.message}")
             null
         }
-    }
-
-    fun clearCache() {
-        urlCache.clear()
     }
 }
