@@ -564,7 +564,6 @@ class PlayerViewModel @Inject constructor(
             controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
         }
 
-        @OptIn(UnstableApi::class)
         override fun onPlayerError(error: PlaybackException) {
             // Log detailed error info for debugging
             val sb = StringBuilder()
@@ -572,10 +571,19 @@ class PlayerViewModel @Inject constructor(
             // Walk cause chain looking for HTTP response code
             var c: Throwable? = error.cause
             while (c != null) {
-                sb.appendLine("  Cause: ${c::class.simpleName}: ${c.message?.take(200)}")
-                if (c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
-                    sb.appendLine("  >>> HTTP Status: ${c.responseCode} <<<")
-                    sb.appendLine("  >>> Response headers: ${c.headerFields} <<<")
+                val cn = c::class.simpleName ?: ""
+                sb.appendLine("  Cause: $cn: ${c.message?.take(200)}")
+                if (cn == "InvalidResponseCodeException") {
+                    try {
+                        val codeField = c::class.java.getDeclaredField("responseCode")
+                        codeField.isAccessible = true
+                        sb.appendLine("  >>> HTTP Status: ${codeField.get(c)} <<<")
+                        val headersField = c::class.java.getDeclaredField("headerFields")
+                        headersField.isAccessible = true
+                        sb.appendLine("  >>> Response headers: ${headersField.get(c)} <<<")
+                    } catch (_: Exception) {
+                        sb.appendLine("  >>> HTTP error (reflection failed) <<<")
+                    }
                     break
                 }
                 c = c.cause
