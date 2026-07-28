@@ -86,6 +86,8 @@ class PlayerViewModel @Inject constructor(
     private val getTrackTech: GetTrackTechUseCase,
     private val trackMediaRepository: TrackMediaRepository,
     private val playlistRepository: PlaylistRepository,
+    private val mediaSourceProvider: dev.jyotiraditya.dmt.domain.usecase.MediaSourceProvider,
+    private val youtubeRepository: dev.jyotiraditya.dmt.data.repository.YoutubeMediaRepositoryImpl,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -181,32 +183,55 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.Query -> {
                 reduce { it.copy(query = intent.value) }
                 val query = intent.value
-                val tracks = currentState.tracks
-                val albums = currentState.albums
-                val artists = currentState.artists
-                val folders = currentState.folders
-                val playlists = currentState.playlists
-                val sort = currentState.settings.librarySort
                 viewModelScope.launch {
-                    val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
-                        withContext(Dispatchers.Default) {
-                            FilteredLibrary(
-                                tracks = filter(tracks, query, sort),
-                                albums = filterAlbums(albums, query),
-                                artists = filterArtists(artists, query),
-                                folders = filterFolders(folders, query),
-                                playlists = filterPlaylists(playlists, query),
-                            )
+                    if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                        if (query.isBlank()) {
+                            reduce {
+                                it.copy(
+                                    tracks = emptyList(),
+                                    filtered = emptyList(),
+                                )
+                            }
+                            return@launch
                         }
-                    if (currentState.query == query) {
-                        reduce {
-                            it.copy(
-                                filtered = filteredTracks,
-                                filteredAlbums = filteredAlbums,
-                                filteredArtists = filteredArtists,
-                                filteredFolders = filteredFolders,
-                                filteredPlaylists = filteredPlaylists,
-                            )
+                        reduce { it.copy(scanning = true) }
+                        val results = youtubeRepository.search(query)
+                        if (currentState.query == query) {
+                            reduce {
+                                it.copy(
+                                    scanning = false,
+                                    tracks = results,
+                                    filtered = results,
+                                )
+                            }
+                        }
+                    } else {
+                        val tracks = currentState.tracks
+                        val albums = currentState.albums
+                        val artists = currentState.artists
+                        val folders = currentState.folders
+                        val playlists = currentState.playlists
+                        val sort = currentState.settings.librarySort
+                        val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
+                            withContext(Dispatchers.Default) {
+                                FilteredLibrary(
+                                    tracks = filter(tracks, query, sort),
+                                    albums = filterAlbums(albums, query),
+                                    artists = filterArtists(artists, query),
+                                    folders = filterFolders(folders, query),
+                                    playlists = filterPlaylists(playlists, query),
+                                )
+                            }
+                        if (currentState.query == query) {
+                            reduce {
+                                it.copy(
+                                    filtered = filteredTracks,
+                                    filteredAlbums = filteredAlbums,
+                                    filteredArtists = filteredArtists,
+                                    filteredFolders = filteredFolders,
+                                    filteredPlaylists = filteredPlaylists,
+                                )
+                            }
                         }
                     }
                 }
@@ -346,20 +371,22 @@ class PlayerViewModel @Inject constructor(
             }
             is DmtAction.TelegramSendPhone -> {
                 viewModelScope.launch {
-                    reduce { it.copy(error = null) }
+                    reduce { it.copy(error = null, scanning = true) }
                     val initErr = telegramLogin.initialize()
                     if (initErr != null) {
-                        reduce { it.copy(error = initErr) }
+                        reduce { it.copy(error = initErr, scanning = false) }
                         return@launch
                     }
                     try {
                         val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
                         if (result.isFailure) {
                             val errMsg = result.exceptionOrNull()?.message ?: "Failed to send phone number"
-                            reduce { it.copy(error = "Error: $errMsg") }
+                            reduce { it.copy(error = "Error: $errMsg", scanning = false) }
+                        } else {
+                            reduce { it.copy(scanning = false) }
                         }
                     } catch (e: Exception) {
-                        reduce { it.copy(error = "Connection error: ${e.message}") }
+                        reduce { it.copy(error = "Connection error: ${e.message}", scanning = false) }
                     }
                 }
             }
