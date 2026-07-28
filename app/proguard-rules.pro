@@ -15,3 +15,25 @@
 -keep class org.drinkless.tdlib.Client$ResultHandler { *; }
 -keep class org.drinkless.tdlib.Client$ExceptionHandler { *; }
 -keep class org.drinkless.tdlib.Client$LogMessageHandler { *; }
+
+# Keep kotlinx.serialization
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers @kotlinx.serialization.Serializable class ** {
+    *** Companion;
+}
+-keepclassmembers class **$$serializer {
+    *** INSTANCE;
+}
+-keepclassmembers class ** {
+    @kotlinx.serialization.Serial <fields>;
+}
+-keep,includedescriptorclasses class dev.jyotiraditya.dmt.**$$serializer { *; }
+
+# Keep Ktor
+-keep class io.ktor.** { *; }
+-dontwarn io.ktor.**
+
+# Keep OkHttp
+-keep class okhttp3.** { *; }
+-dontwarn okhttp3.**
