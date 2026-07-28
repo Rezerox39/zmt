@@ -8,6 +8,10 @@ on:
 permissions:
   contents: write
 
+env:
+  TELEGRAM_API_ID: 1535417
+  TELEGRAM_API_HASH: 680c59342dffae3c680ee8a9c37f39be
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -40,6 +44,8 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+          TELEGRAM_API_ID: ${{ env.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ env.TELEGRAM_API_HASH }}
         run: ./gradlew assembleRelease bundleRelease -PversionOverride=${{ steps.version.outputs.name }} --no-configuration-cache
 
       - name: publish release

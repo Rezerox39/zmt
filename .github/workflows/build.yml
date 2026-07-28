@@ -6,6 +6,10 @@ on:
   pull_request:
   workflow_dispatch:
 
+env:
+  TELEGRAM_API_ID: 1535417
+  TELEGRAM_API_HASH: 680c59342dffae3c680ee8a9c37f39be
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -38,10 +42,16 @@ jobs:
         run: echo "name=$(gh release view --json tagName --jq .tagName | sed 's/^v//')-ci-${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
 
       - name: build unsigned release
+        env:
+          TELEGRAM_API_ID: ${{ env.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ env.TELEGRAM_API_HASH }}
         run: ./gradlew clean assembleRelease -PversionOverride=${{ steps.version.outputs.name }} --no-configuration-cache
 
       - name: sign APK
         if: github.event_name != 'pull_request'
+        env:
+          TELEGRAM_API_ID: ${{ env.TELEGRAM_API_ID }}
+          TELEGRAM_API_HASH: ${{ env.TELEGRAM_API_HASH }}
         run: |
           echo "${{ secrets.SIGNING_KEYSTORE }}" | base64 -d > /tmp/zmt.keystore
           apk=$(ls app/build/outputs/apk/release/*-unsigned.apk 2>/dev/null || ls app/build/outputs/apk/release/*.apk | head -1)
