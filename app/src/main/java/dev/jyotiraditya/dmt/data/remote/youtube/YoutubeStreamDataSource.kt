@@ -11,6 +11,10 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
+private const val YOUTUBE_USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
+    "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(
     private val resolver: YoutubeStreamResolver,
@@ -26,6 +30,13 @@ class YoutubeStreamDataSource private constructor(
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {
             val httpFactory = OkHttpDataSource.Factory(okHttpClient)
+                .setUserAgent(YOUTUBE_USER_AGENT)
+                .setDefaultRequestProperties(
+                    mapOf(
+                        "Referer" to "https://music.youtube.com/",
+                        "Origin" to "https://music.youtube.com",
+                    )
+                )
             return YoutubeStreamDataSource(resolver, httpFactory.createDataSource())
         }
     }
