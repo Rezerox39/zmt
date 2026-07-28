@@ -3,7 +3,6 @@ package dev.jyotiraditya.dmt.domain.model
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 
-enum class TrackSource { LOCAL, JELLYFIN, TELEGRAM }
 
 @Immutable
 data class Track(
@@ -68,3 +67,4 @@ data class LibrarySnapshot(
     val artists: List<Artist> = emptyList(),
     val folders: List<Folder> = emptyList(),
 )
+enum class TrackSource { LOCAL, JELLYFIN, TELEGRAM, YOUTUBE }

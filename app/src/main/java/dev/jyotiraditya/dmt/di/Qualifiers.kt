@@ -13,3 +13,7 @@ annotation class JellyfinSource
 @Qualifier
 @Retention(AnnotationRetention.BINARY)
 annotation class TelegramSource
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class YouTubeSource

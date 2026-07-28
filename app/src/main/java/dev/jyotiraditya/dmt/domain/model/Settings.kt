@@ -4,6 +4,7 @@ enum class SourceMode(val label: String) {
     LOCAL("local"),
     JELLYFIN("jellyfin"),
     TELEGRAM("telegram"),
+    YOUTUBE("youtube"),
 }
 
 enum class LibrarySort(val label: String) {

@@ -3,6 +3,7 @@ package dev.jyotiraditya.dmt.domain.usecase
 import dev.jyotiraditya.dmt.di.JellyfinSource
 import dev.jyotiraditya.dmt.di.Local
 import dev.jyotiraditya.dmt.di.TelegramSource
+import dev.jyotiraditya.dmt.di.YouTubeSource
 import dev.jyotiraditya.dmt.domain.model.SourceMode
 import dev.jyotiraditya.dmt.domain.repository.MediaRepository
 import dev.jyotiraditya.dmt.data.repository.PreferencesRepository
@@ -15,6 +16,7 @@ class MediaSourceProvider @Inject constructor(
     @Local private val local: MediaRepository,
     @JellyfinSource private val jellyfin: MediaRepository,
     @TelegramSource private val telegram: MediaRepository,
+    @YouTubeSource private val youtube: MediaRepository,
     private val settingsRepository: PreferencesRepository,
 ) {
     suspend fun current(): MediaRepository =
@@ -22,5 +24,6 @@ class MediaSourceProvider @Inject constructor(
             SourceMode.LOCAL -> local
             SourceMode.JELLYFIN -> jellyfin
             SourceMode.TELEGRAM -> telegram
+            SourceMode.YOUTUBE -> youtube
         }
 }

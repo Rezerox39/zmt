@@ -7,6 +7,7 @@ import dagger.hilt.components.SingletonComponent
 import dev.jyotiraditya.dmt.data.repository.JellyfinMediaRepositoryImpl
 import dev.jyotiraditya.dmt.data.repository.MediaRepositoryImpl
 import dev.jyotiraditya.dmt.data.repository.TelegramMediaRepositoryImpl
+import dev.jyotiraditya.dmt.data.repository.YoutubeMediaRepositoryImpl
 import dev.jyotiraditya.dmt.domain.repository.MediaRepository
 
 @Module
@@ -24,4 +25,8 @@ abstract class RepositoryModule {
     @TelegramSource
     @Binds
     abstract fun telegramMediaRepository(impl: TelegramMediaRepositoryImpl): MediaRepository
+
+    @YouTubeSource
+    @Binds
+    abstract fun youtubeMediaRepository(impl: YoutubeMediaRepositoryImpl): MediaRepository
 }

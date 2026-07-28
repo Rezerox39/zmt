@@ -329,6 +329,7 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.SourceLogin -> when (intent.mode) {
                 SourceMode.JELLYFIN -> loginToJellyfin(intent)
                 SourceMode.LOCAL -> Unit
+                SourceMode.YOUTUBE -> Unit
                 SourceMode.TELEGRAM -> {
                     viewModelScope.launch {
                         val initErr = telegramLogin.initialize()

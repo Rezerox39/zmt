@@ -90,6 +90,9 @@ android {
                 "META-INF/NOTICE.txt",
                 "META-INF/DEPENDENCIES",
                 "META-INF/proguard/coroutines.pro",
+                "META-INF/INDEX.LIST",
+                "META-INF/io.netty.versions",
+                "META-INF/LSRC-INF",
             )
         }
     }

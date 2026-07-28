@@ -86,6 +86,12 @@ private val SOURCE_REGISTRY = listOf(
             )
         },
     ),
+    SourceDescriptor(
+        mode = SourceMode.YOUTUBE,
+        label = SourceMode.YOUTUBE.label,
+        subtitle = { "stream from YouTube Music" },
+        requiresAuth = false,
+    ),
 )
 
 @Composable
