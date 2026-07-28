@@ -33,6 +33,12 @@ import dev.jyotiraditya.dmt.ui.theme.TuiFaint
 import dev.jyotiraditya.dmt.ui.theme.TuiFg
 import dev.jyotiraditya.dmt.ui.theme.TuiLine
 
+private fun themeLabel(theme: dev.jyotiraditya.dmt.domain.model.ThemeOption): String = when (theme) {
+    dev.jyotiraditya.dmt.domain.model.ThemeOption.AMOLED_BLACK -> "amoled black"
+    dev.jyotiraditya.dmt.domain.model.ThemeOption.AQUA_GLASS -> "aqua glass"
+    dev.jyotiraditya.dmt.domain.model.ThemeOption.CRIMSON_NOIR -> "crimson noir"
+}
+
 private val COVER_COLS_STEPS = listOf(48, 64, 80, 96)
 
 @Composable
@@ -46,9 +52,9 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 
         SettingRow(
             label = "theme",
-            value = settings.theme.label,
+            value = themeLabel(settings.theme),
         ) {
-            val themes = ThemeOption.entries
+            val themes = ThemeOption.entries.toList()
             val nextIndex = (themes.indexOf(settings.theme) + 1) % themes.size
             dispatch(DmtAction.Config(settings.copy(theme = themes[nextIndex])))
         }

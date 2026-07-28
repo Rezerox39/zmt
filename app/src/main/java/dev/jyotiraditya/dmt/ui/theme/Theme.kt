@@ -22,49 +22,49 @@ private val AmoledBlackScheme = darkColorScheme(
     error = TuiRed,
 )
 
-private val RedAmoledScheme = darkColorScheme(
-    primary = RedBright,
-    onPrimary = RedBg,
-    secondary = RedFg,
-    onSecondary = RedBg,
-    tertiary = RedDim,
-    onTertiary = RedBg,
-    background = RedBg,
-    onBackground = RedFg,
-    surface = RedBg,
-    onSurface = RedFg,
-    surfaceVariant = RedSurface,
-    onSurfaceVariant = RedDim,
-    outline = RedLine,
-    error = RedError,
+private val AquaGlassScheme = darkColorScheme(
+    primary = AquaBright,
+    onPrimary = AquaBg,
+    secondary = AquaFg,
+    onSecondary = AquaBg,
+    tertiary = AquaDim,
+    onTertiary = AquaBg,
+    background = AquaBg,
+    onBackground = AquaFg,
+    surface = AquaBg,
+    onSurface = AquaFg,
+    surfaceVariant = AquaSurface,
+    onSurfaceVariant = AquaDim,
+    outline = AquaLine,
+    error = AquaRed,
 )
 
-private val LiquidGlassScheme = darkColorScheme(
-    primary = GlassBright,
-    onPrimary = GlassBg,
-    secondary = GlassFg,
-    onSecondary = GlassBg,
-    tertiary = GlassDim,
-    onTertiary = GlassBg,
-    background = GlassBg,
-    onBackground = GlassFg,
-    surface = GlassBg,
-    onSurface = GlassFg,
-    surfaceVariant = GlassSurface,
-    onSurfaceVariant = GlassDim,
-    outline = GlassLine,
-    error = GlassError,
+private val CrimsonNoirScheme = darkColorScheme(
+    primary = NoirBright,
+    onPrimary = NoirBg,
+    secondary = NoirFg,
+    onSecondary = NoirBg,
+    tertiary = NoirDim,
+    onTertiary = NoirBg,
+    background = NoirBg,
+    onBackground = NoirFg,
+    surface = NoirBg,
+    onSurface = NoirFg,
+    surfaceVariant = NoirSurface,
+    onSurfaceVariant = NoirDim,
+    outline = NoirLine,
+    error = NoirRed,
 )
 
 @Composable
 fun DMTTheme(
-    theme: dev.jyotiraditya.dmt.domain.model.ThemeOption = dev.jyotiraditya.dmt.domain.model.ThemeOption.AMOLED_BLACK,
+    theme: ThemeOption = ThemeOption.AMOLED_BLACK,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when (theme) {
         ThemeOption.AMOLED_BLACK -> AmoledBlackScheme
-        ThemeOption.RED_AMOLED -> RedAmoledScheme
-        ThemeOption.LIQUID_GLASS -> LiquidGlassScheme
+        ThemeOption.AQUA_GLASS -> AquaGlassScheme
+        ThemeOption.CRIMSON_NOIR -> CrimsonNoirScheme
     }
     MaterialTheme(
         colorScheme = colorScheme,
