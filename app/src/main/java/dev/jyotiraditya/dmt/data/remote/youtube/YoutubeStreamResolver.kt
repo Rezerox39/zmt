@@ -50,12 +50,12 @@ data class PipedStreamResponse(
 /**
  * Resolves YouTube Music stream URLs.
  *
- * Strategy mirrors ViTune: use yt-dlp quality streams via the Piped API
- * (which wraps yt-dlp internally) for reliable playback, with Innertube
- * as fallback.
+ * Strategy mirrors ViTune:
+ * 1. Piped API (wraps yt-dlp) — primary resolver, most reliable stream URLs
+ * 2. Innertube player API — fallback using IOS/Web/AndroidMusic/TV contexts
  *
- * Piped instances provide the same yt-dlp resolved URLs without needing
- * to bundle Python/yt-dlp in the APK.
+ * Piped instances provide yt-dlp resolved URLs without bundling Python/yt-dlp.
+ * Multiple instances are tried for redundancy.
  */
 @Singleton
 class YoutubeStreamResolver @Inject constructor() {
@@ -69,8 +69,12 @@ class YoutubeStreamResolver @Inject constructor() {
         // Minimal config - Piped API doesn't need special headers
     }
 
+    // Multiple Piped instances for redundancy
     private val pipedInstances = listOf(
-        "https://pipedapi.kavin.rocks",
+        "https://pipedapi.kavin.rocks",      // Main instance
+        "https://pipedapi-libre.kavin.rocks", // Libre instance
+        "https://pipedapi.smnz.de",           // Community instance
+        "https://pipedapi.r4fo.com",          // Community instance
     )
 
     // In-memory cache: videoId -> (stream, timestamp)
@@ -125,10 +129,10 @@ class YoutubeStreamResolver @Inject constructor() {
                     }
 
                 if (audio != null) {
-                    Log.d(TAG, "Piped: ${audio.format} @ ${audio.bitrate}kbps")
+                    Log.d(TAG, "Piped $instance: ${audio.format} @ ${audio.bitrate}kbps")
                     return ResolvedStream(
                         url = audio.url,
-                        userAgent = "Mozilla/5.0 (Windows NT 10.0; rv:91.0) Gecko/20100101 Firefox/91.0",
+                        userAgent = UserAgents.DESKTOP,
                     )
                 }
             } catch (e: Exception) {
@@ -140,6 +144,13 @@ class YoutubeStreamResolver @Inject constructor() {
 
     /**
      * Fallback: resolve via Innertube player API.
+     *
+     * Tries contexts in order: IOS → Web → AndroidMusic → TV
+     * Returns the first context that provides a playable URL.
+     *
+     * Only returns formats with a direct [url] field (no signatureCipher).
+     * Signature-ciphered formats require JS deciphering which we don't
+     * implement — those contexts are silently skipped.
      */
     private suspend fun resolveViaInnertube(videoId: String): ResolvedStream? {
         return try {
@@ -149,13 +160,21 @@ class YoutubeStreamResolver @Inject constructor() {
             )
             val response = result?.getOrNull() ?: return null
             val streamingData = response.streamingData ?: return null
-            val format = streamingData.highestQualityFormat ?: return null
+
+            // Only use formats with a direct URL — skip signatureCipher-only formats
+            val format = streamingData.adaptiveFormats
+                ?.filter { it.url != null }
+                ?.let { formats ->
+                    formats.findLast { it.itag == 251 || it.itag == 140 }
+                        ?: formats.maxByOrNull { it.bitrate ?: 0L }
+                } ?: return null
+
             val url = format.url ?: return null
 
             val userAgent = response.context?.client?.userAgent
                 ?: UserAgents.ANDROID_MUSIC
 
-            Log.d(TAG, "Innertube: ${format.mimeType}")
+            Log.d(TAG, "Innertube: ${format.mimeType} (${format.bitrate}kbps), UA=${userAgent.take(40)}")
             ResolvedStream(url = url, userAgent = userAgent)
         } catch (e: Exception) {
             Log.e(TAG, "Innertube failed: ${e.message}")
