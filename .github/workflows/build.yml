@@ -29,6 +29,15 @@ jobs:
       - name: set up gradle
         uses: gradle/actions/setup-gradle@v6
 
+      - name: install NDK and CMake
+        run: |
+          echo "y" | ${ANDROID_HOME}/cmdline-tools/latest/bin/sdkmanager --install "ndk;29.0.14206865" "cmake;4.1.2" > /dev/null 2>&1 || true
+
+      - name: set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: lint
         run: ./gradlew :app:lintRelease --no-configuration-cache
 
