@@ -562,7 +562,7 @@ class PlayerViewModel @Inject constructor(
             controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
         }
 
-                                override fun onPlayerError(error: PlaybackException) {
+        override fun onPlayerError(error: PlaybackException) {
             // Log detailed error info for debugging
             val sb = StringBuilder()
             sb.appendLine("PlaybackError: ${error.errorCodeName} (${error.errorCode})")
@@ -583,7 +583,8 @@ class PlayerViewModel @Inject constructor(
                 it.copy(error = context.getString(R.string.playback_error, name))
             }
         }
-    
+    }
+
     private fun syncFrom(c: MediaController) {
         reduce {
             it.copy(
