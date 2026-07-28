@@ -16,10 +16,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
 
-    private const val DEFAULT_USER_AGENT =
-        "Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 " +
-        "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
-
     @Provides
     @Singleton
     fun httpClient(): HttpClient =
@@ -36,13 +32,5 @@ object NetworkModule {
         Builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
-            .addInterceptor { chain ->
-                val request = chain.request().newBuilder()
-                    .header("User-Agent", DEFAULT_USER_AGENT)
-                    .header("Referer", "https://music.youtube.com/")
-                    .header("Origin", "https://music.youtube.com")
-                    .build()
-                chain.proceed(request)
-            }
             .build()
 }

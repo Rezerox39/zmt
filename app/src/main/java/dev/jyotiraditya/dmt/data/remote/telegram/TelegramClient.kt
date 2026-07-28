@@ -1,6 +1,7 @@
 package dev.jyotiraditya.dmt.data.remote.telegram
 
 import android.util.Log
+import dev.jyotiraditya.dmt.BuildConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -20,13 +21,6 @@ private const val TAG = "TelegramClient"
 private const val DEBUG_TAG = "TDLibDebug"
 private const val REQUEST_TIMEOUT_MS = 60_000L
 
-/**
- * Reactive TDLib authentication state machine.
- *
- * Pattern inspired by Pixel Player: store pending credentials locally,
- * and auto-send them when TDLib transitions to the corresponding auth state.
- * This eliminates all race conditions from fire-and-forget.
- */
 @Singleton
 class TelegramClient @Inject constructor() {
 
@@ -42,7 +36,6 @@ class TelegramClient @Inject constructor() {
 
     private var databasePath: String = ""
 
-    // Pending credentials — stored here, auto-sent when TDLib reaches the right state
     @Volatile private var pendingPhoneNumber: String? = null
     @Volatile private var pendingCode: String? = null
     @Volatile private var pendingPassword: String? = null
@@ -62,7 +55,6 @@ class TelegramClient @Inject constructor() {
             }
             is TdApi.Error -> {
                 Log.e(DEBUG_TAG, "TDLib error: ${update.code} - ${update.message}")
-                // Surface auth errors to UI
                 _authState.value = _authState.value.copy(
                     step = TelegramAuthStep.Error("TDLib error ${update.code}: ${update.message}")
                 )
@@ -101,12 +93,23 @@ class TelegramClient @Inject constructor() {
             Log.w(TAG, "Failed to set log verbosity: ${e.message}")
         }
 
+        // Validate BuildConfig credentials
+        val apiId = BuildConfig.TELEGRAM_API_ID
+        val apiHash = BuildConfig.TELEGRAM_API_HASH
+        Log.d(TAG, "Telegram API ID: $apiId, Hash length: ${apiHash.length}")
+
+        if (apiId == 0 || apiHash.isBlank()) {
+            val msg = "Telegram API credentials not configured. Set TELEGRAM_API_ID and TELEGRAM_API_HASH in local.properties"
+            Log.e(TAG, msg)
+            _authState.value = _authState.value.copy(
+                step = TelegramAuthStep.Error(msg)
+            )
+            return
+        }
+
         client = Client.create(updateHandler, null, null)
         Log.i(TAG, "TDLib client created successfully")
-        Log.d(DEBUG_TAG, "Client instance: $client")
     }
-
-    // ─── Reactive Auth State Machine ────────────────────────────────────
 
     private fun onAuthorizationStateUpdated(authState: TdApi.AuthorizationState) {
         when (authState) {
@@ -117,11 +120,15 @@ class TelegramClient @Inject constructor() {
                 File(dbDir).mkdirs()
                 File(filesDir).mkdirs()
 
+                val apiId = BuildConfig.TELEGRAM_API_ID
+                val apiHash = BuildConfig.TELEGRAM_API_HASH
+                Log.d(DEBUG_TAG, "Using API ID: $apiId")
+
                 client?.send(
                     TdApi.SetTdlibParameters(
                         false, dbDir, filesDir, null,
                         true, true, true, false,
-                        94575, "a3406de891e9015a",
+                        apiId, apiHash,
                         "en", "Android", "1.0", "1.0"
                     ), updateHandler
                 )
@@ -130,65 +137,55 @@ class TelegramClient @Inject constructor() {
             is TdApi.AuthorizationStateWaitPhoneNumber -> {
                 Log.d(DEBUG_TAG, "TDLib ready for phone number")
                 authenticated = false
-                _authState.value = _authState.value.copy(step = TelegramAuthStep.NeedPhoneNumber)
-
-                // AUTO-SEND: if phone number was stored before TDLib was ready, send it now
-                val phone = pendingPhoneNumber
-                if (phone != null) {
-                    Log.d(DEBUG_TAG, "Auto-sending pending phone number: ${phone.take(6)}...")
+                _authState.value = _authState.value.copy(
+                    step = TelegramAuthStep.NeedPhoneNumber
+                )
+                // Auto-send pending phone number if available
+                pendingPhoneNumber?.let { phone ->
                     pendingPhoneNumber = null
                     sendSetPhoneNumber(phone)
                 }
             }
 
             is TdApi.AuthorizationStateWaitCode -> {
-                Log.d(DEBUG_TAG, "TDLib ready for code")
-                authenticated = false
-                _authState.value = _authState.value.copy(step = TelegramAuthStep.NeedCode)
-
-                // AUTO-SEND: if code was stored, send it now
-                val code = pendingCode
-                if (code != null) {
-                    Log.d(DEBUG_TAG, "Auto-sending pending code")
+                Log.d(DEBUG_TAG, "TDLib waiting for code")
+                _authState.value = _authState.value.copy(
+                    step = TelegramAuthStep.NeedCode
+                )
+                pendingCode?.let { code ->
                     pendingCode = null
                     sendCheckCode(code)
                 }
             }
 
             is TdApi.AuthorizationStateWaitPassword -> {
-                Log.d(DEBUG_TAG, "TDLib ready for 2FA password")
-                authenticated = false
-                _authState.value = _authState.value.copy(step = TelegramAuthStep.NeedPassword)
-
-                // AUTO-SEND: if password was stored, send it now
-                val pw = pendingPassword
-                if (pw != null) {
-                    Log.d(DEBUG_TAG, "Auto-sending pending password")
+                Log.d(DEBUG_TAG, "TDLib waiting for password (2FA)")
+                _authState.value = _authState.value.copy(
+                    step = TelegramAuthStep.NeedPassword
+                )
+                pendingPassword?.let { password ->
                     pendingPassword = null
-                    sendCheckPassword(pw)
+                    sendCheckPassword(password)
                 }
             }
 
             is TdApi.AuthorizationStateReady -> {
-                Log.d(DEBUG_TAG, "Authorization successful!")
+                Log.i(DEBUG_TAG, "TDLib authorized successfully!")
                 authenticated = true
-                _authState.value = TelegramAuthState(step = TelegramAuthStep.LoggedIn)
+                _authState.value = _authState.value.copy(
+                    step = TelegramAuthStep.LoggedIn
+                )
             }
 
-            is TdApi.AuthorizationStateClosing -> {
-                Log.d(DEBUG_TAG, "Closing authorization")
+            is TdApi.AuthorizationStateLoggingOut -> {
+                Log.d(DEBUG_TAG, "TDLib logging out...")
+                authenticated = false
             }
 
             is TdApi.AuthorizationStateClosed -> {
-                Log.d(DEBUG_TAG, "Client closed")
+                Log.d(DEBUG_TAG, "TDLib client closed")
                 authenticated = false
-                _authState.value = TelegramAuthState()
-            }
-
-            is TdApi.AuthorizationStateWaitRegistration -> {
-                Log.d(DEBUG_TAG, "Need registration")
-                authenticated = false
-                _authState.value = TelegramAuthState(step = TelegramAuthStep.NeedCode)
+                client = null
             }
 
             else -> {
@@ -197,73 +194,48 @@ class TelegramClient @Inject constructor() {
         }
     }
 
-    // ─── Internal Send Helpers ──────────────────────────────────────────
-
     private fun sendSetPhoneNumber(phoneNumber: String) {
-        val c = client ?: run {
-            Log.e(TAG, "Client is null, cannot send phone number")
-            return
-        }
-        Log.d(DEBUG_TAG, "Sending SetAuthenticationPhoneNumber for: ${phoneNumber.take(6)}...")
-        c.send(
-            TdApi.SetAuthenticationPhoneNumber(
-                phoneNumber,
-                TdApi.PhoneNumberAuthenticationSettings(
-                    false, false, false, false, false, null, null
-                )
-            ),
+        Log.d(DEBUG_TAG, "Sending phone number: ${phoneNumber.take(4)}****")
+        client?.send(
+            TdApi.SetAuthenticationPhoneNumber(phoneNumber, null),
             updateHandler
         )
     }
 
     private fun sendCheckCode(code: String) {
-        val c = client ?: run {
-            Log.e(TAG, "Client is null, cannot send code")
-            return
-        }
-        Log.d(DEBUG_TAG, "Sending CheckAuthenticationCode")
-        c.send(TdApi.CheckAuthenticationCode(code), updateHandler)
+        Log.d(DEBUG_TAG, "Sending code: ${code.take(2)}**")
+        client?.send(
+            TdApi.CheckAuthenticationCode(code),
+            updateHandler
+        )
     }
 
     private fun sendCheckPassword(password: String) {
-        val c = client ?: run {
-            Log.e(TAG, "Client is null, cannot send password")
-            return
-        }
-        Log.d(DEBUG_TAG, "Sending CheckAuthenticationPassword")
-        c.send(TdApi.CheckAuthenticationPassword(password), updateHandler)
+        Log.d(DEBUG_TAG, "Sending 2FA password")
+        client?.send(
+            TdApi.CheckAuthenticationPassword(password),
+            updateHandler
+        )
     }
 
-    // ─── Public API: Store + Send ───────────────────────────────────────
-
-    private fun sanitizePhoneNumber(phoneNumber: String): String {
-        val cleaned = phoneNumber.replace(Regex("[\\s\\-()]+"), "")
+    private fun sanitizePhoneNumber(phone: String): String {
+        val cleaned = phone.replace(Regex("[\\s\\-\\(\\)]"), "")
         return if (cleaned.startsWith("+")) cleaned else "+$cleaned"
     }
 
-    /**
-     * Store the phone number and immediately try to send it.
-     * If TDLib is already at WaitPhoneNumber, it sends directly.
-     * If not yet ready, it's stored and auto-sent when the state arrives.
-     */
     suspend fun requestPhoneNumber(phoneNumber: String) {
         val sanitized = sanitizePhoneNumber(phoneNumber)
-        Log.d(DEBUG_TAG, "requestPhoneNumber: $sanitized")
+        Log.d(DEBUG_TAG, "requestPhoneNumber: ${sanitized.take(6)}****")
         _authState.value = _authState.value.copy(phoneNumber = sanitized)
         pendingPhoneNumber = sanitized
 
-        // If TDLib is already waiting for phone number, send immediately
         val currentStep = _authState.value.step
         if (currentStep is TelegramAuthStep.NeedPhoneNumber) {
             pendingPhoneNumber = null
             sendSetPhoneNumber(sanitized)
         }
-        // Otherwise, onAuthorizationStateUpdated will auto-send when ready
     }
 
-    /**
-     * Store the code and immediately try to send it.
-     */
     suspend fun submitCode(code: String) {
         Log.d(DEBUG_TAG, "submitCode: ${code.take(2)}**")
         pendingCode = code
@@ -275,9 +247,6 @@ class TelegramClient @Inject constructor() {
         }
     }
 
-    /**
-     * Store the password and immediately try to send it.
-     */
     suspend fun submitPassword(password: String) {
         Log.d(DEBUG_TAG, "submitPassword")
         pendingPassword = password
@@ -297,8 +266,6 @@ class TelegramClient @Inject constructor() {
         authenticated = false
         _authState.value = TelegramAuthState()
     }
-
-    // ─── Channel & File Operations ──────────────────────────────────────
 
     suspend fun searchChannel(username: String): TelegramChannelInfo {
         val result = sendRequest(TdApi.SearchPublicChat(username))

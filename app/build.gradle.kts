@@ -27,6 +27,21 @@ val keystoreProps: Properties? =
 fun signingValue(propertyKey: String, envKey: String): String? =
     keystoreProps?.getProperty(propertyKey) ?: System.getenv(envKey)
 
+// Telegram API credentials from local.properties or environment variables
+val telegramApiId: String =
+    rootProject.file("local.properties").takeIf { it.exists() }
+        ?.let { Properties().apply { it.inputStream().use(::load) } }
+        ?.getProperty("TELEGRAM_API_ID")
+        ?: System.getenv("TELEGRAM_API_ID")
+        ?: "0"
+
+val telegramApiHash: String =
+    rootProject.file("local.properties").takeIf { it.exists() }
+        ?.let { Properties().apply { it.inputStream().use(::load) } }
+        ?.getProperty("TELEGRAM_API_HASH")
+        ?: System.getenv("TELEGRAM_API_HASH")
+        ?: ""
+
 base {
     archivesName.set("zmt-$appVersionName")
 }
@@ -43,6 +58,9 @@ android {
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
+
+        buildConfigField("int", "TELEGRAM_API_ID", telegramApiId)
+        buildConfigField("String", "TELEGRAM_API_HASH", "\"$telegramApiHash\"")
     }
 
     signingConfigs {
