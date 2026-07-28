@@ -21,6 +21,9 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: set up android sdk
+        uses: android-actions/setup-android@v3
+
       - name: set up gradle
         uses: gradle/actions/setup-gradle@v6
 
@@ -37,7 +40,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew assembleRelease bundleRelease -PversionOverride=${{ steps.version.outputs.name }}
+        run: ./gradlew assembleRelease bundleRelease -PversionOverride=${{ steps.version.outputs.name }} --no-configuration-cache
 
       - name: publish release
         uses: softprops/action-gh-release@v3
