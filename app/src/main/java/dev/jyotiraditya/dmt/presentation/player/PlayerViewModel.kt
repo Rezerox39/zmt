@@ -562,6 +562,7 @@ class PlayerViewModel @Inject constructor(
             controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
         }
 
+        @OptIn(androidx.media3.common.util.UnstableApi::class)
         override fun onPlayerError(error: PlaybackException) {
             // Log detailed error info for debugging
             val sb = StringBuilder()
