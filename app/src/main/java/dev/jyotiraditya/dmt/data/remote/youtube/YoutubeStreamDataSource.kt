@@ -44,7 +44,7 @@ class YoutubeStreamDataSource private constructor(
 
         resolvedUri = Uri.parse(streamUrl)
 
-        val resolvedSpec = dataSpec.buildUpon().setUri(resolvedUri).build()
+        val resolvedSpec = dataSpec.buildUpon().setUri(resolvedUri!!).build()
         return httpDataSource.open(resolvedSpec)
     }
 

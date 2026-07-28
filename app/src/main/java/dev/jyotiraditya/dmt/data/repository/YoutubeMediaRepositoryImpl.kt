@@ -5,6 +5,7 @@ import android.util.Log
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.Innertube
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.models.bodies.SearchBody
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.requests.searchPage
+import dev.jyotiraditya.dmt.data.remote.youtube.innertube.utils.from
 import dev.jyotiraditya.dmt.domain.model.Track
 import dev.jyotiraditya.dmt.domain.model.TrackSource
 import dev.jyotiraditya.dmt.domain.repository.MediaRepository
@@ -22,21 +23,21 @@ class YoutubeMediaRepositoryImpl @Inject constructor() : MediaRepository {
                 query = query,
                 params = Innertube.SearchFilter.Song.value,
             )
-            val result = Innertube.searchPage(
+            val result: Innertube.ItemsPage<Innertube.SongItem>? = Innertube.searchPage(
                 body = body,
                 fromMusicShelfRendererContent = Innertube.SongItem.Companion::from,
-            )
-            val songs = result?.getOrNull()?.items
+            )?.getOrNull()
 
+            val songs = result?.items
             Log.d(TAG, "Found ${songs?.size ?: 0} results for '$query'")
 
-            songs?.mapNotNull { song ->
+            songs?.mapNotNull { song: Innertube.SongItem ->
                 val videoId = song.info?.endpoint?.videoId ?: return@mapNotNull null
                 val thumbUrl = song.thumbnail?.thumbnails?.lastOrNull()?.url
                 Track(
                     id = videoId.hashCode().toLong(),
                     uri = Uri.parse("youtube://video/$videoId"),
-                    title = song.info?.name ?: "Unknown",
+                    title = song.info.name ?: "Unknown",
                     artist = song.authors?.firstOrNull()?.name ?: "Unknown Artist",
                     album = song.album?.name ?: "YouTube",
                     path = "youtube://video/$videoId",

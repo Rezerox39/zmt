@@ -29,6 +29,7 @@ enum class LibrarySort(val label: String) {
             SourceMode.LOCAL -> listOf(TITLE, ARTIST, RECENT_ADDED, RECENT_MODIFIED)
             SourceMode.JELLYFIN -> listOf(TITLE, ARTIST, RECENT)
             SourceMode.TELEGRAM -> listOf(TITLE, ARTIST, RECENT)
+            SourceMode.YOUTUBE -> listOf(TITLE, ARTIST)
         }
         return cycle[(cycle.indexOf(this) + 1) % cycle.size]
     }
