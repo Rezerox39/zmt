@@ -2,9 +2,7 @@ package dev.jyotiraditya.dmt.data.remote.youtube
 
 import android.net.Uri
 import androidx.annotation.OptIn
-import androidx.media3.common.C
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.datasource.BaseDataSource
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.okhttp.OkHttpDataSource
@@ -13,16 +11,12 @@ import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
 
-private const val SCHEME_YT = "youtube"
-private const val AUTHORITY_VIDEO = "video"
-
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(
     private val resolver: YoutubeStreamResolver,
-    private val httpDataSource: OkHttpDataSource,
-) : BaseDataSource(true) {
+    private val httpDataSource: DataSource,
+) : DataSource {
 
-    private var videoId: String = ""
     private var resolvedUri: Uri? = null
 
     @Singleton
@@ -36,10 +30,13 @@ class YoutubeStreamDataSource private constructor(
         }
     }
 
+    override fun addTransferListener(transferListener: androidx.media3.datasource.TransferListener) {
+        httpDataSource.addTransferListener(transferListener)
+    }
+
     override fun open(dataSpec: DataSpec): Long {
-        val uri = dataSpec.uri
-        videoId = uri.lastPathSegment
-            ?: throw IOException("No video ID in YouTube URI: $uri")
+        val videoId = dataSpec.uri.lastPathSegment
+            ?: throw IOException("No video ID in YouTube URI: ${dataSpec.uri}")
 
         val streamUrl = kotlinx.coroutines.runBlocking {
             resolver.resolve(videoId)
@@ -62,12 +59,5 @@ class YoutubeStreamDataSource private constructor(
     override fun close() {
         httpDataSource.close()
         resolvedUri = null
-    }
-
-    companion object {
-        fun parseVideoId(uri: Uri): String? {
-            if (uri.scheme != SCHEME_YT || uri.authority != AUTHORITY_VIDEO) return null
-            return uri.lastPathSegment
-        }
     }
 }

@@ -26,11 +26,11 @@ class YoutubeMediaRepositoryImpl @Inject constructor() : MediaRepository {
                 body = body,
                 fromMusicShelfRendererContent = Innertube.SongItem.Companion::from,
             )
-            val songs = result?.getOrNull()?.items ?: emptyList()
+            val songs = result?.getOrNull()?.items
 
-            Log.d(TAG, "Found ${songs.size} results for '$query'")
+            Log.d(TAG, "Found ${songs?.size ?: 0} results for '$query'")
 
-            songs.mapNotNull { song ->
+            songs?.mapNotNull { song ->
                 val videoId = song.info?.endpoint?.videoId ?: return@mapNotNull null
                 val thumbUrl = song.thumbnail?.thumbnails?.lastOrNull()?.url
                 Track(
@@ -51,7 +51,7 @@ class YoutubeMediaRepositoryImpl @Inject constructor() : MediaRepository {
                     source = TrackSource.YOUTUBE,
                     remoteId = videoId,
                 )
-            }
+            } ?: emptyList()
         } catch (e: Exception) {
             Log.e(TAG, "Search failed for '$query': ${e.message}")
             emptyList()

@@ -44,6 +44,7 @@ ktor-client-encoding = { group = "io.ktor", name = "ktor-client-encoding", versi
 ktor-serialization-json = { group = "io.ktor", name = "ktor-serialization-kotlinx-json", version.ref = "ktor" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 logback-classic = { group = "ch.qos.logback", name = "logback-classic", version.ref = "logback" }
+media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
 xmlutil-core = { group = "io.github.pdvrieze.xmlutil", name = "core", version.ref = "xmlutil" }
 
 tdlib = { group = "com.github.tdlibx", name = "td", version = "1.8.56" }
