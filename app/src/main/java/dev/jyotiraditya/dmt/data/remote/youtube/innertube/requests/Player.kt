@@ -43,18 +43,20 @@ private suspend fun Innertube.tryContexts(
                 parameter("t", generateNonceSuspend(12))
                 header("X-Goog-Api-Format-Version", "2")
                 parameter("id", body.videoId)
-            }.body<PlayerResponse>().also { Log.d(TAG, "Got response from $label: status=${it.playabilityStatus?.status}") }
+            }.body<PlayerResponse>().also {
+                Log.d(TAG, "Response from $label: status=${it.playabilityStatus?.status} formats=${it.streamingData?.adaptiveFormats?.size}")
+            }
         }
             ?.getOrNull()
             ?.takeIf { checkIsValid && it.isValid }
             ?.let {
-                Log.d(TAG, "Using $label (hasDirectUrl=${it.hasDirectUrl})")
+                Log.d(TAG, "Using $label (directUrl=${it.streamingData?.adaptiveFormats?.any { f -> f.url != null }})")
                 return it.copy(
                     cpn = cpn,
                     context = context
                 )
             }
-            ?: Log.d(TAG, "$label rejected (invalid or error)")
+            ?: Log.w(TAG, "$label rejected")
     }
 
     return null
@@ -64,9 +66,6 @@ private val PlayerResponse.isValid
     get() = playabilityStatus?.status == "OK" &&
         streamingData?.adaptiveFormats?.any { it.url != null || it.signatureCipher != null } == true
 
-private val PlayerResponse.hasDirectUrl
-    get() = streamingData?.adaptiveFormats?.any { it.url != null } == true
-
 suspend fun Innertube.player(
     body: PlayerBody,
     checkIsValid: Boolean = true
@@ -74,11 +73,10 @@ suspend fun Innertube.player(
     tryContexts(
         body = body,
         checkIsValid = checkIsValid,
-        // ANDROID_MUSIC first: returns direct URLs, no signatureCipher needed
-        Context.DefaultAndroidMusic,
-        // IOS fallback: may return signatureCipher which we can't decipher
+        // Mirror ViTune's exact order: IOS → Web → AndroidMusic → TV
         Context.DefaultIOS,
         Context.DefaultWeb,
+        Context.DefaultAndroidMusic,
         Context.DefaultTV
     )
 }

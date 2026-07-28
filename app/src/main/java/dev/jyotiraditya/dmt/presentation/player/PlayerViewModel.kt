@@ -562,7 +562,57 @@ class PlayerViewModel @Inject constructor(
             controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
         }
 
-        override fun onPlayerError(error: PlaybackException) {
+                override fun onPlayerError(error: PlaybackException) {
+            // Log detailed error info for debugging
+            val cause = error.cause
+            val sb = StringBuilder()
+            sb.appendLine("PlaybackError: ${error.errorCodeName} (${error.errorCode})")
+            val mediaItem = player?.currentMediaItem
+            if (mediaItem != null) {
+                sb.appendLine("  MediaItem: ${mediaItem.mediaId}")
+            }
+            // Walk cause chain looking for HTTP response code
+            var c: Throwable? = cause
+            while (c != null) {
+                sb.appendLine("  Cause: ${c::class.simpleName}: ${c.message?.take(200)}")
+                if (c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
+                    sb.appendLine("  >>> HTTP Status: ${c.responseCode} <<<")
+                    sb.appendLine("  >>> Response headers: ${c.headerFields} <<<")
+                    break
+                }
+                c = c.cause
+            }
+            android.util.Log.e("PlaybackDebug", sb.toString())
+            reduce {
+                val name = error.errorCodeName.lowercase()
+                it.copy(error = context.getString(R.string.playback_error, name))
+            }
+        }} catch (_: Exception) {
+                            sb.appendLine("  >>> HTTP Error (see cause) <<<")
+                        }
+                        try {
+                            val headersField = c::class.java.getDeclaredField("headerFields")
+                            headersField.isAccessible = true
+                            val headers = headersField.get(c)
+                            sb.appendLine("  Response headers: $headers")
+                        } catch (_: Exception) { }
+                        try {
+                            val urlField = c::class.java.getDeclaredField("uri")
+                            urlField.isAccessible = true
+                            val url = urlField.get(c)
+                            sb.appendLine("  URL: $url")
+                        } catch (_: Exception) { }
+                        break
+                    }
+                    // Check for OkHttp response
+                    if (cn == "HttpException" || c.toString().contains("HTTP")) {
+                        sb.appendLine("  >>> HTTP Exception: ${c.message} <<<")
+                        break
+                    }
+                    c = c.cause
+                }
+            }
+            android.util.Log.e("PlaybackDebug", sb.toString())
             reduce {
                 val name = error.errorCodeName.lowercase()
                 it.copy(error = context.getString(R.string.playback_error, name))

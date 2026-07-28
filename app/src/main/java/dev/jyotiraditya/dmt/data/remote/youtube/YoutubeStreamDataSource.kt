@@ -6,43 +6,37 @@ import androidx.annotation.OptIn
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSource
 import androidx.media3.datasource.DataSpec
-import androidx.media3.datasource.okhttp.OkHttpDataSource
-import okhttp3.OkHttpClient
+import androidx.media3.datasource.DefaultHttpDataSource
+import androidx.media3.datasource.HttpDataSource
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamDS"
 
+/**
+ * DataSource for YouTube Music streaming.
+ *
+ * Mirrors ViTune's approach:
+ * - Uses DefaultHttpDataSource (not OkHttpDataSource)
+ * - Sets User-Agent to match the Innertube client context that generated the URL
+ * - Sets Origin and Referer to music.youtube.com
+ * - No interceptors, no custom OkHttp client
+ */
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(
     private val resolver: YoutubeStreamResolver,
-    private val baseOkHttpClient: OkHttpClient,
 ) : DataSource {
 
     private var resolvedUri: Uri? = null
     private var httpDataSource: DataSource? = null
 
-    // Clean OkHttpClient without the User-Agent interceptor from NetworkModule
-    // that would override the context-matched UA and cause 403
-    private val streamClient: OkHttpClient by lazy {
-        baseOkHttpClient.newBuilder()
-            .apply {
-                interceptors().clear()
-            }
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
-            .build()
-    }
-
     @Singleton
     class Factory @Inject constructor(
         private val resolver: YoutubeStreamResolver,
-        private val okHttpClient: OkHttpClient,
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {
-            return YoutubeStreamDataSource(resolver, okHttpClient)
+            return YoutubeStreamDataSource(resolver)
         }
     }
 
@@ -59,14 +53,18 @@ class YoutubeStreamDataSource private constructor(
         } ?: throw IOException("Could not resolve YouTube stream for $videoId")
 
         resolvedUri = Uri.parse(resolved.url)
-        Log.d(TAG, "Stream URL resolved, UA=${resolved.userAgent.take(50)}")
+        Log.d(TAG, "Stream resolved: ${resolved.url.take(80)}... UA=${resolved.userAgent.take(40)}")
 
-        val httpFactory = OkHttpDataSource.Factory(streamClient)
+        // Mirror ViTune: DefaultHttpDataSource with context-matched User-Agent
+        // No OkHttp, no interceptors, no custom client
+        val httpFactory = DefaultHttpDataSource.Factory()
+            .setConnectTimeoutMs(16_000)
+            .setReadTimeoutMs(8_000)
             .setUserAgent(resolved.userAgent)
             .setDefaultRequestProperties(
                 mapOf(
-                    "Referer" to "https://music.youtube.com/",
                     "Origin" to "https://music.youtube.com",
+                    "Referer" to "https://music.youtube.com/",
                 )
             )
 
