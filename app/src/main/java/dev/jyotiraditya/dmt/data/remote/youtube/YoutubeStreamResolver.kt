@@ -2,7 +2,6 @@ package dev.jyotiraditya.dmt.data.remote.youtube
 
 import android.util.Log
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.Innertube
-import dev.jyotiraditya.dmt.data.remote.youtube.innertube.models.Context
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.models.UserAgents
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.models.bodies.PlayerBody
 import dev.jyotiraditya.dmt.data.remote.youtube.innertube.requests.player
@@ -36,7 +35,7 @@ class YoutubeStreamResolver @Inject constructor() {
 
             val context = response.context
             val userAgent = context?.client?.userAgent
-                ?: Context.UserAgents.ANDROID_MUSIC
+                ?: UserAgents.ANDROID_MUSIC
 
             Log.d(TAG, "Resolved stream for $videoId (${format.mimeType}, ${format.bitrate}bps, UA=${userAgent.take(40)}...)")
             ResolvedStream(url = url, userAgent = userAgent)
