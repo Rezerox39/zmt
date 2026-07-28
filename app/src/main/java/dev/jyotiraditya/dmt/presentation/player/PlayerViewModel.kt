@@ -562,17 +562,12 @@ class PlayerViewModel @Inject constructor(
             controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
         }
 
-                override fun onPlayerError(error: PlaybackException) {
+                        override fun onPlayerError(error: PlaybackException) {
             // Log detailed error info for debugging
-            val cause = error.cause
             val sb = StringBuilder()
             sb.appendLine("PlaybackError: ${error.errorCodeName} (${error.errorCode})")
-            val mediaItem = player?.currentMediaItem
-            if (mediaItem != null) {
-                sb.appendLine("  MediaItem: ${mediaItem.mediaId}")
-            }
             // Walk cause chain looking for HTTP response code
-            var c: Throwable? = cause
+            var c: Throwable? = error.cause
             while (c != null) {
                 sb.appendLine("  Cause: ${c::class.simpleName}: ${c.message?.take(200)}")
                 if (c is androidx.media3.datasource.HttpDataSource.InvalidResponseCodeException) {
@@ -580,6 +575,14 @@ class PlayerViewModel @Inject constructor(
                     sb.appendLine("  >>> Response headers: ${c.headerFields} <<<")
                     break
                 }
+                c = c.cause
+            }
+            android.util.Log.e("PlaybackDebug", sb.toString())
+            reduce {
+                val name = error.errorCodeName.lowercase()
+                it.copy(error = context.getString(R.string.playback_error, name))
+            }
+        }}
                 c = c.cause
             }
             android.util.Log.e("PlaybackDebug", sb.toString())
