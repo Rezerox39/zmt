@@ -61,14 +61,18 @@ class TrackDownloadManager @Inject constructor(
         artist: String,
         onProgress: (DownloadProgress) -> Unit,
     ) {
+        // Dispatch progress updates to Main thread for UI safety
+        val mainProgress: (DownloadProgress) -> Unit = { p ->
+            kotlinx.coroutines.MainScope().launch { onProgress(p) }
+        }
         launch {
-            onProgress(DownloadProgress())
+            mainProgress(DownloadProgress())
             Log.i(TAG, "Starting download for $videoId")
 
             // 1. Resolve stream URL via yt-dlp (runs on IO)
             val resolved = resolver.resolve(videoId)
             if (resolved == null) {
-                onProgress(DownloadProgress(error = "Could not resolve stream URL"))
+                mainProgress(DownloadProgress(error = "Could not resolve stream URL"))
                 return@launch
             }
 
@@ -86,12 +90,12 @@ class TrackDownloadManager @Inject constructor(
 
             val response = client.newCall(request).execute()
             if (!response.isSuccessful) {
-                onProgress(DownloadProgress(error = "HTTP ${response.code}: ${response.message}"))
+                mainProgress(DownloadProgress(error = "HTTP ${response.code}: ${response.message}"))
                 return@launch
             }
 
             val body = response.body ?: run {
-                onProgress(DownloadProgress(error = "Empty response body"))
+                mainProgress(DownloadProgress(error = "Empty response body"))
                 return@launch
             }
 
@@ -132,7 +136,7 @@ class TrackDownloadManager @Inject constructor(
             val itemUri = resolver_.insert(collectionUri, contentValues)
 
             if (itemUri == null) {
-                onProgress(DownloadProgress(error = "Failed to create MediaStore entry"))
+                mainProgress(DownloadProgress(error = "Failed to create MediaStore entry"))
                 return@launch
             }
 
@@ -150,7 +154,7 @@ class TrackDownloadManager @Inject constructor(
 
                         // Report progress every chunk
                         if (totalLen > 0) {
-                            onProgress(DownloadProgress(
+                            mainProgress(DownloadProgress(
                                 bytesDownloaded = totalRead,
                                 totalBytes = totalLen,
                             ))
@@ -166,16 +170,16 @@ class TrackDownloadManager @Inject constructor(
                 contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
                 resolver_.update(itemUri, contentValues, null, null)
 
-                onProgress(DownloadProgress(
+                mainProgress(DownloadProgress(
                     bytesDownloaded = totalLen.coerceAtLeast(0),
                     totalBytes = totalLen.coerceAtLeast(0),
                     isFinished = true,
                 ))
                 Log.i(TAG, "Saved to Music: $fileName")
             } catch (e: Exception) {
-                resolver_.delete(itemUri, null, null)
-                onProgress(DownloadProgress(error = e.message ?: "Download failed"))
                 Log.e(TAG, "Download failed: ${e.message}", e)
+                try { resolver_.delete(itemUri, null, null) } catch (_: Exception) {}
+                mainProgress(DownloadProgress(error = "Download failed: ${e.message}"))
             }
         }
     }
@@ -219,7 +223,8 @@ class TrackDownloadManager @Inject constructor(
                 else -> "m4a"
             }
 
-            val cacheFile = File(context.cacheDir, "yt_backup_${videoId}.${extension}")
+            val cacheDir = File(context.cacheDir, "downloads").apply { mkdirs() }
+            val cacheFile = File(cacheDir, "yt_backup_${videoId}.${extension}")
 
             try {
                 FileOutputStream(cacheFile).use { outputStream ->

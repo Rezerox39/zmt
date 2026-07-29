@@ -310,67 +310,73 @@ private fun DownloadSheet(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
-
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .border(1.dp, TuiLine),
     ) {
-        // Title row
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 2.dp),
-        ) {
-            Box(modifier = Modifier.size(7.dp).background(TuiAccent))
-            Text(
-                text = " dl:download & backup",
-                style = MaterialTheme.typography.labelMedium,
-                color = TuiFg,
-            )
-        }
-
-        // Download to device row
-        val dlLabel = when {
-            state.downloadProgress in 0..99 -> "dl:device ${
-                state.downloadProgress}%"
-            state.downloadProgress >= 100 -> "dl:device done"
-            state.downloadError != null -> "dl:device err"
-            else -> "dl:device"
-        }
-        TuiStatus(
-            label = dlLabel,
-            value = "",
-            on = state.downloadProgress in 0..100,
-            busy = state.downloadProgress in 0..99,
-        ) {
-            dispatch(DmtAction.DownloadToDevice)
-        }
-
-        // Backup to telegram row
-        TuiStatus(
-            label = "dl:telegram",
-            value = "",
-            on = false,
-            busy = false,
-        ) {
-            dispatch(DmtAction.BackupToTelegram)
-        }
-
-        // Dismiss
+        // Header: title left, [x] close right
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, TuiLine)
-                .tuiClickable { dispatch(DmtAction.DismissDownloadSheet) }
-                .padding(horizontal = 12.dp, vertical = 8.dp),
+                .padding(start = 8.dp, top = 6.dp, bottom = 2.dp, end = 4.dp),
         ) {
-            Text(
-                text = "  cancel",
-                style = MaterialTheme.typography.labelSmall,
-                color = TuiDim,
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f),
+            ) {
+                Box(modifier = Modifier.size(7.dp).background(TuiAccent))
+                Text(
+                    text = " dl:download & backup",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TuiFg,
+                )
+            }
+            TuiKey(
+                label = "[ x ]",
+                onClick = { dispatch(DmtAction.DismissDownloadSheet) },
             )
+        }
+
+        // Side-by-side buttons
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            // Download to device
+            val dlLabel = when {
+                state.downloadProgress in 0..99 -> "dl:device ${
+                    state.downloadProgress}%"
+                state.downloadProgress >= 100 -> "dl:device done"
+                state.downloadError != null -> "dl:device err"
+                else -> "dl:device"
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = dlLabel,
+                    value = "",
+                    on = state.downloadProgress in 0..100,
+                    busy = state.downloadProgress in 0..99,
+                ) {
+                    dispatch(DmtAction.DownloadToDevice)
+                }
+            }
+
+            // Backup to telegram
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = "dl:telegram",
+                    value = "",
+                    on = false,
+                    busy = false,
+                ) {
+                    dispatch(DmtAction.BackupToTelegram)
+                }
+            }
         }
     }
 }
