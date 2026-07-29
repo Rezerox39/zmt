@@ -31,9 +31,10 @@ endif()
 
 file(COPY "${CMAKE_SOURCE_DIR}/repl.c" DESTINATION "${SRC_DIR}" NO_SOURCE_PERMISSIONS)
 
+# NOTE: Do NOT include qjs.c — it has its own main() which clashes with repl.c's main().
+# We build our own custom REPL (repl.c) instead.
 set(QUICKJS_SOURCES
     "${SRC_DIR}/quickjs.c"
-    "${SRC_DIR}/qjs.c"
     "${SRC_DIR}/dtoa.c"
     "${SRC_DIR}/libregexp.c"
     "${SRC_DIR}/libunicode.c"
