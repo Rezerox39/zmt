@@ -68,6 +68,7 @@ data class DmtState(
     val telegramChannelInput: String = "",
     val telegramSyncing: Boolean = false,
     val showDownloadSheet: Boolean = false,
+    val downloadingVideoId: String? = null,
     val downloadProgress: Int = -1,  // -1 = idle, 0-100 = progress, >100 = done
     val downloadError: String? = null,
 )

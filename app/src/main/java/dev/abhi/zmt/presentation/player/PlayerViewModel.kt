@@ -280,12 +280,12 @@ class PlayerViewModel @Inject constructor(
                 reduce { it.copy(showDownloadSheet = false) }
             }
             DmtAction.DownloadToDevice -> {
-                reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
                 val track = lookupCurrentTrack()
                 if (track == null) { reduce { it.copy(downloadError = "No track playing") }; return@onIntent }
                 val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
                     reduce { it.copy(downloadError = "No video ID") }; return@onIntent
                 }
+                reduce { it.copy(showDownloadSheet = false, downloadingVideoId = videoId, downloadProgress = 0, downloadError = null) }
                 // Download runs on TrackDownloadManager's own IO scope — NOT viewModelScope
                 downloadManager.downloadToDevice(
                     context = context,
@@ -296,8 +296,21 @@ class PlayerViewModel @Inject constructor(
                         if (progress.isFinished) {
                             reduce {
                                 it.copy(
+                                    downloadingVideoId = null,
                                     downloadProgress = 101,
                                     downloadError = null,
+                                )
+                            }
+                            viewModelScope.launch {
+                                kotlinx.coroutines.delay(2000L)
+                                reduce { it.copy(downloadingVideoId = null, downloadProgress = -1, downloadError = null) }
+                            }
+                        } else if (progress.error != null) {
+                            reduce {
+                                it.copy(
+                                    downloadingVideoId = null,
+                                    downloadProgress = -2,
+                                    downloadError = progress.error,
                                 )
                             }
                             viewModelScope.launch {
@@ -308,7 +321,7 @@ class PlayerViewModel @Inject constructor(
                             reduce {
                                 it.copy(
                                     downloadProgress = progress.percent.coerceIn(0, 99),
-                                    downloadError = progress.error,
+                                    downloadError = null,
                                 )
                             }
                         }

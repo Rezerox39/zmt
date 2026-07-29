@@ -686,18 +686,41 @@ private fun StatusRow(
                 else -> onToggleLyrics()
             }
         }
-        TuiStatus(
-            label = "dl",
-            value = when {
-                state.downloadProgress > 100 -> "done"
-                state.downloadProgress >= 0 -> "${state.downloadProgress}%"
-                state.downloadProgress == -2 -> "err"
-                else -> "off"
-            },
-            on = state.downloadProgress > 0,
-            busy = state.downloadProgress in 0..100,
-        ) {
-            if (state.downloadProgress != -2) {
+        // Show download state for current song, or global badge if downloading another song
+        val dlActive = state.downloadProgress > 0 && state.downloadingVideoId != null
+        val dlIsCurrentSong = dlActive && state.downloadingVideoId == (lookupVideoId(state))
+        if (dlIsCurrentSong || (dlActive && state.downloadProgress == 101)) {
+            TuiStatus(
+                label = "dl",
+                value = when {
+                    state.downloadProgress > 100 -> "done"
+                    state.downloadProgress >= 0 -> "${state.downloadProgress}%"
+                    state.downloadProgress == -2 -> "err"
+                    else -> "off"
+                },
+                on = state.downloadProgress > 0,
+                busy = state.downloadProgress in 0..100,
+            ) {
+                if (state.downloadProgress != -2) {
+                    dispatch(DmtAction.ShowDownloadSheet)
+                }
+            }
+        } else if (dlActive) {
+            // Background download — show mini badge
+            TuiStatus(
+                label = "dl",
+                value = "bg",
+                on = true,
+                busy = true,
+            ) {
+                dispatch(DmtAction.ShowDownloadSheet)
+            }
+        } else {
+            TuiStatus(
+                label = "dl",
+                value = "off",
+                on = false,
+            ) {
                 dispatch(DmtAction.ShowDownloadSheet)
             }
         }
@@ -733,3 +756,11 @@ private fun QueueFooter(state: DmtState, onQueue: () -> Unit) {
         )
     }
 }
+
+/**
+ * Extract video ID from the current DmtState for download progress comparisons.
+ */
+private fun lookupVideoId(state: DmtState): String? {
+    return state.nowPlayingId
+}
+
