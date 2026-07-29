@@ -413,7 +413,7 @@ private fun CoverContent(
                     contentDescription = null,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
+                        .align(Alignment.Center)
                         .aspectRatio(rawArt.width.toFloat() / rawArt.height),
                 )
             }
@@ -423,7 +423,7 @@ private fun CoverContent(
                     cover = state.cover,
                     playing = isPlaying,
                     wave = state.settings.wave,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    modifier = Modifier.align(Alignment.Center),
                 )
             }
 
