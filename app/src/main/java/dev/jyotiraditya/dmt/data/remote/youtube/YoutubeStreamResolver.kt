@@ -17,8 +17,9 @@ private const val TAG = "YoutubeStreamResolver"
  */
 data class ResolvedStream(
     val url: String,
-    val userAgent: String = UserAgents.IOS,  // Default to IOS if not specified
+    val userAgent: String = UserAgents.IOS,
     val contentLength: Long = 0L,
+    val resolverName: String = "unknown",
 )
 
 /**
@@ -65,12 +66,12 @@ class YoutubeStreamResolver @Inject constructor(
             if (url != null) {
                 Log.d(TAG, "yt-dlp: ${response.formatId}, size=${response.fileSize}")
                 // yt-dlp handles its own User-Agent, use a generic one for the DataSource
-                ResolvedStream(url = url, contentLength = response.fileSize)
+                ResolvedStream(url = url, contentLength = response.fileSize, resolverName = "yt-dlp")
             } else {
                 response.formats
                     ?.firstOrNull { it.url != null }
                     ?.url
-                    ?.let { ResolvedStream(url = it) }
+                    ?.let { ResolvedStream(url = it, resolverName = "yt-dlp") }
             }
         } catch (e: Exception) {
             Log.e(TAG, "yt-dlp failed for $videoId: ${e.message}")
@@ -107,7 +108,7 @@ class YoutubeStreamResolver @Inject constructor(
             }
 
             Log.d(TAG, "Innertube fallback ($contextName): ${format.mimeType} (${format.bitrate}kbps)")
-            ResolvedStream(url = url, userAgent = userAgent, contentLength = format.contentLength ?: 0L)
+            ResolvedStream(url = url, userAgent = userAgent, contentLength = format.contentLength ?: 0L, resolverName = "Innertube($contextName)")
         } catch (e: Exception) {
             Log.e(TAG, "Innertube failed: ${e.message}")
             null
