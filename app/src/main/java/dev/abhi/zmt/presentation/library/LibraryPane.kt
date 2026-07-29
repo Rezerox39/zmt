@@ -44,6 +44,7 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             },
             shown = state.filtered.size,
             onQuery = { dispatch(DmtAction.Query(it)) },
+            onSearch = { dispatch(DmtAction.Search) },
             sort = if (isYouTube) null else state.settings.librarySort.label,
             onSort = if (isYouTube) null else {
                 {

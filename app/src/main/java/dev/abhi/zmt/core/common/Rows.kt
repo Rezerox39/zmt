@@ -50,6 +50,7 @@ fun SearchRow(
     hint: String,
     shown: Int,
     onQuery: (String) -> Unit,
+    onSearch: () -> Unit = {},
     sort: String? = null,
     onSort: (() -> Unit)? = null,
 ) {
@@ -71,7 +72,7 @@ fun SearchRow(
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = TuiFg),
             cursorBrush = SolidColor(TuiAccent),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { /* search triggers via debounce automatically */ }),
+            keyboardActions = KeyboardActions(onSearch = onSearch),
             modifier = Modifier.weight(1f),
             decorationBox = { inner ->
                 if (query.isEmpty()) {
@@ -89,6 +90,14 @@ fun SearchRow(
                 text = "$shown",
                 style = MaterialTheme.typography.labelSmall,
                 color = TuiDim,
+            )
+            Text(
+                text = "⌕ ",
+                style = MaterialTheme.typography.labelLarge,
+                color = TuiAccent,
+                modifier = Modifier
+                    .tuiClickable { onSearch() }
+                    .padding(horizontal = 4.dp, vertical = 6.dp),
             )
             Text(
                 text = stringResource(R.string.clear),

@@ -73,6 +73,7 @@ sealed interface DmtAction {
     data class Permission(val granted: Boolean) : DmtAction
     data object Rescan : DmtAction
     data class Query(val value: String) : DmtAction
+    data object Search : DmtAction
     data class Show(val view: DmtView) : DmtAction
     data class OpenAlbum(val name: String?) : DmtAction
     data class OpenArtist(val name: String?) : DmtAction

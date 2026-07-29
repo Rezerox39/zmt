@@ -56,8 +56,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.debounce
+
 import kotlinx.coroutines.guava.await
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -106,8 +105,6 @@ class PlayerViewModel @Inject constructor(
     private var noticeJob: Job? = null
     private var sleepEndAt: Long? = null
     private var sessionRestored = false
-    private val _queryFlow = MutableStateFlow("")
-
 
     init {
         viewModelScope.launch {
@@ -134,17 +131,6 @@ class PlayerViewModel @Inject constructor(
                 .flowOn(Dispatchers.IO)
                 .collect { route ->
                     reduce { if (it.route == route) it else it.copy(route = route) }
-                }
-        }
-        // Debounced query flow for YouTube search (300ms)
-        viewModelScope.launch {
-            _queryFlow
-                .debounce(300L)
-                .distinctUntilChanged()
-                .collectLatest { query ->
-                    if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
-                        performYouTubeSearch(query)
-                    }
                 }
         }
         if (currentState.hasPermission) scan()
@@ -258,65 +244,18 @@ class PlayerViewModel @Inject constructor(
             DmtAction.Rescan -> scan()
             is DmtAction.Query -> {
                 reduce { it.copy(query = intent.value) }
-                val query = intent.value
-                if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                // Local filter is instant (in-memory), keep it on every keystroke
+                if (currentState.settings.sourceMode != SourceMode.YOUTUBE) {
                     viewModelScope.launch {
-                        if (query.isBlank()) {
-                            reduce { it.copy(tracks = emptyList(), filtered = emptyList()) }
-                            return@launch
-                        }
-                        reduce { it.copy(scanning = true) }
-                        try {
-                            val results = youtubeRepository.search(query)
-                            if (currentState.query == query) {
-                                reduce {
-                                    it.copy(
-                                        scanning = false,
-                                        tracks = results,
-                                        filtered = results,
-                                    )
-                                }
-                            }
-                        } catch (e: Exception) {
-                            if (currentState.query == query) {
-                                reduce {
-                                    it.copy(
-                                        scanning = false,
-                                        error = "YouTube search failed: ${e.message}",
-                                    )
-                                }
-                            }
-                        }
+                        performLocalFilter(intent.value)
                     }
-                } else {
+                }
+            }
+            is DmtAction.Search -> {
+                val query = currentState.query
+                if (query.isNotBlank() && currentState.settings.sourceMode == SourceMode.YOUTUBE) {
                     viewModelScope.launch {
-                        val tracks = currentState.tracks
-                        val albums = currentState.albums
-                        val artists = currentState.artists
-                        val folders = currentState.folders
-                        val playlists = currentState.playlists
-                        val sort = currentState.settings.librarySort
-                        val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
-                            withContext(Dispatchers.Default) {
-                                FilteredLibrary(
-                                    tracks = filter(tracks, query, sort),
-                                    albums = filterAlbums(albums, query),
-                                    artists = filterArtists(artists, query),
-                                    folders = filterFolders(folders, query),
-                                    playlists = filterPlaylists(playlists, query),
-                                )
-                            }
-                        if (currentState.query == query) {
-                            reduce {
-                                it.copy(
-                                    filtered = filteredTracks,
-                                    filteredAlbums = filteredAlbums,
-                                    filteredArtists = filteredArtists,
-                                    filteredFolders = filteredFolders,
-                                    filteredPlaylists = filteredPlaylists,
-                                )
-                            }
-                        }
+                        performYouTubeSearch(query)
                     }
                 }
             }
