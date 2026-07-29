@@ -1,7 +1,6 @@
 package dev.abhi.zmt.presentation.player
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -22,6 +21,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
@@ -41,7 +41,6 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -64,7 +63,6 @@ import dev.abhi.zmt.core.common.TuiStatus
 import dev.abhi.zmt.core.common.fitScaleFor
 import dev.abhi.zmt.core.common.isCompactWindow
 import dev.abhi.zmt.core.common.isLandscapeWindow
-import dev.abhi.zmt.core.common.rememberTuiPress
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.core.common.windowDpSize
 import dev.abhi.zmt.ui.theme.TuiAccent
@@ -312,7 +310,7 @@ private fun DownloadSheet(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
-    val pressDismiss = rememberTuiPress()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -364,12 +362,8 @@ private fun DownloadSheet(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .border(1.dp, lerp(TuiLine, TuiFg, pressDismiss.fraction))
-                .background(lerp(TuiSurface.copy(alpha = 0.4f), TuiFg, pressDismiss.fraction))
-                .clickable(
-                    interactionSource = pressDismiss.interactionSource,
-                    indication = null,
-                ) { pressDismiss.click { dispatch(DmtAction.DismissDownloadSheet) } }
+                .border(1.dp, TuiLine)
+                .tuiClickable { dispatch(DmtAction.DismissDownloadSheet) }
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Text(
