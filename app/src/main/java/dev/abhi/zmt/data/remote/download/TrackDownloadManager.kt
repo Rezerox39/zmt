@@ -7,8 +7,10 @@ import android.os.Environment
 import android.provider.MediaStore
 import android.util.Log
 import dev.abhi.zmt.data.remote.youtube.YoutubeStreamResolver
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.io.File
@@ -16,173 +18,228 @@ import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.coroutines.CoroutineContext
 
 private const val TAG = "TrackDL"
+private const val BUFFER_SIZE = 8192  // 8 KB chunks
 
 data class DownloadProgress(
     val bytesDownloaded: Long = 0L,
     val totalBytes: Long = -1L,
     val isFinished: Boolean = false,
     val error: String? = null,
-)
+) {
+    val percent: Int
+        get() = if (totalBytes > 0) ((bytesDownloaded * 100) / totalBytes).toInt().coerceIn(0, 100)
+                 else if (isFinished) 100 else if (error != null) -1 else 0
+}
 
 @Singleton
 class TrackDownloadManager @Inject constructor(
     private val resolver: YoutubeStreamResolver,
-) {
+) : CoroutineScope {
+
+    override val coroutineContext: CoroutineContext =
+        SupervisorJob() + Dispatchers.IO
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(60, TimeUnit.SECONDS)
+        .readTimeout(120, TimeUnit.SECONDS)   // longer read timeout for large files
+        .writeTimeout(120, TimeUnit.SECONDS)
         .followRedirects(true)
+        .followSslRedirects(true)
         .build()
 
     /**
      * Download a YouTube track to the device's Music directory.
-     * Returns the content URI on success, null on failure.
+     * Runs on a dedicated IO scope — NOT tied to any ViewModel lifecycle.
      */
-    suspend fun downloadToDevice(
+    fun downloadToDevice(
         context: Context,
         videoId: String,
         title: String,
         artist: String,
         onProgress: (DownloadProgress) -> Unit,
-    ): Uri? = withContext(Dispatchers.IO) {
-        onProgress(DownloadProgress())
+    ) {
+        launch {
+            onProgress(DownloadProgress())
+            Log.i(TAG, "Starting download for $videoId")
 
-        // 1. Resolve stream URL via yt-dlp
-        val resolved = resolver.resolve(videoId)
-            ?: run {
+            // 1. Resolve stream URL via yt-dlp (runs on IO)
+            val resolved = resolver.resolve(videoId)
+            if (resolved == null) {
                 onProgress(DownloadProgress(error = "Could not resolve stream URL"))
-                return@withContext null
+                return@launch
             }
 
-        Log.i(TAG, "Downloading: ${resolved.url.take(80)}...")
-        Log.i(TAG, "User-Agent: ${resolved.userAgent}")
+            Log.i(TAG, "URL: ${resolved.url.take(80)}... UA: ${resolved.userAgent}")
 
-        // 2. HTTP request with correct User-Agent
-        val request = Request.Builder()
-            .url(resolved.url)
-            .header("User-Agent", resolved.userAgent)
-            .header("Accept", "*/*")
-            .header("Connection", "keep-alive")
-            .get()
-            .build()
+            // 2. HTTP request with exact User-Agent from resolver
+            val request = Request.Builder()
+                .url(resolved.url)
+                .header("User-Agent", resolved.userAgent)
+                .header("Accept", "*/*")
+                .header("Connection", "keep-alive")
+                .header("Accept-Encoding", "identity")  // don't let OkHttp gzip — we want raw bytes
+                .get()
+                .build()
 
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) {
-            onProgress(DownloadProgress(error = "HTTP ${response.code}: ${response.message}"))
-            return@withContext null
-        }
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                onProgress(DownloadProgress(error = "HTTP ${response.code}: ${response.message}"))
+                return@launch
+            }
 
-        val body = response.body ?: run {
-            onProgress(DownloadProgress(error = "Empty response body"))
-            return@withContext null
-        }
+            val body = response.body ?: run {
+                onProgress(DownloadProgress(error = "Empty response body"))
+                return@launch
+            }
 
-        val contentLength = body.contentLength()
-        val inputStream = body.byteStream()
-        val bytes = inputStream.readBytes()
-        inputStream.close()
+            // 3. Read in chunks, report progress
+            val totalLen = body.contentLength()  // -1 for chunked streams
+            val contentType = body.contentType()?.toString() ?: "audio/webm"
 
-        onProgress(DownloadProgress(bytesDownloaded = bytes.size.toLong(), totalBytes = bytes.size.toLong()))
+            val extension = when {
+                contentType.contains("mp4") -> "m4a"
+                contentType.contains("webm") -> "webm"
+                contentType.contains("ogg") -> "ogg"
+                contentType.contains("aac") -> "aac"
+                else -> "m4a"
+            }
+            val mimeType = when {
+                contentType.contains("mp4") -> "audio/mp4"
+                contentType.contains("webm") -> "audio/webm"
+                contentType.contains("ogg") -> "audio/ogg"
+                contentType.contains("aac") -> "audio/aac"
+                else -> "audio/mp4"
+            }
 
-        // 3. Determine MIME type and extension
-        val contentType = body.contentType()?.toString() ?: "audio/webm"
-        val extension = when {
-            contentType.contains("mp4") -> "m4a"
-            contentType.contains("webm") -> "webm"
-            contentType.contains("ogg") -> "ogg"
-            contentType.contains("aac") -> "aac"
-            else -> "m4a"
-        }
-        val mimeType = when {
-            contentType.contains("mp4") -> "audio/mp4"
-            contentType.contains("webm") -> "audio/webm"
-            contentType.contains("ogg") -> "audio/ogg"
-            contentType.contains("aac") -> "audio/aac"
-            else -> "audio/mp4"
-        }
+            val fileName = "${title} - ${artist}.${extension}"
+                .replace(Regex("[/\\\\:*?\"<>|]"), "_")
 
-        val fileName = "${title} - ${artist}.${extension}"
-            .replace(Regex("[/\\\\:*?\"<>|]"), "_")
+            // 4. Create MediaStore entry
+            val contentValues = ContentValues().apply {
+                put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
+                put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
+                put(MediaStore.Audio.Media.TITLE, title)
+                put(MediaStore.Audio.Media.ARTIST, artist)
+                put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC)
+                put(MediaStore.Audio.Media.IS_PENDING, 1)
+            }
 
-        // 4. Save via MediaStore to Music directory
-        val contentValues = ContentValues().apply {
-            put(MediaStore.Audio.Media.DISPLAY_NAME, fileName)
-            put(MediaStore.Audio.Media.MIME_TYPE, mimeType)
-            put(MediaStore.Audio.Media.TITLE, title)
-            put(MediaStore.Audio.Media.ARTIST, artist)
-            put(MediaStore.Audio.Media.RELATIVE_PATH, Environment.DIRECTORY_MUSIC)
-            put(MediaStore.Audio.Media.IS_PENDING, 1)
-        }
+            val resolver_ = context.contentResolver
+            val collectionUri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
+            val itemUri = resolver_.insert(collectionUri, contentValues)
 
-        val resolver_ = context.contentResolver
-        val collectionUri = MediaStore.Audio.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
-        val itemUri = resolver_.insert(collectionUri, contentValues)
+            if (itemUri == null) {
+                onProgress(DownloadProgress(error = "Failed to create MediaStore entry"))
+                return@launch
+            }
 
-        if (itemUri == null) {
-            onProgress(DownloadProgress(error = "Failed to create MediaStore entry"))
-            return@withContext null
-        }
+            try {
+                resolver_.openOutputStream(itemUri)?.let { outputStream ->
+                    val inputStream = body.byteStream()
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var totalRead = 0L
+                    var bytesRead: Int
 
-        try {
-            resolver_.openOutputStream(itemUri)?.use { outputStream ->
-                outputStream.write(bytes)
-            } ?: throw Exception("Could not open output stream")
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                        outputStream.flush()
+                        totalRead += bytesRead
 
-            // Clear the pending flag
-            contentValues.clear()
-            contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
-            resolver_.update(itemUri, contentValues, null, null)
+                        // Report progress every chunk
+                        if (totalLen > 0) {
+                            onProgress(DownloadProgress(
+                                bytesDownloaded = totalRead,
+                                totalBytes = totalLen,
+                            ))
+                        }
+                    }
 
-            onProgress(DownloadProgress(bytesDownloaded = bytes.size.toLong(), totalBytes = bytes.size.toLong(), isFinished = true))
-            Log.i(TAG, "Saved to Music: $fileName")
-            return@withContext itemUri
-        } catch (e: Exception) {
-            // Cleanup on failure
-            resolver_.delete(itemUri, null, null)
-            onProgress(DownloadProgress(error = e.message ?: "Download failed"))
-            return@withContext null
+                    outputStream.flush()
+                    inputStream.close()
+                } ?: throw Exception("Could not open output stream")
+
+                // Clear pending flag
+                contentValues.clear()
+                contentValues.put(MediaStore.Audio.Media.IS_PENDING, 0)
+                resolver_.update(itemUri, contentValues, null, null)
+
+                onProgress(DownloadProgress(
+                    bytesDownloaded = totalLen.coerceAtLeast(0),
+                    totalBytes = totalLen.coerceAtLeast(0),
+                    isFinished = true,
+                ))
+                Log.i(TAG, "Saved to Music: $fileName")
+            } catch (e: Exception) {
+                resolver_.delete(itemUri, null, null)
+                onProgress(DownloadProgress(error = e.message ?: "Download failed"))
+                Log.e(TAG, "Download failed: ${e.message}", e)
+            }
         }
     }
 
     /**
-     * Download a YouTube track to a temporary cache file.
-     * Returns the cached File on success.
+     * Download to cache for Telegram sharing. Same chunked approach.
      */
-    suspend fun downloadToCache(
+    fun downloadToCache(
         context: Context,
         videoId: String,
-    ): File? = withContext(Dispatchers.IO) {
-        val resolved = resolver.resolve(videoId) ?: return@withContext null
+        onResult: (File?) -> Unit,
+    ) {
+        launch {
+            val resolved = resolver.resolve(videoId) ?: run {
+                onResult(null); return@launch
+            }
 
-        val request = Request.Builder()
-            .url(resolved.url)
-            .header("User-Agent", resolved.userAgent)
-            .header("Accept", "*/*")
-            .get()
-            .build()
+            val request = Request.Builder()
+                .url(resolved.url)
+                .header("User-Agent", resolved.userAgent)
+                .header("Accept", "*/*")
+                .header("Connection", "keep-alive")
+                .header("Accept-Encoding", "identity")
+                .get()
+                .build()
 
-        val response = client.newCall(request).execute()
-        if (!response.isSuccessful) return@withContext null
+            val response = client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                onResult(null); return@launch
+            }
 
-        val body = response.body ?: return@withContext null
-        val contentType = body.contentType()?.toString() ?: "audio/webm"
-        val extension = when {
-            contentType.contains("mp4") -> "m4a"
-            contentType.contains("webm") -> "webm"
-            else -> "m4a"
-        }
+            val body = response.body ?: run {
+                onResult(null); return@launch
+            }
 
-        val cacheFile = File(context.cacheDir, "yt_download_${videoId}.${extension}")
-        body.byteStream().use { input ->
-            FileOutputStream(cacheFile).use { output ->
-                input.copyTo(output)
+            val contentType = body.contentType()?.toString() ?: "audio/webm"
+            val extension = when {
+                contentType.contains("mp4") -> "m4a"
+                contentType.contains("webm") -> "webm"
+                contentType.contains("ogg") -> "ogg"
+                else -> "m4a"
+            }
+
+            val cacheFile = File(context.cacheDir, "yt_backup_${videoId}.${extension}")
+
+            try {
+                FileOutputStream(cacheFile).use { outputStream ->
+                    val inputStream = body.byteStream()
+                    val buffer = ByteArray(BUFFER_SIZE)
+                    var bytesRead: Int
+                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
+                        outputStream.write(buffer, 0, bytesRead)
+                        outputStream.flush()
+                    }
+                    outputStream.flush()
+                    inputStream.close()
+                }
+                Log.i(TAG, "Cached to: ${cacheFile.absolutePath}")
+                onResult(cacheFile)
+            } catch (e: Exception) {
+                Log.e(TAG, "Cache failed: ${e.message}", e)
+                cacheFile.delete()
+                onResult(null)
             }
         }
-
-        Log.i(TAG, "Cached to: ${cacheFile.absolutePath}")
-        cacheFile
     }
 }

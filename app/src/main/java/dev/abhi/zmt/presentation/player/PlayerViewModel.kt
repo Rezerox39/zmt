@@ -286,22 +286,21 @@ class PlayerViewModel @Inject constructor(
                 val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
                     reduce { it.copy(downloadError = "No video ID") }; return@onIntent
                 }
-                viewModelScope.launch {
-                    downloadManager.downloadToDevice(
-                        context = context,
-                        videoId = videoId,
-                        title = track.title,
-                        artist = track.artist,
-                        onProgress = { progress ->
-                            reduce {
-                                it.copy(
-                                    downloadProgress = if (progress.isFinished) 101 else if (progress.error != null) -2 else 50,
-                                    downloadError = progress.error,
-                                )
-                            }
-                        },
-                    )
-                }
+                // Download runs on TrackDownloadManager's own IO scope — NOT viewModelScope
+                downloadManager.downloadToDevice(
+                    context = context,
+                    videoId = videoId,
+                    title = track.title,
+                    artist = track.artist,
+                    onProgress = { progress ->
+                        reduce {
+                            it.copy(
+                                downloadProgress = progress.percent.coerceIn(0, 100),
+                                downloadError = progress.error,
+                            )
+                        }
+                    },
+                )
             }
             DmtAction.BackupToTelegram -> {
                 reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
@@ -310,24 +309,27 @@ class PlayerViewModel @Inject constructor(
                 val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
                     reduce { it.copy(downloadError = "No video ID") }; return@onIntent
                 }
-                viewModelScope.launch {
-                    val file = downloadManager.downloadToCache(context, videoId)
-                    if (file != null) {
-                        // Share to Telegram via Intent
-                        val telegramUri = dev.abhi.zmt.util.FileProviderUtils.getShareUri(context, file)
-                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                            type = "audio/*"
-                            putExtra(android.content.Intent.EXTRA_STREAM, telegramUri)
-                            `package` = "org.telegram.messenger"
-                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                // Download runs on TrackDownloadManager's own IO scope
+                downloadManager.downloadToCache(
+                    context = context,
+                    videoId = videoId,
+                    onResult = { file ->
+                        if (file != null) {
+                            val telegramUri = dev.abhi.zmt.util.FileProviderUtils.getShareUri(context, file)
+                            val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                type = "audio/*"
+                                putExtra(android.content.Intent.EXTRA_STREAM, telegramUri)
+                                `package` = "org.telegram.messenger"
+                                addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            }
+                            context.startActivity(shareIntent)
+                            reduce { it.copy(downloadProgress = 101) }
+                        } else {
+                            reduce { it.copy(downloadError = "Failed to download track for backup") }
                         }
-                        context.startActivity(shareIntent)
-                        reduce { it.copy(downloadProgress = 101) }
-                    } else {
-                        reduce { it.copy(downloadError = "Failed to download track for backup") }
-                    }
-                }
+                    },
+                )
             }
 
             is DmtAction.Show -> {

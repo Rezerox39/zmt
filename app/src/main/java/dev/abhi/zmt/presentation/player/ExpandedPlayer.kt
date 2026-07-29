@@ -1,6 +1,7 @@
 package dev.abhi.zmt.presentation.player
 
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -40,6 +41,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
@@ -62,6 +64,7 @@ import dev.abhi.zmt.core.common.TuiStatus
 import dev.abhi.zmt.core.common.fitScaleFor
 import dev.abhi.zmt.core.common.isCompactWindow
 import dev.abhi.zmt.core.common.isLandscapeWindow
+import dev.abhi.zmt.core.common.rememberTuiPress
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.core.common.windowDpSize
 import dev.abhi.zmt.ui.theme.TuiAccent
@@ -309,68 +312,72 @@ private fun DownloadSheet(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
+    val pressDismiss = rememberTuiPress()
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 8.dp)
             .border(1.dp, TuiLine),
     ) {
-        Text(
-            text = "  download & backup",
-            style = MaterialTheme.typography.labelLarge,
-            color = TuiAccent,
-            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 4.dp),
-        )
+        // Title row
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tuiClickable { dispatch(DmtAction.DownloadToDevice) }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 2.dp),
         ) {
+            Box(modifier = Modifier.size(7.dp).background(TuiAccent))
             Text(
-                text = "  ⇩ download to device",
-                style = MaterialTheme.typography.bodyMedium,
-                color = TuiFg,
-                modifier = Modifier.weight(1f),
-            )
-            when {
-                state.downloadProgress in 0..100 -> Text(
-                    text = "${state.downloadProgress}%",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TuiAccent,
-                )
-                state.downloadProgress > 100 -> Text(
-                    text = "  saved",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TuiAccent,
-                )
-                state.downloadError != null -> Text(
-                    text = "  error",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TuiAccent,
-                )
-            }
-        }
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .tuiClickable { dispatch(DmtAction.BackupToTelegram) }
-                .padding(horizontal = 12.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = "  ⇧ backup to telegram",
-                style = MaterialTheme.typography.bodyMedium,
+                text = " dl:download & backup",
+                style = MaterialTheme.typography.labelMedium,
                 color = TuiFg,
             )
         }
-        Text(
-            text = "  dismiss",
-            style = MaterialTheme.typography.labelSmall,
-            color = TuiDim,
+
+        // Download to device row
+        val dlLabel = when {
+            state.downloadProgress in 0..99 -> "dl:device ${
+                state.downloadProgress}%"
+            state.downloadProgress >= 100 -> "dl:device done"
+            state.downloadError != null -> "dl:device err"
+            else -> "dl:device"
+        }
+        TuiStatus(
+            label = dlLabel,
+            value = "",
+            on = state.downloadProgress in 0..100,
+            busy = state.downloadProgress in 0..99,
+        ) {
+            dispatch(DmtAction.DownloadToDevice)
+        }
+
+        // Backup to telegram row
+        TuiStatus(
+            label = "dl:telegram",
+            value = "",
+            on = false,
+            busy = false,
+        ) {
+            dispatch(DmtAction.BackupToTelegram)
+        }
+
+        // Dismiss
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
-                .tuiClickable { dispatch(DmtAction.DismissDownloadSheet) }
-                .padding(start = 12.dp, top = 4.dp, bottom = 6.dp),
-        )
+                .fillMaxWidth()
+                .border(1.dp, lerp(TuiLine, TuiFg, pressDismiss.fraction))
+                .background(lerp(TuiSurface.copy(alpha = 0.4f), TuiFg, pressDismiss.fraction))
+                .clickable(
+                    interactionSource = pressDismiss.interactionSource,
+                    indication = null,
+                ) { pressDismiss.click { dispatch(DmtAction.DismissDownloadSheet) } }
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = "  cancel",
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiDim,
+            )
+        }
     }
 }
 
