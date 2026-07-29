@@ -26,6 +26,7 @@ import dev.jyotiraditya.dmt.presentation.player.PlayerEffect
 import dev.jyotiraditya.dmt.presentation.player.PlayerViewModel
 import dev.jyotiraditya.dmt.ui.theme.DMTTheme
 import dev.jyotiraditya.dmt.ui.theme.TuiThemeProvider
+import dev.jyotiraditya.dmt.ui.theme.ThemeCrossfade
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -42,6 +43,7 @@ class MainActivity : ComponentActivity() {
             val state by playerViewModel.state.collectAsState()
             DMTTheme(theme = state.settings.theme) {
                 TuiThemeProvider(theme = state.settings.theme) {
+                ThemeCrossfade(targetTheme = state.settings.theme) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background,
@@ -75,6 +77,7 @@ class MainActivity : ComponentActivity() {
                 }
                 }
             }
+        }
         }
     }
 

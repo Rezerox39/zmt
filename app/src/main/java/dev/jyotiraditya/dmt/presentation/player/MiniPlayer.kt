@@ -6,19 +6,25 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.offset
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import dev.jyotiraditya.dmt.core.common.CursorTitle
 import dev.jyotiraditya.dmt.core.common.Hairline
 import dev.jyotiraditya.dmt.core.common.TuiKey
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.LocalAquaPhysics
 import dev.jyotiraditya.dmt.ui.theme.GlassCard
+import dev.jyotiraditya.dmt.ui.theme.LiquidProgressBar
+import dev.jyotiraditya.dmt.ui.theme.rememberFloatingAnimation
 import dev.jyotiraditya.dmt.util.asTime
+import kotlin.math.roundToInt
 
 @Composable
 fun MiniPlayer(
@@ -26,51 +32,62 @@ fun MiniPlayer(
     dispatch: (DmtAction) -> Unit,
 ) {
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
     val fraction =
         if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f
+
+    val floatOffset = if (physics.enableGlass) rememberFloatingAnimation(
+        amplitude = physics.floatAmplitude,
+        periodMs = physics.floatPeriodMs,
+    ) else 0f
 
     GlassCard(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 10.dp),
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .offset { IntOffset(0, floatOffset.roundToInt()) },
     ) {
         Column {
-            Hairline(fraction)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 8.dp),
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(end = 10.dp),
-            ) {
-                CursorTitle(
-                    text = state.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                val position = state.positionMs.asTime()
-                val duration = state.durationMs.asTime()
-                Text(
-                    text = "${state.artist} · $position/$duration".lowercase(),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = p.dim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
+            if (physics.enableGlass) {
+                LiquidProgressBar(fraction = fraction)
+            } else {
+                Hairline(fraction)
             }
-            Text(
-                text = "^",
-                style = MaterialTheme.typography.labelMedium,
-                color = p.faint,
-                modifier = Modifier.padding(end = 10.dp),
-            )
-            TuiKey(if (state.isPlaying) "||" else "|>") { dispatch(DmtAction.TogglePlay) }
-            Spacer(modifier = Modifier.width(8.dp))
-            TuiKey(">>|") { dispatch(DmtAction.Next) }
-        }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+            ) {
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 10.dp),
+                ) {
+                    CursorTitle(
+                        text = state.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    val position = state.positionMs.asTime()
+                    val duration = state.durationMs.asTime()
+                    Text(
+                        text = "${state.artist} · $position/$duration".lowercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = p.dim,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                Text(
+                    text = "^",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = p.faint,
+                    modifier = Modifier.padding(end = 10.dp),
+                )
+                TuiKey(if (state.isPlaying) "||" else "|>") { dispatch(DmtAction.TogglePlay) }
+                Spacer(modifier = Modifier.width(8.dp))
+                TuiKey(">>|") { dispatch(DmtAction.Next) }
+            }
         }
     }
 }

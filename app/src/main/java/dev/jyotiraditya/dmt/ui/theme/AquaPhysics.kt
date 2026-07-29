@@ -13,10 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 
 /**
  * Physics parameters that govern the liquid-glass rendering system.
@@ -62,6 +62,16 @@ data class AquaPhysics(
     val enableGlass: Boolean = true,
     /** Liquid progress bar wave speed ms */
     val wavePeriodMs: Int = 2000,
+    /** Press deformation — how much the component compresses on press (0..1) */
+    val pressCompression: Float = 0.04f,
+    /** Glow intensity from content (0..1) */
+    val glowIntensity: Float = 0.15f,
+    /** Inner shadow depth for droplet depth effect */
+    val innerShadowDepth: Float = 0.08f,
+    /** Refraction distortion intensity (0..1) */
+    val refractionIntensity: Float = 0.05f,
+    /** Bubble particle density for progress bar (0..10) */
+    val bubbleDensity: Int = 3,
 ) {
     /** Derived: Spring stiffness for press animations */
     val springStiffness: Float
@@ -89,6 +99,10 @@ val ClassicPhysics = AquaPhysics(
     cornerAlbum = 8.dp,
     cornerButton = 8.dp,
     cornerSearch = 8.dp,
+    pressCompression = 0f,
+    glowIntensity = 0f,
+    innerShadowDepth = 0f,
+    refractionIntensity = 0f,
 )
 
 /**
@@ -97,7 +111,7 @@ val ClassicPhysics = AquaPhysics(
  * creates one via [rememberAquaSurfaceState].
  */
 @Stable
-class AquaSurfaceState {
+class AquaSurfaceState(private val scope: CoroutineScope? = null) {
     /** Press scale — bulges slightly when pressed */
     var pressScale by mutableFloatStateOf(1f)
     /** Reflection X-offset — shifts on press */
@@ -106,11 +120,57 @@ class AquaSurfaceState {
     var ripplePhase by mutableFloatStateOf(0f)
     /** Current surface tension bulge (0 = flat, 1 = max bulge) */
     var bulge by mutableFloatStateOf(0f)
+    /** Touch position for ripple origin */
+    var touchPosition by mutableStateOf(Offset.Zero)
 
     val animatablePressScale = Animatable(1f)
     val animatableReflection = Animatable(0f)
     val animatableRipple = Animatable(0f)
     val animatableBulge = Animatable(0f)
+
+    /** Trigger a water ripple at the given position */
+    fun triggerRipple(position: Offset) {
+        touchPosition = position
+        val s = scope ?: return
+        s.launch {
+            animatableRipple.snapTo(0f)
+            animatableRipple.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessMedium),
+            )
+        }
+    }
+
+    /** Animate press scale (compress on press, spring back on release) */
+    fun animatePress(isPressed: Boolean) {
+        val s = scope ?: return
+        s.launch {
+            if (isPressed) {
+                pressScale = 0.96f
+                animatablePressScale.animateTo(
+                    targetValue = 0.96f,
+                    animationSpec = spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessMedium),
+                )
+            } else {
+                pressScale = 1f
+                animatablePressScale.animateTo(
+                    targetValue = 1f,
+                    animationSpec = spring(dampingRatio = 0.3f, stiffness = Spring.StiffnessLow),
+                )
+            }
+        }
+    }
+
+    /** Animate reflection sweep */
+    fun animateReflection() {
+        val s = scope ?: return
+        s.launch {
+            animatableReflection.animateTo(
+                targetValue = 1f,
+                animationSpec = spring(dampingRatio = 0.7f, stiffness = Spring.StiffnessVeryLow),
+            )
+        }
+    }
 }
 
 @Composable

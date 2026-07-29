@@ -66,6 +66,8 @@ import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.core.common.windowDpSize
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 import dev.jyotiraditya.dmt.ui.theme.GlassAlbumFrame
+import dev.jyotiraditya.dmt.ui.theme.rememberBreathingAnimation
+import dev.jyotiraditya.dmt.ui.theme.LocalAquaPhysics
 import dev.jyotiraditya.dmt.ui.theme.GlassCard
 import dev.jyotiraditya.dmt.util.asTime
 import kotlin.math.abs
@@ -373,44 +375,69 @@ private fun ArtSlot(
 private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
 
     val p = LocalTuiColors.current
+    val physics = LocalAquaPhysics.current
     val rawArt = state.artRaw
+    val breathScale = rememberBreathingAnimation(
+        isPlaying = state.isPlaying,
+        minScale = 1f,
+        maxScale = 1.008f,
+        periodMs = 4000,
+    )
 
-    TuiPanel(modifier = modifier) {
-        when {
-            state.settings.rawArt && rawArt != null -> {
-                val image = remember(rawArt) { rawArt.asImageBitmap() }
-                Image(
-                    bitmap = image,
-                    contentDescription = null,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .aspectRatio(rawArt.width.toFloat() / rawArt.height),
+    if (physics.enableGlass) {
+        GlassAlbumFrame(
+            modifier = modifier,
+        ) {
+            CoverContent(state = state, rawArt = rawArt, isPlaying = state.isPlaying)
+        }
+    } else {
+        TuiPanel(modifier = modifier) {
+            CoverContent(state = state, rawArt = rawArt, isPlaying = state.isPlaying)
+        }
+    }
+}
+
+@Composable
+private fun CoverContent(
+    state: DmtState,
+    rawArt: android.graphics.Bitmap?,
+    isPlaying: Boolean,
+) {
+    val p = LocalTuiColors.current
+    when {
+        state.settings.rawArt && rawArt != null -> {
+            val image = remember(rawArt) { rawArt.asImageBitmap() }
+            Image(
+                bitmap = image,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .aspectRatio(rawArt.width.toFloat() / rawArt.height),
+            )
+        }
+
+        state.cover != null -> {
+            AsciiCover(
+                cover = state.cover,
+                playing = isPlaying,
+                wave = state.settings.wave,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
+            )
+        }
+
+        else -> {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.no_cover),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = p.faint,
                 )
-            }
-
-            state.cover != null -> {
-                AsciiCover(
-                    cover = state.cover,
-                    playing = state.isPlaying,
-                    wave = state.settings.wave,
-                    modifier = Modifier.align(Alignment.CenterHorizontally),
-                )
-            }
-
-            else -> {
-                Box(
-                    contentAlignment = Alignment.Center,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(200.dp),
-                ) {
-                    Text(
-                        text = stringResource(R.string.no_cover),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = p.faint,
-                    )
-                }
             }
         }
     }
