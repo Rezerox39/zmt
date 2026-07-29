@@ -1,3 +1,10 @@
+# Hilt / Dagger - keep generated classes from R8 stripping
+-keep class dagger.hilt.** { *; }
+-keep class javax.inject.** { *; }
+-keep class dev.jyotiraditya.dmt.Hilt_* { *; }
+-keep class dev.jyotiraditya.dmt.*_GeneratedInjector { *; }
+-keep class dev.jyotiraditya.dmt.*_HiltComponents { *; }
+
 # xmlutil's serialization ServiceLoader hook isn't used since we only depend on xmlutil-core.
 -dontwarn nl.adaptivity.xmlutil.util.SerializationProvider
 -dontwarn nl.adaptivity.xmlutil.util.DefaultSerializationProvider
