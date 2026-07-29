@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://rezerox39.github.io/zmt/sitemap.xml
