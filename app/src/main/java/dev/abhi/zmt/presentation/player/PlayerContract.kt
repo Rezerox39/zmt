@@ -67,6 +67,9 @@ data class DmtState(
     val telegramAuthStep: String = "",
     val telegramChannelInput: String = "",
     val telegramSyncing: Boolean = false,
+    val showDownloadSheet: Boolean = false,
+    val downloadProgress: Int = -1,  // -1 = idle, 0-100 = progress, >100 = done
+    val downloadError: String? = null,
 )
 
 sealed interface DmtAction {
@@ -113,6 +116,10 @@ sealed interface DmtAction {
     data class TelegramSubmitPassword(val password: String) : DmtAction
     data class TelegramResolveChannel(val channelInput: String) : DmtAction
     data object TelegramLogout : DmtAction
+    data object ShowDownloadSheet : DmtAction
+    data object DismissDownloadSheet : DmtAction
+    data object DownloadToDevice : DmtAction
+    data object BackupToTelegram : DmtAction
 }
 
 sealed interface PlayerEffect {

@@ -297,6 +297,81 @@ private fun ControlsBlock(
         modifier = Modifier.padding(top = 8.dp),
         reserveSpace = true,
     )
+
+    // Download options sheet
+    if (state.showDownloadSheet) {
+        DownloadSheet(state = state, dispatch = dispatch)
+    }
+}
+
+@Composable
+private fun DownloadSheet(
+    state: DmtState,
+    dispatch: (DmtAction) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .border(1.dp, TuiLine),
+    ) {
+        Text(
+            text = "  download & backup",
+            style = MaterialTheme.typography.labelLarge,
+            color = TuiAccent,
+            modifier = Modifier.padding(start = 8.dp, top = 6.dp, bottom = 4.dp),
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tuiClickable { dispatch(DmtAction.DownloadToDevice) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Text(
+                text = "  ⇩ download to device",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TuiFg,
+                modifier = Modifier.weight(1f),
+            )
+            when {
+                state.downloadProgress in 0..100 -> Text(
+                    text = "${state.downloadProgress}%",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiAccent,
+                )
+                state.downloadProgress > 100 -> Text(
+                    text = "  saved",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiAccent,
+                )
+                state.downloadError != null -> Text(
+                    text = "  error",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiAccent,
+                )
+            }
+        }
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .tuiClickable { dispatch(DmtAction.BackupToTelegram) }
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Text(
+                text = "  ⇧ backup to telegram",
+                style = MaterialTheme.typography.bodyMedium,
+                color = TuiFg,
+            )
+        }
+        Text(
+            text = "  dismiss",
+            style = MaterialTheme.typography.labelSmall,
+            color = TuiDim,
+            modifier = Modifier
+                .tuiClickable { dispatch(DmtAction.DismissDownloadSheet) }
+                .padding(start = 12.dp, top = 4.dp, bottom = 6.dp),
+        )
+    }
 }
 
 @Composable
@@ -626,6 +701,21 @@ private fun StatusRow(
                 state.lyricsFetching -> Unit
                 state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
                 else -> onToggleLyrics()
+            }
+        }
+        TuiStatus(
+            label = "dl",
+            value = when {
+                state.downloadProgress > 100 -> "done"
+                state.downloadProgress >= 0 -> "${state.downloadProgress}%"
+                state.downloadProgress == -2 -> "err"
+                else -> "off"
+            },
+            on = state.downloadProgress > 0,
+            busy = state.downloadProgress in 0..100,
+        ) {
+            if (state.downloadProgress != -2) {
+                dispatch(DmtAction.ShowDownloadSheet)
             }
         }
     }

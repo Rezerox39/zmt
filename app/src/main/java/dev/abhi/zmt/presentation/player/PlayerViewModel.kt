@@ -91,6 +91,7 @@ class PlayerViewModel @Inject constructor(
     private val playlistRepository: PlaylistRepository,
     private val mediaSourceProvider: dev.abhi.zmt.domain.usecase.MediaSourceProvider,
     private val youtubeRepository: dev.abhi.zmt.data.repository.YoutubeMediaRepositoryImpl,
+    private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -256,6 +257,56 @@ class PlayerViewModel @Inject constructor(
                 if (query.isNotBlank() && currentState.settings.sourceMode == SourceMode.YOUTUBE) {
                     viewModelScope.launch {
                         performYouTubeSearch(query)
+                    }
+                }
+            }
+            DmtAction.ShowDownloadSheet -> {
+                reduce { it.copy(showDownloadSheet = true) }
+            }
+            DmtAction.DismissDownloadSheet -> {
+                reduce { it.copy(showDownloadSheet = false) }
+            }
+            DmtAction.DownloadToDevice -> {
+                reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
+                val track = currentState.queue.getOrNull(currentState.queueIndex) ?: return@onIntent
+                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return@onIntent
+                viewModelScope.launch {
+                    downloadManager.downloadToDevice(
+                        context = context,
+                        videoId = videoId,
+                        title = track.title,
+                        artist = track.artist,
+                        onProgress = { progress ->
+                            reduce {
+                                it.copy(
+                                    downloadProgress = if (progress.isFinished) 101 else if (progress.error != null) -2 else 50,
+                                    downloadError = progress.error,
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+            DmtAction.BackupToTelegram -> {
+                reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
+                val track = currentState.queue.getOrNull(currentState.queueIndex) ?: return@onIntent
+                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return@onIntent
+                viewModelScope.launch {
+                    val file = downloadManager.downloadToCache(context, videoId)
+                    if (file != null) {
+                        // Share to Telegram via Intent
+                        val telegramUri = dev.abhi.zmt.util.FileProviderUtils.getShareUri(context, file)
+                        val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                            type = "audio/*"
+                            putExtra(android.content.Intent.EXTRA_STREAM, telegramUri)
+                            `package` = "org.telegram.messenger"
+                            addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                        }
+                        context.startActivity(shareIntent)
+                        reduce { it.copy(downloadProgress = 101) }
+                    } else {
+                        reduce { it.copy(downloadError = "Failed to download track for backup") }
                     }
                 }
             }
