@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ZMT — Terminal-Inspired Music Player for Android</title>
+    <meta name="description" content="ZMT is a free, open-source terminal-style music player for Android. Play local music, stream from Jellyfin, sync Telegram channels, and play YouTube Music. AMOLED themes, lyrics, Android Auto support.">
+    <meta name="keywords" content="android music player, terminal music player, tui music player, jellyfin client, telegram music, youtube music android, open source music player, amoled music player, kotlin, jetpack compose">
+    <meta name="author" content="Abhi">
+    <meta name="robots" content="index, follow">
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="ZMT — Terminal-Inspired Music Player for Android">
+    <meta property="og:description" content="Free, open-source terminal-style music player. Local files, Jellyfin, Telegram sync, YouTube Music. Dark AMOLED themes, lyrics, Android Auto.">
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://rezerox39.github.io/zmt/">
+    <meta property="og:image" content="https://raw.githubusercontent.com/Rezerox39/zmt/main/.github/screenshots/player-portrait.png">
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="ZMT — Terminal-Inspired Music Player for Android">
+    <meta name="twitter:description" content="Free, open-source terminal-style music player. Local files, Jellyfin, Telegram sync, YouTube Music. AMOLED themes, lyrics, Android Auto.">
+    <meta name="twitter:image" content="https://raw.githubusercontent.com/Rezerox39/zmt/main/.github/screenshots/player-portrait.png">
+
+    <!-- JSON-LD Schema -->
+    <script type="application/ld+json">
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "ZMT Music Player",
+        "description": "A terminal-inspired local music player for Android with Telegram sync, Jellyfin streaming, and YouTube Music support.",
+        "url": "https://github.com/Rezerox39/zmt",
+        "applicationCategory": "Multimedia",
+        "operatingSystem": "Android",
+        "requiresMinimumApi": "30",
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "author": {
+            "@type": "Person",
+            "name": "Abhi",
+            "url": "https://github.com/Rezerox39"
+        }
+    }
+    </script>
+
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            background: #0a0a0a;
+            color: #ccc;
+            line-height: 1.6;
+        }
+        h1 { color: #FF6B35; }
+        h2 { color: #e0e0e0; border-bottom: 1px solid #333; padding-bottom: 8px; }
+        a { color: #FF6B35; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        .hero { text-align: center; padding: 60px 0; }
+        .hero h1 { font-size: 2.5em; margin: 0; }
+        .hero p { font-size: 1.2em; color: #999; }
+        .btn {
+            display: inline-block;
+            padding: 14px 32px;
+            background: #FF6B35;
+            color: #0a0a0a;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin: 8px;
+        }
+        .btn:hover { background: #ff8555; text-decoration: none; }
+        .features { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 40px 0; }
+        .feature { background: #111; border: 1px solid #222; padding: 20px; border-radius: 8px; }
+        .feature h3 { margin: 0 0 8px 0; color: #FF6B35; }
+        .feature p { margin: 0; color: #888; font-size: 0.9em; }
+        @media (max-width: 600px) { .features { grid-template-columns: 1fr; } }
+    </style>
+</head>
+<body>
+    <div class="hero">
+        <h1>⚡ ZMT</h1>
+        <p>Terminal-Inspired Music Player for Android</p>
+        <a href="https://github.com/Rezerox39/zmt/releases/latest" class="btn">📥 Download APK</a>
+        <a href="https://github.com/Rezerox39/zmt" class="btn" style="background: #222; color: #ccc;">⭐ GitHub</a>
+    </div>
+
+    <h2>About</h2>
+    <p>ZMT is a <strong>free, open-source music player for Android</strong> with a terminal-inspired (TUI) interface. It supports <strong>local audio files</strong>, <strong>Jellyfin streaming</strong>, <strong>Telegram channel sync</strong>, and <strong>YouTube Music playback</strong>. Built with Kotlin, Jetpack Compose, and ExoPlayer (Media3). Dark AMOLED-optimized UI with true black backgrounds.</p>
+
+    <h2>Features</h2>
+    <div class="features">
+        <div class="feature">
+            <h3>🎧 Local Playback</h3>
+            <p>MP3, FLAC, M4A, OGG, WAV, AAC, OPUS — bundled FFmpeg decoders for every format.</p>
+        </div>
+        <div class="feature">
+            <h3>📡 Jellyfin Streaming</h3>
+            <p>Stream your personal music server. Covers, lyrics, format info, and playback stats.</p>
+        </div>
+        <div class="feature">
+            <h3>🤖 Telegram Sync</h3>
+            <p>Connect any public Telegram channel as a music source. Browse and stream directly.</p>
+        </div>
+        <div class="feature">
+            <h3>▶️ YouTube Music</h3>
+            <p>Search and stream from YouTube Music via yt-dlp + Innertube. Download tracks to device.</p>
+        </div>
+        <div class="feature">
+            <h3>🎨 AMOLED Themes</h3>
+            <p>Pure black backgrounds, monospace typography. Terminal classic and red accent themes.</p>
+        </div>
+        <div class="feature">
+            <h3>📝 Synced Lyrics</h3>
+            <p>TTML and LRC lyrics with karaoke highlighting, translation, and LRCLIB auto-fetch.</p>
+        </div>
+        <div class="feature">
+            <h3>🚗 Android Auto</h3>
+            <p>Full Android Auto support: browse tracks, albums, folders, voice search.</p>
+        </div>
+        <div class="feature">
+            <h3>📊 Listening Stats</h3>
+            <p>Play counts, time played, most played tracks. Cue sheets and m3u8 playlists.</p>
+        </div>
+    </div>
+
+    <h2>Download</h2>
+    <p>Minimum Android 11 (API 30). Download the latest signed APK from GitHub Releases.</p>
+    <p><a href="https://github.com/Rezerox39/zmt/releases/latest" class="btn">📥 Download Latest APK</a></p>
+
+    <h2>Tech Stack</h2>
+    <p>Kotlin · Jetpack Compose · Media3 (ExoPlayer) · FFmpeg · Dagger Hilt · Ktor · OkHttp · TDLib · yt-dlp (Chaquopy) · Innertube · DataStore · kotlinx.serialization</p>
+    <p>Zero ads, zero analytics, zero tracking.</p>
+
+    <hr style="border-color:#222;margin:40px 0;">
+    <p style="text-align:center;color:#555;">
+        <a href="https://github.com/Rezerox39/zmt">GitHub</a> · 
+        <a href="https://github.com/Rezerox39/zmt/releases">Releases</a> · 
+        <a href="https://github.com/Rezerox39/zmt/issues">Issues</a>
+        <br><br>
+        Built with ❤️ by <a href="https://github.com/Rezerox39">Abhi</a>
+    </p>
+</body>
+</html>
