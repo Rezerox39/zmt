@@ -28,13 +28,7 @@ import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
 
 @Composable
 fun Caption(text: String) {
-    val p = LocalTuiColors.current
-    Text(
-        text = text,
-        style = MaterialTheme.typography.labelMedium,
-        color = p.dim,
-        modifier = Modifier.padding(vertical = 10.dp),
-    )
+    dev.jyotiraditya.dmt.ui.theme.GlassCaption(text = text)
 }
 
 @Composable
@@ -170,7 +164,7 @@ fun ListRow(
             }
             trailing?.invoke()
         }
-        HorizontalDivider(color = if (current) Color.Transparent else p.line)
+        if (!current) dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }
 
@@ -217,7 +211,7 @@ fun SubdirHeader(
                 )
             }
         }
-        HorizontalDivider(color = p.line, modifier = Modifier.padding(top = 8.dp))
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider(modifier = Modifier.padding(top = 8.dp))
     }
 }
 
@@ -262,6 +256,6 @@ fun NewEntryRow(label: String, onClick: () -> Unit) {
                 color = p.fg,
             )
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }

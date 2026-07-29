@@ -325,17 +325,10 @@ fun TuiStatus(
 
 @Composable
 fun Hairline(fraction: Float, modifier: Modifier = Modifier) {
-    val p = LocalTuiColors.current
-    LinearProgressIndicator(
-        progress = { fraction.coerceIn(0f, 1f) },
-        color = p.fg,
-        trackColor = p.faint,
-        strokeCap = StrokeCap.Butt,
-        gapSize = 0.dp,
-        drawStopIndicator = {},
-        modifier = modifier
-            .fillMaxWidth()
-            .height(2.dp),
+    dev.jyotiraditya.dmt.ui.theme.LiquidProgressBar(
+        fraction = fraction,
+        modifier = modifier,
+        height = 2.dp,
     )
 }
 

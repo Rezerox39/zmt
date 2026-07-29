@@ -44,6 +44,7 @@ import dev.jyotiraditya.dmt.util.audioPermission
 import dev.jyotiraditya.dmt.util.localNetworkPermission
 import dev.jyotiraditya.dmt.util.notificationPermission
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
 
 private data class PermissionEntry(
     val permission: String,
@@ -244,6 +245,6 @@ private fun PermissionRow(
                 onClick = onAction,
             )
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }

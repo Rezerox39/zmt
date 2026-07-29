@@ -28,6 +28,9 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassCard
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
+import dev.jyotiraditya.dmt.ui.theme.GlassCard
 
 private fun themeLabel(theme: dev.jyotiraditya.dmt.domain.model.ThemeOption): String = when (theme) {
     dev.jyotiraditya.dmt.domain.model.ThemeOption.AMOLED_BLACK -> "dmt classic"
@@ -219,6 +222,6 @@ private fun SettingRow(
                 onClick = onClick,
             )
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }

@@ -26,6 +26,7 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
 
 private data class SourceDescriptor(
     val mode: SourceMode,
@@ -201,6 +202,6 @@ private fun SourceRow(
                 )
             }
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }

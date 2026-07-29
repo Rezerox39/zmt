@@ -712,3 +712,62 @@ fun ThemeAnimatedContent(
         content()
     }
 }
+
+// ── FLOATING ANIMATION ───────────────────────────────────────────
+// Adds a gentle vertical floating oscillation to any composable.
+// Used for the mini player, album art (playing), and Telegram cloud card.
+
+@Composable
+fun rememberFloatingAnimation(
+    amplitude: Float = 2f,
+    periodMs: Int = 6000,
+): Float {
+    val infinite = rememberInfiniteTransition(label = "float")
+    val offset by infinite.animateFloat(
+        initialValue = -amplitude,
+        targetValue = amplitude,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = periodMs / 2, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse,
+        ),
+        label = "floatOffset",
+    )
+    return offset
+}
+
+// ── WATER RIPPLE CANVAS ──────────────────────────────────────────
+// Draws a water-ripple circle effect on a Canvas.
+// Call from within a drawBehind block.
+
+fun DrawScope.drawWaterRipple(
+    centre: Offset,
+    progress: Float,  // 0..1
+    colour: androidx.compose.ui.graphics.Color,
+    maxRadius: Float,
+) {
+    if (progress <= 0f || progress >= 1f) return
+    val radius = maxRadius * progress
+    val alpha = (1f - progress) * 0.12f
+    drawCircle(
+        color = colour.copy(alpha = alpha),
+        radius = radius,
+        center = centre,
+    )
+}
+
+// ── GLASS BACKGROUND GLOW ────────────────────────────────────────
+// Draws a subtle radial glow behind a component.
+// Call from within a drawBehind block.
+
+fun DrawScope.drawGlassGlow(
+    colour: androidx.compose.ui.graphics.Color,
+    maxAlpha: Float = 0.06f,
+) {
+    drawRect(
+        brush = Brush.radialGradient(
+            colors = listOf(colour.copy(alpha = maxAlpha), Color.Transparent),
+            center = center,
+            radius = size.minDimension * 0.8f,
+        ),
+    )
+}

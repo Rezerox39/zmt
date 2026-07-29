@@ -17,6 +17,7 @@ import dev.jyotiraditya.dmt.core.common.CursorTitle
 import dev.jyotiraditya.dmt.core.common.Hairline
 import dev.jyotiraditya.dmt.core.common.TuiKey
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassCard
 import dev.jyotiraditya.dmt.util.asTime
 
 @Composable
@@ -28,12 +29,13 @@ fun MiniPlayer(
     val fraction =
         if (state.durationMs > 0) state.positionMs.toFloat() / state.durationMs else 0f
 
-    Column(
+    GlassCard(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 10.dp),
     ) {
-        Hairline(fraction)
+        Column {
+            Hairline(fraction)
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -68,6 +70,7 @@ fun MiniPlayer(
             TuiKey(if (state.isPlaying) "||" else "|>") { dispatch(DmtAction.TogglePlay) }
             Spacer(modifier = Modifier.width(8.dp))
             TuiKey(">>|") { dispatch(DmtAction.Next) }
+        }
         }
     }
 }

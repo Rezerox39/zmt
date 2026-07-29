@@ -22,6 +22,7 @@ import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
 
 @Composable
 fun BlocklistPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
@@ -78,7 +79,7 @@ fun BlocklistPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                             overflow = TextOverflow.Ellipsis,
                         )
                     }
-                    HorizontalDivider(color = p.line)
+                    dev.jyotiraditya.dmt.ui.theme.GlassDivider()
                 }
             }
         }

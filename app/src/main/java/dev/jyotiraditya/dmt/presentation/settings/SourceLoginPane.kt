@@ -36,6 +36,7 @@ import dev.jyotiraditya.dmt.presentation.player.DmtAction
 import dev.jyotiraditya.dmt.presentation.player.DmtState
 import dev.jyotiraditya.dmt.presentation.player.DmtView
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
 
 @Composable
 fun SourceLoginPane(mode: SourceMode, state: DmtState, dispatch: (DmtAction) -> Unit) {
@@ -432,6 +433,6 @@ private fun LoginField(
                 },
             )
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }

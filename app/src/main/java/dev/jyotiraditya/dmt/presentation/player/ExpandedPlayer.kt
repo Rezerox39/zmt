@@ -65,6 +65,8 @@ import dev.jyotiraditya.dmt.core.common.isLandscapeWindow
 import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.core.common.windowDpSize
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassAlbumFrame
+import dev.jyotiraditya.dmt.ui.theme.GlassCard
 import dev.jyotiraditya.dmt.util.asTime
 import kotlin.math.abs
 

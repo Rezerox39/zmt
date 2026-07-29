@@ -75,6 +75,7 @@ import dev.jyotiraditya.dmt.presentation.settings.SourceLoginPane
 import dev.jyotiraditya.dmt.presentation.settings.SourcesPane
 import dev.jyotiraditya.dmt.presentation.settings.StatsPane
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassTab
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable

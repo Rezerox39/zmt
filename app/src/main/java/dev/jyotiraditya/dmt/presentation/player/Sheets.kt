@@ -34,6 +34,8 @@ import dev.jyotiraditya.dmt.core.common.tuiClickable
 import dev.jyotiraditya.dmt.domain.model.Spec
 import dev.jyotiraditya.dmt.domain.model.Track
 import dev.jyotiraditya.dmt.ui.theme.LocalTuiColors
+import dev.jyotiraditya.dmt.ui.theme.GlassSheetBackground
+import dev.jyotiraditya.dmt.ui.theme.GlassDivider
 import dev.jyotiraditya.dmt.ui.theme.TuiColorPalette
 import dev.jyotiraditya.dmt.util.asTime
 
@@ -55,8 +57,8 @@ fun TuiSheet(onDismiss: () -> Unit, content: @Composable () -> Unit) {
         dragHandle = null,
     ) {
         Column {
-            HorizontalDivider(color = p.line)
-            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            dev.jyotiraditya.dmt.ui.theme.GlassDivider()
+            GlassSheetBackground {
                 content()
                 Spacer(modifier = Modifier.height(18.dp))
             }
@@ -339,6 +341,6 @@ private fun InfoRow(label: String, value: String) {
                 overflow = TextOverflow.Ellipsis,
             )
         }
-        HorizontalDivider(color = p.line)
+        dev.jyotiraditya.dmt.ui.theme.GlassDivider()
     }
 }
