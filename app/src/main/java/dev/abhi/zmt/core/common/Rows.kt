@@ -72,7 +72,7 @@ fun SearchRow(
             textStyle = MaterialTheme.typography.bodyLarge.copy(color = TuiFg),
             cursorBrush = SolidColor(TuiAccent),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = onSearch),
+            keyboardActions = KeyboardActions(onSearch = { onSearch() }),
             modifier = Modifier.weight(1f),
             decorationBox = { inner ->
                 if (query.isEmpty()) {
