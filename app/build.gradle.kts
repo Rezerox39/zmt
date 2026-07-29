@@ -103,31 +103,32 @@ android {
                     .takeIf { it.storeFile != null }
         }
     }
+
     compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_11
+        targetCompatibility = JavaVersion.VERSION_11
+    }
 
     packaging {
         jniLibs.useLegacyPackaging = true
     }
 
-chaquopy {
-    defaultConfig {
-
-        version = "3.12"
-        pip {
-            install("yt-dlp>=2026.07.04")
-            install("yt-dlp-ejs>=0.8.0")
-            install("pip")
+    chaquopy {
+        defaultConfig {
+            version = "3.12"
+            pip {
+                install("yt-dlp>=2026.07.04")
+                install("yt-dlp-ejs>=0.8.0")
+                install("pip")
+            }
         }
     }
-}
 
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
     buildFeatures {
         compose = true
         buildConfig = true
     }
+
     packaging {
         resources {
             excludes += setOf(
