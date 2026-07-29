@@ -203,3 +203,24 @@ afterEvaluate {
         }
     }
 }
+
+// Ensure Chaquopy's generated proguard directory exists before minification
+// to prevent "Supplied proguard configuration does not exist" error
+tasks.matching { it.name.startsWith("minify") || it.name.startsWith("transformClassesAndResourcesWithProguard") }.configureEach {
+    dependsOn("createPythonProguardDir")
+}
+
+tasks.register("createPythonProguardDir") {
+    doLast {
+        file("${layout.buildDirectory.get()}/python").mkdirs()
+        val proguard = file("${layout.buildDirectory.get()}/python/proguard-rules.pro")
+        if (!proguard.exists()) {
+            proguard.writeText("""# Chaquopy auto-generated proguard rules
+-keep class com.chaquo.python.** { *; }
+-dontwarn com.chaquo.python.**
+-keep class org.bouncycastle.jsse.** { *; }
+-dontwarn org.bouncycastle.jsse.**
+""")
+        }
+    }
+}
