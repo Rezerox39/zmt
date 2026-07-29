@@ -348,17 +348,17 @@ private fun DownloadSheet(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             // Download to device
-            val dlLabel = when {
-                state.downloadProgress in 0..99 -> "dl:device ${
+            val dlValue = when {
+                state.downloadProgress in 0..99 -> "device ${
                     state.downloadProgress}%"
-                state.downloadProgress >= 100 -> "dl:device done"
-                state.downloadError != null -> "dl:device err"
-                else -> "dl:device"
+                state.downloadProgress >= 100 -> "device done"
+                state.downloadError != null -> "device err"
+                else -> "device"
             }
             Box(modifier = Modifier.weight(1f)) {
                 TuiStatus(
-                    label = dlLabel,
-                    value = "",
+                    label = "dl",
+                    value = dlValue,
                     on = state.downloadProgress in 0..100,
                     busy = state.downloadProgress in 0..99,
                 ) {
@@ -369,8 +369,8 @@ private fun DownloadSheet(
             // Backup to telegram
             Box(modifier = Modifier.weight(1f)) {
                 TuiStatus(
-                    label = "dl:telegram",
-                    value = "",
+                    label = "dl",
+                    value = "telegram",
                     on = false,
                     busy = false,
                 ) {

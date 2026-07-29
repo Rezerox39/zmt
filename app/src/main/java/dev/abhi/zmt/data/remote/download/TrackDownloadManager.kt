@@ -216,12 +216,8 @@ class TrackDownloadManager @Inject constructor(
             }
 
             val contentType = body.contentType()?.toString() ?: "audio/webm"
-            val extension = when {
-                contentType.contains("mp4") -> "m4a"
-                contentType.contains("webm") -> "webm"
-                contentType.contains("ogg") -> "ogg"
-                else -> "m4a"
-            }
+            // Always use m4a extension for cache files
+            val extension = "m4a"
 
             val cacheDir = File(context.cacheDir, "downloads").apply { mkdirs() }
             val cacheFile = File(cacheDir, "yt_backup_${videoId}.${extension}")
