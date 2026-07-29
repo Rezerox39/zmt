@@ -78,9 +78,11 @@ class YoutubeStreamDataSource private constructor(
             Log.i(TAG, "HTTP open succeeded, content length: $result")
             return result
         } catch (e: HttpDataSource.InvalidResponseCodeException) {
-            Log.e(TAG, "HTTP FAILED! Status code: ${e.responseCode}")
-            Log.e(TAG, "Response message: ${e.responseMessage}")
-            Log.e(TAG, "Response headers: ${e.responseHeaders}")
+            val statusCode = try { e.responseCode } catch (ex: Exception) { -1 }
+            val headers = try { e.headerFields?.toString() ?: "N/A" } catch (ex: Exception) { "N/A" }
+            Log.e(TAG, "HTTP FAILED! Status code: $statusCode")
+            Log.e(TAG, "Exception message: ${e.message}")
+            Log.e(TAG, "Response headers: $headers")
             Log.e(TAG, "URL: ${openedUri}")
             throw e
         } catch (e: Exception) {
