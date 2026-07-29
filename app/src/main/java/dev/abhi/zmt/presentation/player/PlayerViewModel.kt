@@ -197,6 +197,19 @@ class PlayerViewModel @Inject constructor(
         }
     }
 
+    private fun lookupCurrentTrack(): dev.abhi.zmt.domain.model.Track? {
+        val id = currentState.nowPlayingId
+        if (id == null) return null
+        // Try to find the track in available lists by matching nowPlayingId
+        for (list in listOf(currentState.filtered, currentState.tracks, currentState.queue.mapNotNull { mid ->
+            currentState.tracks.find { it.id.toString() == mid }
+        })) {
+            val found = list.find { it.id.toString() == id }
+            if (found != null) return found
+        }
+        return null
+    }
+
     private fun <T> List<T>.matching(query: String, fields: (T) -> List<String>): List<T> =
         if (query.isBlank()) {
             this
@@ -268,8 +281,11 @@ class PlayerViewModel @Inject constructor(
             }
             DmtAction.DownloadToDevice -> {
                 reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
-                val track = currentState.queue.getOrNull(currentState.queueIndex) ?: return@onIntent
-                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return@onIntent
+                val track = lookupCurrentTrack()
+                if (track == null) { reduce { it.copy(downloadError = "No track playing") }; return@onIntent }
+                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
+                    reduce { it.copy(downloadError = "No video ID") }; return@onIntent
+                }
                 viewModelScope.launch {
                     downloadManager.downloadToDevice(
                         context = context,
@@ -289,8 +305,11 @@ class PlayerViewModel @Inject constructor(
             }
             DmtAction.BackupToTelegram -> {
                 reduce { it.copy(showDownloadSheet = false, downloadProgress = 0, downloadError = null) }
-                val track = currentState.queue.getOrNull(currentState.queueIndex) ?: return@onIntent
-                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return@onIntent
+                val track = lookupCurrentTrack()
+                if (track == null) { reduce { it.copy(downloadError = "No track playing") }; return@onIntent }
+                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
+                    reduce { it.copy(downloadError = "No video ID") }; return@onIntent
+                }
                 viewModelScope.launch {
                     val file = downloadManager.downloadToCache(context, videoId)
                     if (file != null) {
