@@ -13,15 +13,13 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 import kotlin.coroutines.CoroutineContext
 
 private const val TAG = "TrackDL"
-private const val BUFFER_SIZE = 8192  // 8 KB chunks
+private const val BUFFER_SIZE = 65536  // 64 KB chunks — much faster than 8KB
 
 data class DownloadProgress(
     val bytesDownloaded: Long = 0L,
@@ -192,63 +190,4 @@ class TrackDownloadManager @Inject constructor(
         }
     }
 
-    /**
-     * Download to cache for Telegram sharing. Same chunked approach.
-     */
-    fun downloadToCache(
-        context: Context,
-        videoId: String,
-        onResult: (File?) -> Unit,
-    ) {
-        launch {
-            val resolved = resolver.resolve(videoId) ?: run {
-                onResult(null); return@launch
-            }
-
-            val request = Request.Builder()
-                .url(resolved.url)
-                .header("User-Agent", resolved.userAgent)
-                .header("Accept", "*/*")
-                .header("Connection", "keep-alive")
-                .header("Accept-Encoding", "identity")
-                .get()
-                .build()
-
-            val response = client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                onResult(null); return@launch
-            }
-
-            val body = response.body ?: run {
-                onResult(null); return@launch
-            }
-
-            val contentType = body.contentType()?.toString() ?: "audio/webm"
-            // Always use m4a extension for cache files
-            val extension = "m4a"
-
-            val cacheDir = File(context.cacheDir, "downloads").apply { mkdirs() }
-            val cacheFile = File(cacheDir, "yt_backup_${videoId}.${extension}")
-
-            try {
-                FileOutputStream(cacheFile).use { outputStream ->
-                    val inputStream = body.byteStream()
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (inputStream.read(buffer).also { bytesRead = it } != -1) {
-                        outputStream.write(buffer, 0, bytesRead)
-                        outputStream.flush()
-                    }
-                    outputStream.flush()
-                    inputStream.close()
-                }
-                Log.i(TAG, "Cached to: ${cacheFile.absolutePath}")
-                onResult(cacheFile)
-            } catch (e: Exception) {
-                Log.e(TAG, "Cache failed: ${e.message}", e)
-                cacheFile.delete()
-                onResult(null)
-            }
-        }
-    }
 }

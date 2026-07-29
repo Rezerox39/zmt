@@ -311,7 +311,7 @@ private fun DownloadSheet(
     dispatch: (DmtAction) -> Unit,
 ) {
     Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
-        // Header: title left, [x] close right — no borders, just monospace text
+        // Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
@@ -322,10 +322,9 @@ private fun DownloadSheet(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(7.dp).background(TuiAccent))
                 Text(
-                    text = " dl:backup",
+                    text = " dl:download",
                     style = MaterialTheme.typography.labelMedium,
                     color = TuiFg,
-                    modifier = Modifier.padding(end = 8.dp),
                 )
             }
             Text(
@@ -336,43 +335,23 @@ private fun DownloadSheet(
             )
         }
 
-        // Side-by-side buttons — equal weight, spaced 8dp
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 2.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // Download to device
-            val dlLabel = when {
-                state.downloadProgress == 101 -> "done"
-                state.downloadProgress in 0..99 -> "device ${state.downloadProgress}%"
-                state.downloadError != null -> "err"
-                else -> "device"
-            }
-            val dlOn = state.downloadProgress in 0..100 || state.downloadProgress == 101
-            val dlBusy = state.downloadProgress in 0..99
-            Box(modifier = Modifier.weight(1f)) {
-                TuiStatus(
-                    label = "dl",
-                    value = dlLabel,
-                    on = dlOn,
-                    busy = dlBusy,
-                ) {
-                    dispatch(DmtAction.DownloadToDevice)
-                }
-            }
-
-            // Backup to telegram
-            Box(modifier = Modifier.weight(1f)) {
-                TuiStatus(
-                    label = "dl",
-                    value = "telegram",
-                    on = false,
-                    busy = false,
-                ) {
-                    dispatch(DmtAction.BackupToTelegram)
-                }
+        // Single download button — full width
+        val dlLabel = when {
+            state.downloadProgress == 101 -> "done"
+            state.downloadProgress in 0..99 -> "device ${state.downloadProgress}%"
+            state.downloadError != null -> "err"
+            else -> "device"
+        }
+        val dlOn = state.downloadProgress in 0..100 || state.downloadProgress == 101
+        val dlBusy = state.downloadProgress in 0..99
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TuiStatus(
+                label = "dl",
+                value = dlLabel,
+                on = dlOn,
+                busy = dlBusy,
+            ) {
+                dispatch(DmtAction.DownloadToDevice)
             }
         }
     }

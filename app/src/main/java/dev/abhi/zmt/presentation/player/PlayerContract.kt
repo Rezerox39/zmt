@@ -119,7 +119,6 @@ sealed interface DmtAction {
     data object ShowDownloadSheet : DmtAction
     data object DismissDownloadSheet : DmtAction
     data object DownloadToDevice : DmtAction
-    data object BackupToTelegram : DmtAction
 }
 
 sealed interface PlayerEffect {
