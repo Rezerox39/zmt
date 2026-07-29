@@ -937,7 +937,10 @@ fun GlassToggle(
 // ── GLASS SHEET BACKGROUND ────────────────────────────────────────
 
 @Composable
-fun GlassSheetBackground(modifier: Modifier = Modifier) {
+fun GlassSheetBackground(
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit = {},
+) {
     val p = LocalTuiColors.current
     val physics = LocalAquaPhysics.current
     val cornerPx = with(LocalDensity.current) { physics.cornerLarge.toPx() }
@@ -964,7 +967,9 @@ fun GlassSheetBackground(modifier: Modifier = Modifier) {
                     drawRoundRect(color = p.bg, cornerRadius = cr)
                 }
             },
-    )
+    ) {
+        content()
+    }
 }
 
 // ── GLASS LIST ROW ────────────────────────────────────────────────

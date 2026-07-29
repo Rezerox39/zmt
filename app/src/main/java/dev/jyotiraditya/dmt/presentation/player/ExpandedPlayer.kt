@@ -404,40 +404,42 @@ private fun CoverContent(
     isPlaying: Boolean,
 ) {
     val p = LocalTuiColors.current
-    when {
-        state.settings.rawArt && rawArt != null -> {
-            val image = remember(rawArt) { rawArt.asImageBitmap() }
-            Image(
-                bitmap = image,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .align(Alignment.CenterHorizontally)
-                    .aspectRatio(rawArt.width.toFloat() / rawArt.height),
-            )
-        }
-
-        state.cover != null -> {
-            AsciiCover(
-                cover = state.cover,
-                playing = isPlaying,
-                wave = state.settings.wave,
-                modifier = Modifier.align(Alignment.CenterHorizontally),
-            )
-        }
-
-        else -> {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.no_cover),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = p.faint,
+    Box(modifier = Modifier.fillMaxWidth()) {
+        when {
+            state.settings.rawArt && rawArt != null -> {
+                val image = remember(rawArt) { rawArt.asImageBitmap() }
+                Image(
+                    bitmap = image,
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .aspectRatio(rawArt.width.toFloat() / rawArt.height),
                 )
+            }
+
+            state.cover != null -> {
+                AsciiCover(
+                    cover = state.cover,
+                    playing = isPlaying,
+                    wave = state.settings.wave,
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                )
+            }
+
+            else -> {
+                Box(
+                    contentAlignment = Alignment.Center,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.no_cover),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = p.faint,
+                    )
+                }
             }
         }
     }
