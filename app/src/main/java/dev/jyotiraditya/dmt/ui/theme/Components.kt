@@ -809,15 +809,14 @@ fun GlassTab(
 ) {
     val p = LocalTuiColors.current
     val physics = LocalAquaPhysics.current
+    val cornerPx = with(LocalDensity.current) { physics.cornerSmall.toPx() }
 
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(physics.cornerSmall))
             .clickable(indication = null, onClick = onClick)
             .drawBehind {
-                val cr = CornerRadius(
-                    with(LocalDensity.current) { physics.cornerSmall.toPx() }
-                )
+                val cr = CornerRadius(cornerPx, cornerPx)
                 if (selected && physics.enableGlass) {
                     drawRoundRect(
                         color = p.surface.copy(alpha = physics.transparency),
@@ -885,6 +884,7 @@ fun GlassToggle(
     val physics = LocalAquaPhysics.current
     val width = 48.dp
     val height = 28.dp
+    val toggleCr = with(LocalDensity.current) { (height / 2).toPx() }
 
     Box(
         modifier = modifier
@@ -892,9 +892,7 @@ fun GlassToggle(
             .clip(RoundedCornerShape(height / 2))
             .clickable(indication = null) { onCheckedChange(!checked) }
             .drawBehind {
-                val cr = CornerRadius(
-                    with(LocalDensity.current) { (height / 2).toPx() }
-                )
+                val cr = CornerRadius(toggleCr, toggleCr)
                 // Track
                 val trackColor = if (checked)
                     p.accent.copy(alpha = 0.6f)
