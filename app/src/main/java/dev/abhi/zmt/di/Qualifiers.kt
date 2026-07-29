@@ -1,0 +1,19 @@
+package dev.abhi.zmt.di
+
+import javax.inject.Qualifier
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class Local
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class JellyfinSource
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class TelegramSource
+
+@Qualifier
+@Retention(AnnotationRetention.BINARY)
+annotation class YouTubeSource

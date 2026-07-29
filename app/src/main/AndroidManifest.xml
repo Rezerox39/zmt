@@ -82,9 +82,9 @@
             android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
-                <action android:name="dev.jyotiraditya.dmt.ACTION_PLAY_PAUSE" />
-                <action android:name="dev.jyotiraditya.dmt.ACTION_NEXT" />
-                <action android:name="dev.jyotiraditya.dmt.ACTION_PREV" />
+                <action android:name="dev.abhi.zmt.ACTION_PLAY_PAUSE" />
+                <action android:name="dev.abhi.zmt.ACTION_NEXT" />
+                <action android:name="dev.abhi.zmt.ACTION_PREV" />
             </intent-filter>
             <meta-data
                 android:name="android.appwidget.provider"

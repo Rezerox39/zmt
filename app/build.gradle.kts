@@ -48,7 +48,7 @@ base {
 }
 
 android {
-    namespace = "dev.jyotiraditya.dmt"
+    namespace = "dev.abhi.zmt"
     ndkVersion = "29.0.14206865"
     externalNativeBuild {
         cmake {
@@ -62,7 +62,7 @@ android {
 
     defaultConfig {
 
-        applicationId = "dev.jyotiraditya.dmt"
+        applicationId = "dev.abhi.zmt"
         minSdk = 30
         targetSdk = 37
         versionCode = appVersionCode
