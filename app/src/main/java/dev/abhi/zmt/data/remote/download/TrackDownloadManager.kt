@@ -158,6 +158,14 @@ class TrackDownloadManager @Inject constructor(
                                 bytesDownloaded = totalRead,
                                 totalBytes = totalLen,
                             ))
+                        } else {
+                            // Send periodic heartbeats for chunked (unknown-length) streams
+                            if (totalRead % (BUFFER_SIZE * 128L) == 0L) {
+                                mainProgress(DownloadProgress(
+                                    bytesDownloaded = totalRead,
+                                    totalBytes = -1,
+                                ))
+                            }
                         }
                     }
 

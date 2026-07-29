@@ -293,11 +293,24 @@ class PlayerViewModel @Inject constructor(
                     title = track.title,
                     artist = track.artist,
                     onProgress = { progress ->
-                        reduce {
-                            it.copy(
-                                downloadProgress = progress.percent.coerceIn(0, 100),
-                                downloadError = progress.error,
-                            )
+                        if (progress.isFinished) {
+                            reduce {
+                                it.copy(
+                                    downloadProgress = 101,
+                                    downloadError = null,
+                                )
+                            }
+                            viewModelScope.launch {
+                                kotlinx.coroutines.delay(2000L)
+                                reduce { it.copy(downloadProgress = -1, downloadError = null) }
+                            }
+                        } else {
+                            reduce {
+                                it.copy(
+                                    downloadProgress = progress.percent.coerceIn(0, 99),
+                                    downloadError = progress.error,
+                                )
+                            }
                         }
                     },
                 )
@@ -315,25 +328,38 @@ class PlayerViewModel @Inject constructor(
                     videoId = videoId,
                     onResult = { file ->
                         if (file != null) {
-                            try {
-                                val telegramUri = dev.abhi.zmt.util.FileProviderUtils.getShareUri(context, file)
-                                val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
-                                    type = "audio/*"
-                                    putExtra(android.content.Intent.EXTRA_STREAM, telegramUri)
-                                    addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
-                                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            viewModelScope.launch {
+                                try {
+                                    val telegramUri = dev.abhi.zmt.util.FileProviderUtils.getShareUri(context, file)
+                                    val shareIntent = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                                        type = "audio/*"
+                                        putExtra(android.content.Intent.EXTRA_STREAM, telegramUri)
+                                        addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                        addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                    }
+                                    context.startActivity(
+                                        android.content.Intent.createChooser(shareIntent, "Backup to Telegram")
+                                    )
+                                    reduce { it.copy(downloadProgress = 101) }
+                                    kotlinx.coroutines.delay(2000L)
+                                    reduce { it.copy(downloadProgress = -1, downloadError = null) }
+                                } catch (e: android.content.ActivityNotFoundException) {
+                                    android.util.Log.e("TelegramShare", "No app found", e)
+                                    reduce { it.copy(downloadError = "No app found to share audio", downloadProgress = -2) }
+                                } catch (e: java.lang.SecurityException) {
+                                    android.util.Log.e("TelegramShare", "SecurityException", e)
+                                    reduce { it.copy(downloadError = "Permission denied for sharing", downloadProgress = -2) }
+                                } catch (e: Exception) {
+                                    android.util.Log.e("TelegramShare", "Share failed", e)
+                                    reduce { it.copy(downloadError = "Share failed: ${e.message}", downloadProgress = -2) }
                                 }
-                                context.startActivity(
-                                    android.content.Intent.createChooser(shareIntent, "Backup to Telegram")
-                                )
-                                reduce { it.copy(downloadProgress = 101) }
-                            } catch (e: android.content.ActivityNotFoundException) {
-                                reduce { it.copy(downloadError = "No app found to share audio", downloadProgress = -2) }
-                            } catch (e: Exception) {
-                                reduce { it.copy(downloadError = "Share failed: ${e.message}", downloadProgress = -2) }
                             }
                         } else {
                             reduce { it.copy(downloadError = "Failed to download track for backup") }
+                            viewModelScope.launch {
+                                kotlinx.coroutines.delay(2000L)
+                                reduce { it.copy(downloadProgress = -1, downloadError = null) }
+                            }
                         }
                     },
                 )

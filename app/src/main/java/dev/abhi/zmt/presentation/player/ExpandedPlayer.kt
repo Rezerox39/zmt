@@ -310,57 +310,54 @@ private fun DownloadSheet(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp)
-            .border(1.dp, TuiLine),
-    ) {
-        // Header: title left, [x] close right
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        // Header: title left, [x] close right — no borders, just monospace text
         Row(
             verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp, top = 6.dp, bottom = 2.dp, end = 4.dp),
+                .padding(horizontal = 0.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.weight(1f),
-            ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(modifier = Modifier.size(7.dp).background(TuiAccent))
                 Text(
-                    text = " dl:download & backup",
+                    text = " dl:backup",
                     style = MaterialTheme.typography.labelMedium,
                     color = TuiFg,
+                    modifier = Modifier.padding(end = 8.dp),
                 )
             }
-            TuiKey(
-                label = "[ x ]",
-                onClick = { dispatch(DmtAction.DismissDownloadSheet) },
+            Text(
+                text = "[ x ]",
+                style = MaterialTheme.typography.labelMedium,
+                color = TuiDim,
+                modifier = Modifier.tuiClickable { dispatch(DmtAction.DismissDownloadSheet) },
             )
         }
 
-        // Side-by-side buttons
+        // Side-by-side buttons — equal weight, spaced 8dp
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 4.dp, end = 4.dp, bottom = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                .padding(top = 2.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             // Download to device
-            val dlValue = when {
-                state.downloadProgress in 0..99 -> "device ${
-                    state.downloadProgress}%"
-                state.downloadProgress >= 100 -> "device done"
-                state.downloadError != null -> "device err"
+            val dlLabel = when {
+                state.downloadProgress == 101 -> "done"
+                state.downloadProgress in 0..99 -> "device ${state.downloadProgress}%"
+                state.downloadError != null -> "err"
                 else -> "device"
             }
+            val dlOn = state.downloadProgress in 0..100 || state.downloadProgress == 101
+            val dlBusy = state.downloadProgress in 0..99
             Box(modifier = Modifier.weight(1f)) {
                 TuiStatus(
                     label = "dl",
-                    value = dlValue,
-                    on = state.downloadProgress in 0..100,
-                    busy = state.downloadProgress in 0..99,
+                    value = dlLabel,
+                    on = dlOn,
+                    busy = dlBusy,
                 ) {
                     dispatch(DmtAction.DownloadToDevice)
                 }
