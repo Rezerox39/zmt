@@ -814,7 +814,7 @@ fun GlassTab(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(physics.cornerSmall))
-            .clickable(indication = null, onClick = onClick)
+            .clickable(onClick = onClick)
             .drawBehind {
                 val cr = CornerRadius(cornerPx, cornerPx)
                 if (selected && physics.enableGlass) {
@@ -890,7 +890,7 @@ fun GlassToggle(
         modifier = modifier
             .size(width = width, height = height)
             .clip(RoundedCornerShape(height / 2))
-            .clickable(indication = null) { onCheckedChange(!checked) }
+            .clickable { onCheckedChange(!checked) }
             .drawBehind {
                 val cr = CornerRadius(toggleCr, toggleCr)
                 // Track
@@ -954,7 +954,7 @@ fun GlassSheetBackground(
         modifier = modifier
             .fillMaxSize()
             .drawBehind {
-                val cr = CornerRadius(cornerPx, cornerPx, 0f, 0f)
+                val cr = CornerRadius(cornerPx, cornerPx)
                 if (physics.enableGlass) {
                     drawRoundRect(
                         color = p.surface.copy(alpha = physics.transparency),
