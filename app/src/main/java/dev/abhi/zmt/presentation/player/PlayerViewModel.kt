@@ -372,15 +372,23 @@ class PlayerViewModel @Inject constructor(
                 notify(context.getString(R.string.queued, intent.label))
             }
 
-            is DmtAction.Jump -> c?.run {
+            is DmtAction.Jump -> {
+                reduce { it.copy(showDownloadSheet = false) }
+                c?.run {
                 seekTo(intent.index, 0L)
                 prepare()
                 play()
             }
 
             DmtAction.TogglePlay -> c?.togglePlayPause()
-            DmtAction.Next -> c?.seekToNext()
-            DmtAction.Prev -> c?.seekToPrevious()
+            DmtAction.Next -> {
+                reduce { it.copy(showDownloadSheet = false) }
+                c?.seekToNext()
+            }
+            DmtAction.Prev -> {
+                reduce { it.copy(showDownloadSheet = false) }
+                c?.seekToPrevious()
+            }
             DmtAction.ToggleShuffle -> c?.run { shuffleModeEnabled = !shuffleModeEnabled }
             DmtAction.CycleRepeat -> c?.cycleRepeat()
 
@@ -606,6 +614,7 @@ class PlayerViewModel @Inject constructor(
             reduce {
                 it.copy(
                     nowPlayingId = mediaItem?.mediaId,
+                    showDownloadSheet = false,
                     lyrics = null,
                     error = null,
                 )

@@ -78,6 +78,13 @@ import dev.abhi.zmt.ui.theme.TuiAccent
 import dev.abhi.zmt.ui.theme.TuiBg
 import dev.abhi.zmt.ui.theme.TuiBright
 import dev.abhi.zmt.ui.theme.TuiLine
+import dev.abhi.zmt.ui.theme.TuiFg
+import dev.abhi.zmt.ui.theme.TuiFaint
+import dev.abhi.zmt.ui.theme.TuiDim
+import dev.abhi.zmt.core.common.tuiClickable
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.border
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -184,6 +191,29 @@ fun DmtScreen(
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
+        }
+
+
+        // Floating download progress card — shown when a download runs in background
+        if (!state.showDownloadSheet && state.downloadProgress in 0..100 && state.downloadingVideoId != null) {
+            val trackTitle = state.title
+            DownloadOverlay(
+                progress = state.downloadProgress,
+                trackTitle = trackTitle,
+                isForCurrentSong = state.downloadingVideoId == state.nowPlayingId,
+                isDone = false,
+                onOpen = { dispatch(DmtAction.ShowDownloadSheet) },
+                onDismiss = { dispatch(DmtAction.DismissDownloadSheet) },
+            )
+        } else if (!state.showDownloadSheet && state.downloadProgress == 101) {
+            DownloadOverlay(
+                progress = 100,
+                trackTitle = state.title,
+                isForCurrentSong = true,
+                isDone = true,
+                onOpen = { dispatch(DmtAction.ShowDownloadSheet) },
+                onDismiss = { dispatch(DmtAction.DismissDownloadSheet) },
+            )
         }
 
         PlayerSheet(
@@ -415,6 +445,71 @@ private fun TabsRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 },
             ) {
                 dispatch(DmtAction.Show(view))
+
+
+@Composable
+private fun DownloadOverlay(
+    progress: Int,
+    trackTitle: String,
+    isForCurrentSong: Boolean,
+    isDone: Boolean,
+    onOpen: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val displayText = when {
+        isDone -> " dl:done "
+        isForCurrentSong -> " dl:${progress}% "
+        else -> " dl:bg ${progress}% "
+    }
+    val displaySub = when {
+        isDone -> "saved to device"
+        else -> trackTitle.take(32).lowercase()
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(8.dp),
+        contentAlignment = Alignment.BottomEnd,
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .padding(end = 4.dp, bottom = 4.dp)
+                .background(TuiBg.copy(alpha = 0.85f))
+                .border(1.dp, TuiLine)
+                .tuiClickable(onOpen),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(7.dp)
+                    .background(if (isDone) TuiAccent else TuiBright),
+            )
+            Text(
+                text = displayText,
+                style = MaterialTheme.typography.labelMedium,
+                color = if (isDone) TuiAccent else TuiBright,
+            )
+            Text(
+                text = displaySub,
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier
+                    .padding(start = 4.dp, end = 8.dp)
+                    .widthIn(max = 200.dp),
+            )
+            Text(
+                text = "[ x ]",
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiFaint,
+                modifier = Modifier.tuiClickable(onDismiss),
+            )
+        }
+    }
+}
+
             }
         }
     }
