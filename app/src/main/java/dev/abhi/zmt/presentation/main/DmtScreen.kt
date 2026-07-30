@@ -513,8 +513,3 @@ private fun DownloadOverlay(
     }
 }
 
-            }
-        }
-    }
-}
-
