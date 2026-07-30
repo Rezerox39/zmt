@@ -375,9 +375,10 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.Jump -> {
                 reduce { it.copy(showDownloadSheet = false) }
                 c?.run {
-                seekTo(intent.index, 0L)
-                prepare()
-                play()
+                    seekTo(intent.index, 0L)
+                    prepare()
+                    play()
+                }
             }
 
             DmtAction.TogglePlay -> c?.togglePlayPause()

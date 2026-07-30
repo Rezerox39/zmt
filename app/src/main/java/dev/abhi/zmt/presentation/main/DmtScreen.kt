@@ -445,7 +445,10 @@ private fun TabsRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 },
             ) {
                 dispatch(DmtAction.Show(view))
-
+            }
+        }
+    }
+}
 
 @Composable
 private fun DownloadOverlay(
