@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.ListRow
+import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.SearchRow
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.presentation.player.DmtAction
@@ -104,6 +105,7 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                     current = track.id.toString() == state.nowPlayingId,
                     onClick = { dispatch(DmtAction.PlayAt(state.filtered, index)) },
                     onLongClick = { dispatch(DmtAction.Enqueue(listOf(track), track.title)) },
+                    trailing = { TrackBadges(track) },
                 )
             }
         }

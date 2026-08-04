@@ -26,6 +26,7 @@ import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.HeaderAction
 import dev.abhi.zmt.core.common.ListRow
+import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.NewEntryRow
 import dev.abhi.zmt.core.common.ScrollMemory
 import dev.abhi.zmt.core.common.SearchRow
@@ -185,6 +186,12 @@ private fun PlaylistDetail(
                 current = track.id.toString() == state.nowPlayingId,
                 onClick = { dispatch(DmtAction.PlayAt(playlist.tracks, index)) },
                 trailing = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(end = 4.dp),
+                    ) {
+                        TrackBadges(track)
+                    }
                     Text(
                         text = stringResource(R.string.clear),
                         style = MaterialTheme.typography.labelMedium,

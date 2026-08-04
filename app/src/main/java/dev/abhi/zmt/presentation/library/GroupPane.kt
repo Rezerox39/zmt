@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.ListRow
+import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.ScrollMemory
 import dev.abhi.zmt.core.common.SearchRow
 import dev.abhi.zmt.core.common.SubdirHeader
@@ -219,6 +220,7 @@ private fun <T> GroupDetail(
                 line2 = spec.trackMeta(track).lowercase(),
                 current = track.id.toString() == state.nowPlayingId,
                 onClick = { dispatch(DmtAction.PlayAt(tracks, index)) },
+                trailing = { TrackBadges(track) },
             )
         }
     }
