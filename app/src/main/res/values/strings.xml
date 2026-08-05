@@ -139,6 +139,10 @@
     <string name="stat_albums">@string/auto_albums</string>
     <string name="stat_folders">@string/auto_folders</string>
     <string name="stat_empty">nothing played yet</string>
+    <string name="stat_duplicates">duplicates</string>
+    <string name="stat_duplicate_groups">duplicate groups</string>
+    <string name="stat_duplicate_waste">wasted space</string>
+    <string name="stat_duplicates_empty">no duplicates found</string>
     <string name="about">about</string>
     <string name="about_title">⚡ zmt · feel the beat ⚡</string>
     <string name="about_body">a tui-inspired local music player.\nmusic helped a lot; this is the thank-you note.</string>

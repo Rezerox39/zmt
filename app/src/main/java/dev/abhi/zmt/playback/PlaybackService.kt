@@ -31,7 +31,6 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
-import dev.abhi.zmt.data.remote.telegram.CompositeDataSource
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
@@ -103,7 +102,7 @@ class PlaybackService : MediaLibraryService() {
     private var normalizeVolume = false
 
     @Inject
-    lateinit var compositeDataSourceFactory: CompositeDataSource.Factory
+    lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
     private val gainCache = mutableMapOf<Long, Float>()
 
     @Volatile
@@ -123,7 +122,7 @@ class PlaybackService : MediaLibraryService() {
         val handleAudioFocus = true
         val renderersFactory = DefaultRenderersFactory(this)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
-        val mediaSourceFactory = DefaultMediaSourceFactory(compositeDataSourceFactory)
+        val mediaSourceFactory = DefaultMediaSourceFactory(offlineCacheDataSourceFactory)
         val player = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
             .setAudioAttributes(

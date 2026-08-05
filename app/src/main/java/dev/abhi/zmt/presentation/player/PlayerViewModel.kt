@@ -31,6 +31,7 @@ import dev.abhi.zmt.domain.model.Folder
 import dev.abhi.zmt.domain.model.LibrarySort
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
+import dev.abhi.zmt.domain.model.Spec
 import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.usecase.EmbedLyricsUseCase
 import dev.abhi.zmt.domain.usecase.GetLyricsUseCase
@@ -40,6 +41,7 @@ import dev.abhi.zmt.domain.usecase.TelegramLoginUseCase
 import dev.abhi.zmt.data.remote.telegram.TelegramAuthStep
 import kotlinx.coroutines.flow.collectLatest
 import dev.abhi.zmt.domain.usecase.ScanLibraryUseCase
+import dev.abhi.zmt.playback.PlaybackCache
 import dev.abhi.zmt.playback.PlaybackService
 import dev.abhi.zmt.util.QUEUE_CAP
 import dev.abhi.zmt.util.audioPermission
@@ -92,6 +94,7 @@ class PlayerViewModel @Inject constructor(
     private val mediaSourceProvider: dev.abhi.zmt.domain.usecase.MediaSourceProvider,
     private val youtubeRepository: dev.abhi.zmt.data.repository.YoutubeMediaRepositoryImpl,
     private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
+    private val playbackCache: PlaybackCache,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -874,10 +877,23 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val track = currentState.tracks.find { t -> t.id.toString() == id }
             val tech = uri?.let { getTrackTech(it, track) }.orEmpty()
+            val specs = tech + cacheSpec(uri)
             reduce {
-                if (it.nowPlayingId != id) it else it.copy(tech = tech)
+                if (it.nowPlayingId != id) it else it.copy(tech = specs)
             }
         }
+    }
+
+    private fun cacheSpec(uri: Uri?): List<Spec> {
+        val cached = playbackCache.cachedBytes(uri)
+        if (cached <= 0L) return emptyList()
+        val total = playbackCache.contentLength(uri)
+        val value = when {
+            total > 0L && cached >= total -> "on-disk"
+            total > 0L -> "${(cached * 100 / total).coerceAtMost(99)}%"
+            else -> "partial"
+        }
+        return listOf(Spec(label = "CACHE", value = value, hot = true))
     }
 
     private fun openEqualizer() {
