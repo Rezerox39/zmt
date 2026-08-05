@@ -110,6 +110,9 @@ class PlayerViewModel @Inject constructor(
     private var sleepEndAt: Long? = null
     private var sessionRestored = false
 
+    /** mediaId -> track path, indexed at play time so likes work for any source. */
+    private val trackPathIndex = mutableMapOf<String, String>()
+
     init {
         viewModelScope.launch {
             val settings = preferencesRepository.settings.first()
@@ -149,6 +152,7 @@ class PlayerViewModel @Inject constructor(
         reduce { it.copy(scanning = true) }
         try {
             val results = youtubeRepository.search(query)
+            indexTracks(results)
             if (currentState.query == query) {
                 reduce {
                     it.copy(
@@ -211,6 +215,16 @@ class PlayerViewModel @Inject constructor(
             if (found != null) return found
         }
         return null
+    }
+
+    private fun indexTracks(list: List<Track>) {
+        list.forEach { track -> trackPathIndex[track.id.toString()] = track.path }
+    }
+
+    private fun pathForCurrent(): String? {
+        val id = currentState.nowPlayingId ?: return null
+        trackPathIndex[id]?.let { return it }
+        return currentState.tracks.find { it.id.toString() == id }?.path
     }
 
     private fun <T> List<T>.matching(query: String, fields: (T) -> List<String>): List<T> =
@@ -358,13 +372,13 @@ class PlayerViewModel @Inject constructor(
             }
 
             is DmtAction.ToggleLike -> {
-                val track = lookupCurrentTrack()
-                if (track == null) {
+                val path = pathForCurrent()
+                if (path == null) {
                     reduce { it.copy(notice = "no track to like") }
                     return@onIntent
                 }
                 viewModelScope.launch(Dispatchers.IO) {
-                    val liked = playlistRepository.toggleLiked(track)
+                    val liked = playlistRepository.toggleLiked(path)
                     reduce { it.copy(liked = liked) }
                     mutatePlaylists()
                 }
@@ -372,6 +386,7 @@ class PlayerViewModel @Inject constructor(
 
             is DmtAction.PlayAt -> c?.run {
                 reduce { it.copy(error = null) }
+                indexTracks(intent.list)
                 val (queue, startIndex) = windowQueue(intent.list, intent.index)
                 setMediaItems(
                     queue.map { it.toMediaItem() },
@@ -383,6 +398,7 @@ class PlayerViewModel @Inject constructor(
             }
 
             is DmtAction.Enqueue -> c?.run {
+                indexTracks(intent.list)
                 addMediaItems(intent.list.take(QUEUE_CAP).map { it.toMediaItem() })
                 prepare()
                 notify(context.getString(R.string.queued, intent.label))
@@ -724,8 +740,10 @@ class PlayerViewModel @Inject constructor(
     private fun loadLiked(mediaItem: MediaItem?) {
         val id = mediaItem?.mediaId
         viewModelScope.launch(Dispatchers.IO) {
-            val track = currentState.tracks.find { it.id.toString() == id }
-            val liked = track?.let { playlistRepository.isLiked(it.path) } ?: false
+            val path = id?.let { mid ->
+                trackPathIndex[mid] ?: currentState.tracks.find { t -> t.id.toString() == mid }?.path
+            }
+            val liked = path?.let { playlistRepository.isLiked(it) } ?: false
             reduce { if (it.nowPlayingId != id) it else it.copy(liked = liked) }
         }
     }
@@ -754,6 +772,7 @@ class PlayerViewModel @Inject constructor(
                 }
                 return@launch
             }
+            indexTracks(library.tracks)
             val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders) = withContext(
                 Dispatchers.Default,
             ) {
@@ -795,6 +814,7 @@ class PlayerViewModel @Inject constructor(
         viewModelScope.launch {
             val session = preferencesRepository.lastSession() ?: return@launch
             val (existing, index, position) = session.resolveQueue(tracks) ?: return@launch
+            indexTracks(existing)
             val (queue, startIndex) = windowQueue(existing, index)
             c.setMediaItems(
                 queue.map { it.toMediaItem() },

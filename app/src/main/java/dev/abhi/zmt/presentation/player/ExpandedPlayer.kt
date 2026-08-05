@@ -1,6 +1,11 @@
 package dev.abhi.zmt.presentation.player
 
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -43,6 +48,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
@@ -475,13 +481,10 @@ private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
             style = MaterialTheme.typography.titleLarge,
             modifier = Modifier.weight(1f),
         )
-        Text(
-            text = if (state.liked) "♥" else "♡",
-            style = MaterialTheme.typography.titleLarge,
-            color = if (state.liked) TuiAccent else TuiFaint,
-            modifier = Modifier
-                .tuiClickable { dispatch(DmtAction.ToggleLike) }
-                .padding(start = 10.dp),
+        LikeButton(
+            liked = state.liked,
+            onClick = { dispatch(DmtAction.ToggleLike) },
+            modifier = Modifier.padding(start = 10.dp),
         )
     }
     Text(
@@ -779,3 +782,43 @@ private fun lookupVideoId(state: DmtState): String? {
     return state.nowPlayingId
 }
 
+
+
+@Composable
+private fun LikeButton(
+    liked: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val color = if (liked) TuiAccent else TuiFaint
+    val scale by animateFloatAsState(
+        targetValue = if (liked) 1f else 0.8f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "likeScale",
+    )
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = modifier
+            .size(36.dp)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clickable(onClick = onClick),
+    ) {
+        Canvas(modifier = Modifier.size(20.dp)) {
+            if (liked) {
+                drawCircle(color = color, radius = size.minDimension / 2f)
+            } else {
+                drawCircle(
+                    color = color,
+                    radius = size.minDimension / 2f,
+                    style = Stroke(width = 2.dp.toPx()),
+                )
+            }
+        }
+    }
+}

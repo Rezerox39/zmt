@@ -83,9 +83,8 @@ class PlaylistRepository @Inject constructor(
         return file.exists() && path in entriesOf(file)
     }
 
-    /** Adds or removes [track] from the liked playlist, returning the new state. */
-    fun toggleLiked(track: Track): Boolean {
-        val path = track.path
+    /** Adds or removes [path] from the liked playlist, returning the new state. */
+    fun toggleLiked(path: String): Boolean {
         if (path.isEmpty()) return false
         val liked = isLiked(path)
         if (liked) {
@@ -95,8 +94,15 @@ class PlaylistRepository @Inject constructor(
             if (!file.exists()) {
                 runCatching { file.writeText(M3U_HEADER + "\n") }
             }
-            addTrack(LIKED_PLAYLIST, track)
+            addPath(LIKED_PLAYLIST, path)
         }
         return !liked
+    }
+
+    private fun addPath(name: String, path: String) {
+        val file = fileFor(name) ?: return
+        if (!file.exists() || path.isEmpty()) return
+        if (path in entriesOf(file)) return
+        runCatching { file.appendText(path + "\n") }
     }
 }
