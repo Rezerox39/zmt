@@ -50,6 +50,7 @@ data class DmtState(
     val queue: List<String> = emptyList(),
     val queueIndex: Int = 0,
     val album: String = "",
+    val liked: Boolean = false,
     val cover: Bitmap? = null,
     val artRaw: Bitmap? = null,
     val lyrics: Lyrics? = null,
@@ -120,6 +121,7 @@ sealed interface DmtAction {
     data object ShowDownloadSheet : DmtAction
     data object DismissDownloadSheet : DmtAction
     data object DownloadToDevice : DmtAction
+    data object ToggleLike : DmtAction
 }
 
 sealed interface PlayerEffect {

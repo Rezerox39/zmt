@@ -357,6 +357,19 @@ class PlayerViewModel @Inject constructor(
                 playlistRepository.removeTrack(intent.name, intent.path)
             }
 
+            is DmtAction.ToggleLike -> {
+                val track = lookupCurrentTrack()
+                if (track == null) {
+                    reduce { it.copy(notice = "no track to like") }
+                    return@onIntent
+                }
+                viewModelScope.launch(Dispatchers.IO) {
+                    val liked = playlistRepository.toggleLiked(track)
+                    reduce { it.copy(liked = liked) }
+                    mutatePlaylists()
+                }
+            }
+
             is DmtAction.PlayAt -> c?.run {
                 reduce { it.copy(error = null) }
                 val (queue, startIndex) = windowQueue(intent.list, intent.index)
@@ -626,6 +639,7 @@ class PlayerViewModel @Inject constructor(
             loadCover(mediaItem)
             loadTech(mediaItem)
             loadLyrics(mediaItem)
+            loadLiked(mediaItem)
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -703,6 +717,16 @@ class PlayerViewModel @Inject constructor(
                 speed = c.playbackParameters.speed,
                 queue = c.queueLabels(),
             )
+        }
+        loadLiked(c.currentMediaItem)
+    }
+
+    private fun loadLiked(mediaItem: MediaItem?) {
+        val id = mediaItem?.mediaId
+        viewModelScope.launch(Dispatchers.IO) {
+            val track = currentState.tracks.find { it.id.toString() == id }
+            val liked = track?.let { playlistRepository.isLiked(it.path) } ?: false
+            reduce { if (it.nowPlayingId != id) it else it.copy(liked = liked) }
         }
     }
 

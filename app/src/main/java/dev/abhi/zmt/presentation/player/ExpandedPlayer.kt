@@ -283,7 +283,7 @@ private fun ControlsBlock(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
-    TrackMeta(state)
+    TrackMeta(state, dispatch)
     SeekRow(state, dispatch)
     TransportRow(state, dispatch)
     StatusRow(
@@ -463,12 +463,27 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TrackMeta(state: DmtState) {
-    CursorTitle(
-        text = state.title,
-        style = MaterialTheme.typography.titleLarge,
-        modifier = Modifier.padding(top = 18.dp),
-    )
+private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 18.dp),
+    ) {
+        CursorTitle(
+            text = state.title,
+            style = MaterialTheme.typography.titleLarge,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = if (state.liked) "♥" else "♡",
+            style = MaterialTheme.typography.titleLarge,
+            color = if (state.liked) TuiAccent else TuiFaint,
+            modifier = Modifier
+                .tuiClickable { dispatch(DmtAction.ToggleLike) }
+                .padding(start = 10.dp),
+        )
+    }
     Text(
         text = listOf(state.artist, state.album)
             .filter { it.isNotBlank() }

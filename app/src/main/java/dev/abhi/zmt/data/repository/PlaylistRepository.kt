@@ -11,6 +11,9 @@ import javax.inject.Singleton
 private const val M3U_HEADER = "#EXTM3U"
 private const val M3U_EXTENSION = ".m3u8"
 
+/** Reserved playlist backing the Spotify-style heart button. */
+const val LIKED_PLAYLIST = "liked"
+
 @Singleton
 class PlaylistRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -72,5 +75,28 @@ class PlaylistRepository @Inject constructor(
         if (safe.isEmpty()) return null
 
         return File(dir, safe + M3U_EXTENSION)
+    }
+
+    /** Whether [path] is already inside the liked playlist. */
+    fun isLiked(path: String): Boolean {
+        val file = fileFor(LIKED_PLAYLIST) ?: return false
+        return file.exists() && path in entriesOf(file)
+    }
+
+    /** Adds or removes [track] from the liked playlist, returning the new state. */
+    fun toggleLiked(track: Track): Boolean {
+        val path = track.path
+        if (path.isEmpty()) return false
+        val liked = isLiked(path)
+        if (liked) {
+            removeTrack(LIKED_PLAYLIST, path)
+        } else {
+            val file = fileFor(LIKED_PLAYLIST) ?: return false
+            if (!file.exists()) {
+                runCatching { file.writeText(M3U_HEADER + "\n") }
+            }
+            addTrack(LIKED_PLAYLIST, track)
+        }
+        return !liked
     }
 }
