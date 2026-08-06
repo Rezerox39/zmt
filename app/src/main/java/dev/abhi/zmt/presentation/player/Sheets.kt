@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -110,6 +113,7 @@ fun SheetHeader(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QueueList(
     state: DmtState,
@@ -117,43 +121,136 @@ fun QueueList(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier = modifier) {
-        itemsIndexed(state.queue) { index, label ->
-            val current = index == state.queueIndex
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .tuiClickable { dispatch(DmtAction.Jump(index)) }
-                    .padding(vertical = 8.dp),
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(6.dp)
-                        .background(if (current) TuiAccent else TuiFaint),
-                )
-                Text(
-                    text = " %02d ".format(index + 1),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = TuiFaint,
-                )
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = if (current) TuiBright else TuiDim,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f),
-                )
-                Text(
-                    text = stringResource(R.string.clear),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TuiFaint,
-                    modifier = Modifier
-                        .tuiClickable { dispatch(DmtAction.RemoveAt(index)) }
-                        .padding(horizontal = 8.dp, vertical = 2.dp),
+        itemsIndexed(state.queue, key = { index, _ -> index }) { index, label ->
+            QueueRow(
+                index = index,
+                label = label,
+                current = index == state.queueIndex,
+                onOpen = { dispatch(DmtAction.Jump(index)) },
+                onPlayNext = { dispatch(DmtAction.PlayNext(index)) },
+                onRemove = { dispatch(DmtAction.RemoveAt(index)) },
+            )
+        }
+        state.lastRemoved?.let { removal ->
+            item(key = "undo") {
+                UndoRow(
+                    removal = removal,
+                    onUndo = { dispatch(DmtAction.RestoreQueueItem(removal.index)) },
                 )
             }
         }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun QueueRow(
+    index: Int,
+    label: String,
+    current: Boolean,
+    onOpen: () -> Unit,
+    onPlayNext: () -> Unit,
+    onRemove: () -> Unit,
+) {
+    val dismissState = rememberSwipeToDismissBoxState(
+        confirmValueChange = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> onPlayNext()
+                SwipeToDismissBoxValue.EndToStart -> onRemove()
+                else -> Unit
+            }
+            false
+        },
+    )
+    SwipeToDismissBox(
+        state = dismissState,
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        backgroundContent = {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(TuiLine.copy(alpha = 0.4f)),
+            ) {
+                Text(
+                    text = " next ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiGreen,
+                    modifier = Modifier.align(Alignment.CenterStart),
+                )
+                Text(
+                    text = " remove ",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = TuiRed,
+                    modifier = Modifier.align(Alignment.CenterEnd),
+                )
+            }
+        },
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(TuiBg)
+                .tuiClickable(onOpen)
+                .padding(vertical = 8.dp),
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .background(if (current) TuiAccent else TuiFaint),
+            )
+            Text(
+                text = " %02d ".format(index + 1),
+                style = MaterialTheme.typography.labelSmall,
+                color = TuiFaint,
+            )
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (current) TuiBright else TuiDim,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = stringResource(R.string.clear),
+                style = MaterialTheme.typography.labelMedium,
+                color = TuiFaint,
+                modifier = Modifier
+                    .tuiClickable { onRemove() }
+                    .padding(horizontal = 8.dp, vertical = 2.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun UndoRow(removal: QueueRemoval, onUndo: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 4.dp)
+            .background(TuiLine.copy(alpha = 0.6f))
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+    ) {
+        Text(
+            text = " removed: ${removal.label}",
+            style = MaterialTheme.typography.labelSmall,
+            color = TuiDim,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = "[ undo ]",
+            style = MaterialTheme.typography.labelMedium,
+            color = TuiAccent,
+            modifier = Modifier
+                .tuiClickable(onUndo)
+                .padding(horizontal = 6.dp),
+        )
     }
 }
 

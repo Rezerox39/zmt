@@ -209,6 +209,16 @@ fun DmtScreen(
                 SheetHeader(
                     title = stringResource(R.string.queue_title),
                     meta = "$position/${state.queue.size}",
+                    actions = {
+                        Text(
+                            text = "[ save ]",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = TuiDim,
+                            modifier = Modifier
+                                .tuiClickable { dispatch(DmtAction.SaveQueueAsPlaylist) }
+                                .padding(horizontal = 8.dp, vertical = 6.dp),
+                        )
+                    },
                 )
                 QueueList(
                     state = state,

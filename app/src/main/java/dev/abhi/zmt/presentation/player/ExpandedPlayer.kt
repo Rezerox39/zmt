@@ -357,7 +357,7 @@ private fun DownloadSheet(
                 on = dlOn,
                 busy = dlBusy,
             ) {
-                dispatch(DmtAction.DownloadToDevice)
+                dispatch(DmtAction.DownloadToDevice(track = null))
             }
         }
     }

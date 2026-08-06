@@ -99,7 +99,7 @@ class PlaylistRepository @Inject constructor(
         return !liked
     }
 
-    private fun addPath(name: String, path: String) {
+    fun addPath(name: String, path: String) {
         val file = fileFor(name) ?: return
         if (!file.exists() || path.isEmpty()) return
         if (path in entriesOf(file)) return

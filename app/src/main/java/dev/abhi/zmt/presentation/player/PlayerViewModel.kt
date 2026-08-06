@@ -64,6 +64,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
@@ -113,6 +116,9 @@ class PlayerViewModel @Inject constructor(
     /** mediaId -> track path, indexed at play time so likes work for any source. */
     private val trackPathIndex = mutableMapOf<String, String>()
 
+    /** Last removed queue item, kept for undo. */
+    private var pendingRestore: Pair<Int, MediaItem>? = null
+
     init {
         viewModelScope.launch {
             val settings = preferencesRepository.settings.first()
@@ -126,6 +132,10 @@ class PlayerViewModel @Inject constructor(
             telegramLogin.observeAuthState().collectLatest { step ->
                 reduce { it.copy(telegramAuthStep = step) }
             }
+        }
+        viewModelScope.launch {
+            val history = preferencesRepository.searchHistory()
+            reduce { it.copy(searchHistory = history) }
         }
         viewModelScope.launch {
             preferencesRepository.stats.collect { stats ->
@@ -184,7 +194,7 @@ class PlayerViewModel @Inject constructor(
         val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
             withContext(Dispatchers.Default) {
                 FilteredLibrary(
-                    tracks = filter(tracks, query, sort),
+                    tracks = sectioned(filter(tracks, query, sort)),
                     albums = filterAlbums(albums, query),
                     artists = filterArtists(artists, query),
                     folders = filterFolders(folders, query),
@@ -227,17 +237,90 @@ class PlayerViewModel @Inject constructor(
         return currentState.tracks.find { it.id.toString() == id }?.path
     }
 
-    private fun <T> List<T>.matching(query: String, fields: (T) -> List<String>): List<T> =
-        if (query.isBlank()) {
-            this
-        } else {
-            filter { item -> fields(item).any { it.contains(query, true) } }
+    private fun sectioned(tracks: List<Track>): List<Track> =
+        when (currentState.librarySection) {
+            LibrarySection.ALL -> tracks
+            LibrarySection.RECENT -> tracks.sortedByDescending { it.dateAdded }
+            LibrarySection.PLAYED -> tracks
+                .filter { (currentState.stats.counts[it.id] ?: 0) > 0 }
+                .sortedByDescending { currentState.stats.counts[it.id] ?: 0 }
         }
 
+    private fun clearRemovalSoon() {
+        viewModelScope.launch {
+            delay(5000L)
+            reduce { it.copy(lastRemoved = null) }
+        }
+    }
+
+    private fun saveQueueAsPlaylist() {
+        val c = controller ?: return
+        if (c.mediaItemCount == 0) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val paths = (0 until c.mediaItemCount)
+                .mapNotNull { i ->
+                    val id = c.getMediaItemAt(i).mediaId ?: return@mapNotNull null
+                    trackPathIndex[id]
+                        ?: currentState.tracks.find { it.id.toString() == id }?.path
+                }
+                .filter { it.isNotBlank() }
+            if (paths.isEmpty()) return@launch
+            val name = "queue-" + SimpleDateFormat("yyyyMMdd-HHmm", Locale.US).format(Date())
+            playlistRepository.create(name)
+            paths.forEach { playlistRepository.addPath(name, it) }
+            mutatePlaylists()
+            reduce { it.copy(notice = "saved $name") }
+        }
+    }
+
+    private fun <T> List<T>.matching(query: String, fields: (T) -> List<String>): List<T> {
+        if (query.isBlank()) return this
+        return mapNotNull { item ->
+            val best = fields(item).maxOfOrNull { field -> fuzzyScore(query, field) } ?: 0
+            if (best > 0) item to best else null
+        }
+            .sortedByDescending { it.second }
+            .map { it.first }
+    }
+
+    /** Typo-tolerant scoring: exact contains > ordered subsequence > 1-char prefix edit. */
+    private fun fuzzyScore(query: String, candidate: String): Int {
+        val q = query.trim().lowercase()
+        val c = candidate.trim().lowercase()
+        if (q.isEmpty() || c.isEmpty()) return 0
+        val at = c.indexOf(q)
+        if (at >= 0) return 1000 - at
+        var qi = 0
+        for (ch in c) {
+            if (qi < q.length && ch == q[qi]) qi++
+        }
+        if (qi == q.length) return 500 - c.length.coerceAtMost(200)
+        val prefix = c.take(q.length + 2)
+        if (editDistance(q, prefix) <= 1) return 300
+        return 0
+    }
+
+    private fun editDistance(a: String, b: String): Int {
+        val dp = IntArray(b.length + 1) { it }
+        for (i in 1..a.length) {
+            var prev = dp[0]
+            dp[0] = i
+            for (j in 1..b.length) {
+                val tmp = dp[j]
+                dp[j] = minOf(dp[j] + 1, dp[j - 1] + 1, prev + if (a[i - 1] == b[j - 1]) 0 else 1)
+                prev = tmp
+            }
+        }
+        return dp[b.length]
+    }
+
     private fun filter(tracks: List<Track>, query: String, sort: LibrarySort): List<Track> =
-        tracks
-            .matching(query) { listOf(it.title, it.artist, it.album) }
-            .sortedWith(sort.comparator)
+        if (query.isBlank()) {
+            tracks.sortedWith(sort.comparator)
+        } else {
+            // relevance order while searching (fuzzy-scored), library sort when idle
+            tracks.matching(query) { listOf(it.title, it.artist, it.album) }
+        }
 
     private fun filterAlbums(albums: List<Album>, query: String): List<Album> =
         albums.matching(query) { listOf(it.name, it.artist) }
@@ -273,6 +356,12 @@ class PlayerViewModel @Inject constructor(
             }
 
             DmtAction.Rescan -> scan()
+            is DmtAction.SetLibrarySection -> {
+                reduce { it.copy(librarySection = intent.section) }
+                if (currentState.settings.sourceMode != SourceMode.YOUTUBE) {
+                    viewModelScope.launch { performLocalFilter(currentState.query) }
+                }
+            }
             is DmtAction.Query -> {
                 reduce { it.copy(query = intent.value) }
                 // Local filter is instant (in-memory), keep it on every keystroke
@@ -286,6 +375,7 @@ class PlayerViewModel @Inject constructor(
                 val query = currentState.query
                 if (query.isNotBlank() && currentState.settings.sourceMode == SourceMode.YOUTUBE) {
                     viewModelScope.launch {
+                        preferencesRepository.addSearchHistory(query)
                         performYouTubeSearch(query)
                     }
                 }
@@ -296,8 +386,8 @@ class PlayerViewModel @Inject constructor(
             DmtAction.DismissDownloadSheet -> {
                 reduce { it.copy(showDownloadSheet = false) }
             }
-            DmtAction.DownloadToDevice -> {
-                val track = lookupCurrentTrack()
+            is DmtAction.DownloadToDevice -> {
+                val track = intent.track ?: lookupCurrentTrack()
                 if (track == null) { reduce { it.copy(downloadError = "No track playing") }; return@onIntent }
                 val videoId = track.remoteId ?: track.uri.lastPathSegment ?: run {
                     reduce { it.copy(downloadError = "No video ID") }; return@onIntent
@@ -437,8 +527,45 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.Expand -> reduce { it.copy(expanded = intent.value) }
 
             is DmtAction.RemoveAt -> c?.run {
-                if (intent.index in 0 until mediaItemCount) removeMediaItem(intent.index)
+                if (intent.index in 0 until mediaItemCount) {
+                    val item = getMediaItemAt(intent.index)
+                    pendingRestore = intent.index to item
+                    val label = item.mediaMetadata.run { "$title · $artist" }
+                    removeMediaItem(intent.index)
+                    reduce {
+                        it.copy(
+                            lastRemoved = QueueRemoval(index = intent.index, label = label),
+                        )
+                    }
+                    clearRemovalSoon()
+                }
             }
+
+            is DmtAction.RestoreQueueItem -> c?.run {
+                val pending = pendingRestore
+                if (pending != null && pending.first == intent.index) {
+                    addMediaItem(intent.index, pending.second)
+                    pendingRestore = null
+                    reduce { it.copy(lastRemoved = null) }
+                }
+            }
+
+            is DmtAction.PlayNext -> c?.run {
+                if (intent.index in 0 until mediaItemCount) {
+                    val target = (currentMediaItemIndex + 1).coerceIn(0, mediaItemCount - 1)
+                    moveMediaItem(intent.index, target)
+                }
+            }
+
+            is DmtAction.PlayNextTrack -> c?.run {
+                indexTracks(listOf(intent.track))
+                val target = (currentMediaItemIndex + 1).coerceAtMost(mediaItemCount)
+                addMediaItem(target, intent.track.toMediaItem())
+                prepare()
+                notify(context.getString(R.string.queued, intent.track.title))
+            }
+
+            DmtAction.SaveQueueAsPlaylist -> saveQueueAsPlaylist()
 
             DmtAction.FetchLyrics -> fetchOnlineLyrics()
             is DmtAction.EmbedLyrics -> embedPendingLyrics(intent.granted)
@@ -777,7 +904,7 @@ class PlayerViewModel @Inject constructor(
                 Dispatchers.Default,
             ) {
                 FilteredLibrary(
-                    tracks = filter(library.tracks, query, currentState.settings.librarySort),
+                    tracks = sectioned(filter(library.tracks, query, currentState.settings.librarySort)),
                     albums = filterAlbums(library.albums, query),
                     artists = filterArtists(library.artists, query),
                     folders = filterFolders(library.folders, query),

@@ -14,6 +14,8 @@ import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.domain.model.Spec
 import dev.abhi.zmt.domain.model.Track
 
+enum class LibrarySection { ALL, RECENT, PLAYED }
+
 enum class DmtView {
     LIBRARY, ALBUMS, ARTISTS, FOLDERS, PLAYLISTS, SETTINGS, STATS, BLOCKLIST, SOURCES, SOURCE_LOGIN,
     PERMISSIONS
@@ -63,6 +65,9 @@ data class DmtState(
     val stats: DmtStats = DmtStats(),
     val tech: List<Spec> = emptyList(),
     val route: List<Spec> = emptyList(),
+    val searchHistory: List<String> = emptyList(),
+    val librarySection: LibrarySection = LibrarySection.ALL,
+    val lastRemoved: QueueRemoval? = null,
     val error: String? = null,
     val notice: String? = null,
     val telegramAuthStep: String = "",
@@ -120,9 +125,16 @@ sealed interface DmtAction {
     data object TelegramLogout : DmtAction
     data object ShowDownloadSheet : DmtAction
     data object DismissDownloadSheet : DmtAction
-    data object DownloadToDevice : DmtAction
+    data class DownloadToDevice(val track: Track? = null) : DmtAction
     data object ToggleLike : DmtAction
+    data class PlayNext(val index: Int) : DmtAction
+    data class RestoreQueueItem(val index: Int) : DmtAction
+    data object SaveQueueAsPlaylist : DmtAction
+    data class PlayNextTrack(val track: Track) : DmtAction
+    data class SetLibrarySection(val section: LibrarySection) : DmtAction
 }
+
+data class QueueRemoval(val index: Int, val label: String)
 
 sealed interface PlayerEffect {
     data class OpenEqualizer(val audioSessionId: Int) : PlayerEffect
