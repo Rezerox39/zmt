@@ -15,6 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamDS"
+private const val MAX_OPEN_ATTEMPTS = 3
 
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(
@@ -45,50 +46,60 @@ class YoutubeStreamDataSource private constructor(
         Log.i(TAG, "=== PlaybackDebug ===")
         Log.i(TAG, "Song videoId: $videoId")
 
-        val resolved = try {
-            kotlinx.coroutines.runBlocking {
-                resolver.resolve(videoId)
+        var lastError: Exception? = null
+        repeat(MAX_OPEN_ATTEMPTS) { attempt ->
+            val resolved = try {
+                kotlinx.coroutines.runBlocking {
+                    resolver.resolve(videoId)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "CRASHED during resolve: ${e.message}")
+                lastError = IOException("Resolver crashed: ${e.message}", e)
+                return@repeat
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "CRASHED during resolve: ${e.message}")
-            throw IOException("Resolver crashed: ${e.message}", e)
+
+            if (resolved == null) {
+                Log.e(TAG, "FAILED: resolver returned null for $videoId (attempt ${attempt + 1}/$MAX_OPEN_ATTEMPTS)")
+                lastError = IOException("Could not resolve YouTube stream for $videoId")
+                return@repeat
+            }
+
+            openedUri = Uri.parse(resolved.url)
+            Log.i(TAG, "Resolver selected: ${resolved.resolverName}")
+            Log.i(TAG, "Resolved URL: ${resolved.url}")
+            Log.i(TAG, "User-Agent: ${resolved.userAgent}")
+
+            val httpFactory = DefaultHttpDataSource.Factory()
+                .setConnectTimeoutMs(30_000)
+                .setReadTimeoutMs(30_000)
+                .setUserAgent(resolved.userAgent)
+                .setAllowCrossProtocolRedirects(true)
+
+            val httpDataSource = httpFactory.createDataSource()
+            val resolvedSpec = dataSpec.buildUpon().setUri(openedUri!!).build()
+            try {
+                val result = httpDataSource.open(resolvedSpec)
+                inner = httpDataSource
+                Log.i(TAG, "HTTP open succeeded, content length: $result")
+                return result
+            } catch (e: HttpDataSource.InvalidResponseCodeException) {
+                val statusCode = try { e.responseCode } catch (ex: Exception) { -1 }
+                val headers = try { e.headerFields?.toString() ?: "N/A" } catch (ex: Exception) { "N/A" }
+                Log.e(TAG, "HTTP FAILED! Status code: $statusCode (attempt ${attempt + 1}/$MAX_OPEN_ATTEMPTS)")
+                Log.e(TAG, "Exception message: ${e.message}")
+                Log.e(TAG, "Response headers: $headers")
+                Log.e(TAG, "URL: ${openedUri}")
+                lastError = e
+                if (attempt < MAX_OPEN_ATTEMPTS - 1) {
+                    Log.w(TAG, "Refreshing stream URL and retrying...")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "HTTP open failed: ${e.message} (attempt ${attempt + 1}/$MAX_OPEN_ATTEMPTS)")
+                lastError = e
+            }
         }
 
-        if (resolved == null) {
-            Log.e(TAG, "FAILED: resolver returned null for $videoId")
-            throw IOException("Could not resolve YouTube stream for $videoId")
-        }
-
-        openedUri = Uri.parse(resolved.url)
-        Log.i(TAG, "Resolver selected: ${resolved.resolverName}")
-        Log.i(TAG, "Resolved URL: ${resolved.url}")
-        Log.i(TAG, "User-Agent: ${resolved.userAgent}")
-
-        val httpFactory = DefaultHttpDataSource.Factory()
-            .setConnectTimeoutMs(30_000)
-            .setReadTimeoutMs(30_000)
-            .setUserAgent(resolved.userAgent)
-            .setAllowCrossProtocolRedirects(true)
-
-        inner = httpFactory.createDataSource()
-
-        val resolvedSpec = dataSpec.buildUpon().setUri(openedUri!!).build()
-        try {
-            val result = inner!!.open(resolvedSpec)
-            Log.i(TAG, "HTTP open succeeded, content length: $result")
-            return result
-        } catch (e: HttpDataSource.InvalidResponseCodeException) {
-            val statusCode = try { e.responseCode } catch (ex: Exception) { -1 }
-            val headers = try { e.headerFields?.toString() ?: "N/A" } catch (ex: Exception) { "N/A" }
-            Log.e(TAG, "HTTP FAILED! Status code: $statusCode")
-            Log.e(TAG, "Exception message: ${e.message}")
-            Log.e(TAG, "Response headers: $headers")
-            Log.e(TAG, "URL: ${openedUri}")
-            throw e
-        } catch (e: Exception) {
-            Log.e(TAG, "HTTP open failed: ${e.message}")
-            throw e
-        }
+        throw lastError ?: IOException("Could not resolve YouTube stream for $videoId")
     }
 
     override fun read(target: ByteArray, offset: Int, length: Int): Int {
