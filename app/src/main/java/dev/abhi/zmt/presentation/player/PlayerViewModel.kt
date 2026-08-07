@@ -134,10 +134,6 @@ class PlayerViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
-            val history = preferencesRepository.searchHistory()
-            reduce { it.copy(searchHistory = history) }
-        }
-        viewModelScope.launch {
             preferencesRepository.stats.collect { stats ->
                 reduce { if (it.stats == stats) it else it.copy(stats = stats) }
             }
@@ -229,12 +225,6 @@ class PlayerViewModel @Inject constructor(
 
     private fun indexTracks(list: List<Track>) {
         list.forEach { track -> trackPathIndex[track.id.toString()] = track.path }
-    }
-
-    private fun pathForCurrent(): String? {
-        val id = currentState.nowPlayingId ?: return null
-        trackPathIndex[id]?.let { return it }
-        return currentState.tracks.find { it.id.toString() == id }?.path
     }
 
     private fun sectioned(tracks: List<Track>): List<Track> =
@@ -365,7 +355,12 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.Query -> {
                 reduce { it.copy(query = intent.value) }
                 // Local filter is instant (in-memory), keep it on every keystroke
-                if (currentState.settings.sourceMode != SourceMode.YOUTUBE) {
+                if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                    if (intent.value.isBlank()) {
+                        // empty query in YouTube mode shows the liked library again
+                        scan()
+                    }
+                } else {
                     viewModelScope.launch {
                         performLocalFilter(intent.value)
                     }
@@ -375,7 +370,6 @@ class PlayerViewModel @Inject constructor(
                 val query = currentState.query
                 if (query.isNotBlank() && currentState.settings.sourceMode == SourceMode.YOUTUBE) {
                     viewModelScope.launch {
-                        preferencesRepository.addSearchHistory(query)
                         performYouTubeSearch(query)
                     }
                 }
@@ -462,15 +456,18 @@ class PlayerViewModel @Inject constructor(
             }
 
             is DmtAction.ToggleLike -> {
-                val path = pathForCurrent()
-                if (path == null) {
+                val track = currentState.currentTrack ?: lookupCurrentTrack()
+                if (track == null) {
                     reduce { it.copy(notice = "no track to like") }
                     return@onIntent
                 }
                 viewModelScope.launch(Dispatchers.IO) {
-                    val liked = playlistRepository.toggleLiked(path)
+                    val liked = playlistRepository.toggleLiked(track)
                     reduce { it.copy(liked = liked) }
                     mutatePlaylists()
+                    if (currentState.settings.sourceMode == SourceMode.YOUTUBE) {
+                        scan()
+                    }
                 }
             }
 
@@ -783,6 +780,7 @@ class PlayerViewModel @Inject constructor(
             loadTech(mediaItem)
             loadLyrics(mediaItem)
             loadLiked(mediaItem)
+            loadCurrentTrack(mediaItem)
         }
 
         override fun onMediaMetadataChanged(mediaMetadata: MediaMetadata) {
@@ -862,6 +860,17 @@ class PlayerViewModel @Inject constructor(
             )
         }
         loadLiked(c.currentMediaItem)
+        loadCurrentTrack(c.currentMediaItem)
+    }
+
+    private fun loadCurrentTrack(mediaItem: MediaItem?) {
+        val id = mediaItem?.mediaId ?: return
+        val track = trackPathIndex[id]?.let { path ->
+            currentState.tracks.find { it.path == path }
+        } ?: currentState.tracks.find { it.id.toString() == id }
+        if (track != null) {
+            reduce { if (it.nowPlayingId == id) it.copy(currentTrack = track) else it }
+        }
     }
 
     private fun loadLiked(mediaItem: MediaItem?) {

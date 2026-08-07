@@ -15,7 +15,9 @@ import javax.inject.Singleton
 private const val TAG = "YoutubeMediaRepo"
 
 @Singleton
-class YoutubeMediaRepositoryImpl @Inject constructor() : MediaRepository {
+class YoutubeMediaRepositoryImpl @Inject constructor(
+    private val likedTracks: LikedTracksRepository,
+) : MediaRepository {
 
     suspend fun search(query: String): List<Track> {
         return try {
@@ -59,7 +61,10 @@ class YoutubeMediaRepositoryImpl @Inject constructor() : MediaRepository {
         }
     }
 
-    override suspend fun scan(): List<Track> = emptyList()
+    override suspend fun scan(): List<Track> =
+        likedTracks.all()
+            .filter { it.source == TrackSource.YOUTUBE }
+            .sortedBy { it.title.lowercase() }
 
     private fun parseDuration(text: String): Long {
         val parts = text.split(":").mapNotNull { it.trim().toLongOrNull() }

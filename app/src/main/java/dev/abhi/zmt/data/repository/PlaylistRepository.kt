@@ -17,6 +17,7 @@ const val LIKED_PLAYLIST = "liked"
 @Singleton
 class PlaylistRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val likedTracks: LikedTracksRepository,
 ) {
 
     private val dir: File
@@ -83,18 +84,21 @@ class PlaylistRepository @Inject constructor(
         return file.exists() && path in entriesOf(file)
     }
 
-    /** Adds or removes [path] from the liked playlist, returning the new state. */
-    fun toggleLiked(path: String): Boolean {
+    /** Adds or removes [track] from the liked playlist, returning the new state. */
+    fun toggleLiked(track: Track): Boolean {
+        val path = track.path
         if (path.isEmpty()) return false
         val liked = isLiked(path)
         if (liked) {
             removeTrack(LIKED_PLAYLIST, path)
+            likedTracks.remove(path)
         } else {
             val file = fileFor(LIKED_PLAYLIST) ?: return false
             if (!file.exists()) {
                 runCatching { file.writeText(M3U_HEADER + "\n") }
             }
             addPath(LIKED_PLAYLIST, path)
+            likedTracks.upsert(track)
         }
         return !liked
     }

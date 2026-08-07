@@ -120,16 +120,6 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             )
         }
 
-        if (state.query.isBlank() && state.searchHistory.isNotEmpty()) {
-            HistoryChips(
-                history = state.searchHistory,
-                onPick = { q ->
-                    dispatch(DmtAction.Query(q))
-                    if (isYouTube) dispatch(DmtAction.Search)
-                },
-            )
-        }
-
         var longPress by remember { mutableStateOf<Track?>(null) }
         longPress?.let { track ->
             TuiSheet(onDismiss = { longPress = null }) {
@@ -202,33 +192,3 @@ private fun SectionChips(
     }
 }
 
-@Composable
-private fun HistoryChips(
-    history: List<String>,
-    onPick: (String) -> Unit,
-) {
-    Column(modifier = Modifier
-        .fillMaxWidth()
-        .padding(top = 2.dp)) {
-        Text(
-            text = "recent:",
-            style = MaterialTheme.typography.labelSmall,
-            color = TuiFaint,
-        )
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-        ) {
-            history.forEach { q ->
-                Text(
-                    text = " [$q]",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = TuiDim,
-                    modifier = Modifier
-                        .tuiClickable { onPick(q) }
-                        .padding(vertical = 2.dp),
-                )
-            }
-        }
-    }
-}

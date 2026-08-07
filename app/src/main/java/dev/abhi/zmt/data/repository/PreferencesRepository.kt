@@ -14,7 +14,6 @@ import dev.abhi.zmt.data.source.local.KEY_LAST_QUEUE
 import dev.abhi.zmt.data.source.local.KEY_LIBRARY_SORT
 import dev.abhi.zmt.data.source.local.KEY_NORMALIZE
 import dev.abhi.zmt.data.source.local.KEY_RAW
-import dev.abhi.zmt.data.source.local.KEY_SEARCH_HISTORY
 import dev.abhi.zmt.data.source.local.KEY_THEME
 import dev.abhi.zmt.data.source.local.KEY_ROMANIZED_LYRICS
 import dev.abhi.zmt.data.source.local.KEY_SOURCE_MODE
@@ -149,20 +148,4 @@ class PreferencesRepository @Inject constructor(
         )
     }
 
-    suspend fun searchHistory(): List<String> =
-        (context.dmtStore.data.first()[KEY_SEARCH_HISTORY] ?: "")
-            .split('\u001F')
-            .filter { it.isNotBlank() }
-
-    suspend fun addSearchHistory(query: String) {
-        val q = query.trim()
-        if (q.isBlank()) return
-        context.dmtStore.edit { prefs ->
-            val current = (prefs[KEY_SEARCH_HISTORY] ?: "")
-                .split('\u001F')
-                .filter { it.isNotBlank() }
-            val updated = (listOf(q) + current.filterNot { it.equals(q, true) }).take(8)
-            prefs[KEY_SEARCH_HISTORY] = updated.joinToString("\u001F")
-        }
-    }
 }
