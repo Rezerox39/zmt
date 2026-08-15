@@ -1,5 +1,6 @@
 package dev.abhi.zmt.presentation.main
 
+import android.graphics.Bitmap
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -53,6 +54,8 @@ import dev.abhi.zmt.core.common.TuiNotice
 import dev.abhi.zmt.core.common.TuiTab
 import dev.abhi.zmt.core.common.fitScaleFor
 import dev.abhi.zmt.core.common.isLandscapeWindow
+import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.presentation.home.HomePane
 import dev.abhi.zmt.presentation.library.AlbumsPane
 import dev.abhi.zmt.presentation.library.ArtistsPane
 import dev.abhi.zmt.presentation.library.FoldersPane
@@ -92,6 +95,7 @@ import androidx.compose.foundation.border
 fun DmtScreen(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
+    art: suspend (Track) -> Bitmap,
 ) {
     var showQueueSheet by remember { mutableStateOf(false) }
     var showInfoSheet by remember { mutableStateOf(false) }
@@ -112,7 +116,7 @@ fun DmtScreen(
 
     val backHandled = !state.expanded &&
             ((state.view == DmtView.ALBUMS && state.openAlbum != null) ||
-                    state.view != DmtView.LIBRARY)
+                    state.view != DmtView.HOME)
     BackHandler(enabled = backHandled) {
         when {
             state.view == DmtView.STATS -> dispatch(DmtAction.Show(DmtView.SETTINGS))
@@ -138,7 +142,7 @@ fun DmtScreen(
             state.view == DmtView.PLAYLISTS && state.openPlaylist != null ->
                 dispatch(DmtAction.OpenPlaylist(null))
 
-            else -> dispatch(DmtAction.Show(DmtView.LIBRARY))
+            else -> dispatch(DmtAction.Show(if (state.view == DmtView.LIBRARY) DmtView.HOME else DmtView.LIBRARY))
         }
     }
 
@@ -161,6 +165,7 @@ fun DmtScreen(
                         PaneHost(
                             state = state,
                             dispatch = dispatch,
+                            art = art,
                             modifier = Modifier.weight(1f),
                         )
 
@@ -185,6 +190,7 @@ fun DmtScreen(
                 PaneHost(
                     state = state,
                     dispatch = dispatch,
+                    art = art,
                     modifier = Modifier.weight(1f),
                 )
 
@@ -276,11 +282,28 @@ private fun MiniPlayerAnchor(
 private fun PaneHost(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
+    art: suspend (Track) -> Bitmap,
     modifier: Modifier = Modifier,
 ) {
     Column(modifier = modifier) {
         ScrollMemory(state.view.name) {
             when {
+                state.view == DmtView.HOME -> HomePane(
+                    state = state,
+                    dispatch = dispatch,
+                    art = art,
+                    onOpenAlbum = { name ->
+                        dispatch(DmtAction.Show(DmtView.ALBUMS))
+                        dispatch(DmtAction.OpenAlbum(name))
+                    },
+                    onOpenAlbums = { dispatch(DmtAction.Show(DmtView.ALBUMS)) },
+                    onOpenTracks = { dispatch(DmtAction.Show(DmtView.LIBRARY)) },
+                    onOpenArtist = { name ->
+                        dispatch(DmtAction.Show(DmtView.ARTISTS))
+                        dispatch(DmtAction.OpenArtist(name))
+                    },
+                    onOpenArtists = { dispatch(DmtAction.Show(DmtView.ARTISTS)) },
+                )
                 state.view == DmtView.STATS -> StatsPane(state, dispatch)
                 state.view == DmtView.BLOCKLIST -> BlocklistPane(state, dispatch)
                 state.view == DmtView.PERMISSIONS -> PermissionsPane(state, dispatch)
@@ -408,6 +431,7 @@ private fun Titlebar(state: DmtState, dispatch: (DmtAction) -> Unit) {
 @Composable
 private fun libraryTabs(state: DmtState): List<Pair<String, DmtView>> =
     buildList {
+        add(stringResource(R.string.tab_home) to DmtView.HOME)
         add(stringResource(R.string.tab_library) to DmtView.LIBRARY)
         add(stringResource(R.string.tab_albums) to DmtView.ALBUMS)
         add(stringResource(R.string.tab_artists) to DmtView.ARTISTS)

@@ -1,6 +1,7 @@
 <resources>
     <string name="app_name" translatable="false">zmt</string>
 
+    <string name="tab_home">home</string>
     <string name="tab_library">library</string>
     <string name="tab_albums">albums</string>
     <string name="tab_artists">artists</string>
@@ -20,6 +21,12 @@
     <string name="scanning">scanning library...</string>
     <string name="no_match">no match</string>
     <string name="no_audio">no tracks in %1$s - try rescanning from cfg</string>
+    <string name="home_favourites">favourites</string>
+    <string name="home_albums">albums</string>
+    <string name="home_artists">artists</string>
+    <string name="home_tracks">tracks</string>
+    <string name="home_try_new">try something new</string>
+    <string name="home_try_new_hint">your library, never listened to</string>
     <string name="scan_failed">could not reach %1$s - check connection and rescan</string>
     <string name="no_albums">no albums</string>
     <string name="no_artists">no artists</string>

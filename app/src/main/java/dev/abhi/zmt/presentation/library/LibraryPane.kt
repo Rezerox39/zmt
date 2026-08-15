@@ -31,6 +31,7 @@ import dev.abhi.zmt.core.common.SearchRow
 import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.tuiClickable
+import dev.abhi.zmt.domain.model.Artist
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.model.TrackSource
@@ -163,6 +164,9 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         }
     }
 }
+
+fun artistLine2(artist: Artist): String =
+    "${artist.albums} alb · ${artist.tracks.size} trk"
 
 fun trackLine2(
     track: Track,

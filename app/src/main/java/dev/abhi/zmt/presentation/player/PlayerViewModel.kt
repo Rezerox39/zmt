@@ -2,8 +2,10 @@ package dev.abhi.zmt.presentation.player
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
+import android.util.LruCache
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewModelScope
 import androidx.media3.common.C
@@ -30,6 +32,7 @@ import dev.abhi.zmt.domain.model.Album
 import dev.abhi.zmt.domain.model.Artist
 import dev.abhi.zmt.domain.model.Folder
 import dev.abhi.zmt.domain.model.Genre
+import dev.abhi.zmt.domain.model.homeShelves
 import dev.abhi.zmt.domain.model.LibrarySort
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
@@ -76,6 +79,8 @@ import kotlin.time.Duration.Companion.seconds
 private val SPEED_STEPS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 private val SLEEP_STEPS = listOf(0, 15, 30, 60)
 private val LIBRARY_SETTLE = 500.milliseconds
+private const val HOME_ART_COLS = 48
+private const val HOME_ART_CACHE_BYTES = 32 * 1024 * 1024
 
 private data class FilteredLibrary(
     val tracks: List<Track>,
@@ -143,7 +148,7 @@ class PlayerViewModel @Inject constructor(
         }
         viewModelScope.launch {
             preferencesRepository.stats.collect { stats ->
-                reduce { if (it.stats == stats) it else it.copy(stats = stats) }
+                reduce { if (it.stats == stats) it else it.copy(stats = stats).withHome() }
             }
         }
         viewModelScope.launch {
@@ -983,11 +988,37 @@ class PlayerViewModel @Inject constructor(
                     filteredFolders = filteredFolders,
                     filteredGenres = filteredGenres,
                     error = null,
-                )
+                ).withHome()
             }
             mutatePlaylists()
             restoreSession()
         }
+
+    private fun DmtState.withHome(): DmtState =
+        copy(home = homeShelves(tracks, albums, artists, stats.counts))
+
+    private val homeArtCache = object : LruCache<String, Bitmap>(HOME_ART_CACHE_BYTES) {
+        override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount
+    }
+
+    suspend fun homeArt(track: Track): Bitmap {
+        val rawMode = currentState.settings.rawArt
+        val key = "${track.id}:$rawMode"
+        homeArtCache.get(key)?.let { return it }
+        return withContext(Dispatchers.IO) {
+            val raw = track.coverUri?.let { trackMediaRepository.loadArt(it, track.uri) }
+            val art = when {
+                raw != null && rawMode -> raw
+                raw != null ->
+                    runCatching { raw.toAsciiBitmap(context, HOME_ART_COLS) }.getOrNull()
+                        ?: generateAsciiPlaceholder(context, track.id, HOME_ART_COLS)
+
+                else -> generateAsciiPlaceholder(context, track.id, HOME_ART_COLS)
+            }
+            homeArtCache.put(key, art)
+            art
+        }
+    }
 
     private fun restoreSession() {
         if (sessionRestored) return

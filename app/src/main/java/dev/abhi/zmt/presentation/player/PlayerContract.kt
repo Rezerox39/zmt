@@ -9,6 +9,7 @@ import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.DmtStats
 import dev.abhi.zmt.domain.model.Folder
 import dev.abhi.zmt.domain.model.Genre
+import dev.abhi.zmt.domain.model.HomeShelves
 import dev.abhi.zmt.lyrics.Lyrics
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
@@ -19,8 +20,8 @@ import dev.abhi.zmt.util.QueueEntry
 enum class LibrarySection { ALL, RECENT, PLAYED }
 
 enum class DmtView {
-    LIBRARY, ALBUMS, ARTISTS, GENRES, FOLDERS, PLAYLISTS, SETTINGS, STATS, BLOCKLIST, SOURCES,
-    SOURCE_LOGIN, PERMISSIONS
+    HOME, LIBRARY, ALBUMS, ARTISTS, GENRES, FOLDERS, PLAYLISTS, SETTINGS, STATS, BLOCKLIST,
+    SOURCES, SOURCE_LOGIN, PERMISSIONS
 }
 
 data class DmtState(
@@ -40,7 +41,7 @@ data class DmtState(
     val playlists: List<Playlist> = emptyList(),
     val filteredPlaylists: List<Playlist> = emptyList(),
     val folders: List<Folder> = emptyList(),
-    val view: DmtView = DmtView.LIBRARY,
+    val view: DmtView = DmtView.HOME,
     val loginSource: SourceMode = SourceMode.JELLYFIN,
     val openAlbum: String? = null,
     val openArtist: String? = null,
@@ -71,6 +72,7 @@ data class DmtState(
     val speed: Float = 1f,
     val settings: DmtSettings = DmtSettings(),
     val stats: DmtStats = DmtStats(),
+    val home: HomeShelves = HomeShelves(),
     val tech: List<Spec> = emptyList(),
     val route: List<Spec> = emptyList(),
     val fault: String? = null,
