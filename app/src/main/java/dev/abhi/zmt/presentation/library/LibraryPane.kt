@@ -34,6 +34,7 @@ import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.model.TrackSource
+import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.presentation.player.DmtAction
 import dev.abhi.zmt.presentation.player.DmtState
 import dev.abhi.zmt.presentation.player.LibrarySection
@@ -151,16 +152,31 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 ListRow(
                     index = index,
                     line1 = track.title,
-                    line2 = "${track.artist} · ${track.durationMs.asTime()}".lowercase(),
+                    line2 = trackLine2(track),
                     current = track.id.toString() == state.nowPlayingId,
                     onClick = { dispatch(DmtAction.PlayAt(state.filtered, index)) },
                     onLongClick = { longPress = track },
                     trailing = { TrackBadges(track) },
+                    modifier = Modifier.animateItem(),
                 )
             }
         }
     }
 }
+
+fun trackLine2(
+    track: Track,
+    artist: Boolean = true,
+    album: Boolean = true,
+): String =
+    listOfNotNull(
+        track.artist.asCredit().takeIf { artist },
+        track.album.takeIf { album },
+        track.durationMs.asTime(),
+    )
+        .filter { it.isNotBlank() }
+        .joinToString(" · ")
+        .lowercase()
 
 @Composable
 private fun SectionChips(
@@ -191,4 +207,3 @@ private fun SectionChips(
         }
     }
 }
-

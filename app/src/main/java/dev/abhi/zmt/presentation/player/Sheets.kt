@@ -36,6 +36,7 @@ import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.domain.model.Spec
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.ui.theme.TuiAccent
 import dev.abhi.zmt.ui.theme.TuiBg
 import dev.abhi.zmt.ui.theme.TuiBright
@@ -264,12 +265,18 @@ fun InfoContent(state: DmtState) {
     )
     InfoRow(
         label = stringResource(R.string.info_artist),
-        value = state.artist.lowercase(),
+        value = state.artist.asCredit().lowercase(),
     )
     if (state.album.isNotBlank()) {
         InfoRow(
             label = stringResource(R.string.info_album),
             value = state.album.lowercase(),
+        )
+    }
+    track?.genre?.takeIf { it.isNotBlank() }?.let { genre ->
+        InfoRow(
+            label = stringResource(R.string.info_genre),
+            value = genre.lowercase(),
         )
     }
     InfoRow(

@@ -129,11 +129,12 @@ fun ListRow(
     line2: String,
     current: Boolean,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     onLongClick: (() -> Unit)? = null,
     trailing: (@Composable () -> Unit)? = null,
 ) {
     Column(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .combinedClickable(
                 interactionSource = null,
@@ -195,6 +196,7 @@ fun SubdirHeader(
     title: String,
     meta: String,
     onBack: () -> Unit,
+    counts: String = "",
     action: (@Composable () -> Unit)? = null,
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
@@ -223,9 +225,10 @@ fun SubdirHeader(
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f, fill = false),
             )
-            if (meta.isNotEmpty()) {
+            val sub = listOf(meta, counts).filter { it.isNotBlank() }.joinToString(" · ")
+            if (sub.isNotEmpty()) {
                 Text(
-                    text = " · $meta",
+                    text = " · $sub",
                     style = MaterialTheme.typography.labelSmall,
                     color = TuiDim,
                     maxLines = 1,

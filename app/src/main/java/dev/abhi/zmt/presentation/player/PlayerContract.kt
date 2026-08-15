@@ -8,6 +8,7 @@ import dev.abhi.zmt.domain.model.Artist
 import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.DmtStats
 import dev.abhi.zmt.domain.model.Folder
+import dev.abhi.zmt.domain.model.Genre
 import dev.abhi.zmt.lyrics.Lyrics
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
@@ -18,20 +19,23 @@ import dev.abhi.zmt.util.QueueEntry
 enum class LibrarySection { ALL, RECENT, PLAYED }
 
 enum class DmtView {
-    LIBRARY, ALBUMS, ARTISTS, FOLDERS, PLAYLISTS, SETTINGS, STATS, BLOCKLIST, SOURCES, SOURCE_LOGIN,
-    PERMISSIONS
+    LIBRARY, ALBUMS, ARTISTS, GENRES, FOLDERS, PLAYLISTS, SETTINGS, STATS, BLOCKLIST, SOURCES,
+    SOURCE_LOGIN, PERMISSIONS
 }
 
 data class DmtState(
     val hasPermission: Boolean = false,
+    val settingsLoaded: Boolean = false,
     val scanning: Boolean = false,
     val tracks: List<Track> = emptyList(),
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
+    val genres: List<Genre> = emptyList(),
     val query: String = "",
     val filtered: List<Track> = emptyList(),
     val filteredAlbums: List<Album> = emptyList(),
     val filteredArtists: List<Artist> = emptyList(),
+    val filteredGenres: List<Genre> = emptyList(),
     val filteredFolders: List<Folder> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
     val filteredPlaylists: List<Playlist> = emptyList(),
@@ -40,6 +44,7 @@ data class DmtState(
     val loginSource: SourceMode = SourceMode.JELLYFIN,
     val openAlbum: String? = null,
     val openArtist: String? = null,
+    val openGenre: String? = null,
     val openFolder: String? = null,
     val openPlaylist: String? = null,
     val nowPlayingId: String? = null,
@@ -68,6 +73,7 @@ data class DmtState(
     val stats: DmtStats = DmtStats(),
     val tech: List<Spec> = emptyList(),
     val route: List<Spec> = emptyList(),
+    val fault: String? = null,
     val librarySection: LibrarySection = LibrarySection.ALL,
     val lastRemoved: QueueRemoval? = null,
     val error: String? = null,
@@ -89,6 +95,7 @@ sealed interface DmtAction {
     data class Show(val view: DmtView) : DmtAction
     data class OpenAlbum(val name: String?) : DmtAction
     data class OpenArtist(val name: String?) : DmtAction
+    data class OpenGenre(val name: String?) : DmtAction
     data class OpenFolder(val path: String?) : DmtAction
     data class OpenPlaylist(val name: String?) : DmtAction
     data class CreatePlaylist(val name: String) : DmtAction

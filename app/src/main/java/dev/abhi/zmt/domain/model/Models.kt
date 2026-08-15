@@ -3,6 +3,7 @@ package dev.abhi.zmt.domain.model
 import android.net.Uri
 import androidx.compose.runtime.Immutable
 
+const val UNKNOWN_GENRE = "unknown genre"
 
 @Immutable
 data class Track(
@@ -10,6 +11,7 @@ data class Track(
     val uri: Uri,
     val title: String,
     val artist: String,
+    val albumArtist: String = "",
     val album: String,
     val path: String,
     val durationMs: Long,
@@ -24,6 +26,7 @@ data class Track(
     val remoteId: String? = null,
     val clipStartMs: Long? = null,
     val clipEndMs: Long? = null,
+    val genre: String? = null,
 )
 
 @Immutable
@@ -37,6 +40,12 @@ data class Album(
 data class Artist(
     val name: String,
     val albums: Int,
+    val tracks: List<Track>,
+)
+
+@Immutable
+data class Genre(
+    val name: String,
     val tracks: List<Track>,
 )
 
@@ -66,5 +75,6 @@ data class LibrarySnapshot(
     val albums: List<Album> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val folders: List<Folder> = emptyList(),
+    val genres: List<Genre> = emptyList(),
 )
 enum class TrackSource { LOCAL, JELLYFIN, TELEGRAM, YOUTUBE }

@@ -4,18 +4,22 @@ import android.content.ComponentName
 import android.content.Context
 import android.media.MediaExtractor
 import android.media.MediaFormat
+import androidx.annotation.OptIn
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.common.util.Util
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import dev.abhi.zmt.domain.model.LastSession
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.playback.PlaybackService
-import kotlinx.coroutines.guava.await
 import java.nio.ByteBuffer
+import kotlinx.coroutines.guava.await
 
 fun LastSession.resolveQueue(tracks: List<Track>): Triple<List<Track>, Int, Long>? {
     val byId = tracks.associateBy { it.id }
@@ -96,7 +100,9 @@ fun MediaController.queueEntries(): List<QueueEntry> {
         while (index != C.INDEX_UNSET) {
             timeline.getWindow(index, window)
 
-            val label = window.mediaItem.mediaMetadata.run { "$title · $artist" }
+            val label = window.mediaItem.mediaMetadata.run {
+                "$title · ${artist?.toString().orEmpty().asCredit()}"
+            }
             add(QueueEntry(index, label))
 
             index = timeline.getNextWindowIndex(index, Player.REPEAT_MODE_OFF, shuffleModeEnabled)
@@ -109,12 +115,9 @@ fun MediaController.queueWithPosition(): Pair<List<QueueEntry>, Int> {
     return entries to entries.indexOfFirst { it.index == currentMediaItemIndex }
 }
 
-fun Long.asTime(): String {
-    val totalSeconds = (this / 1000).coerceAtLeast(0)
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return if (seconds < 10) "$minutes:0$seconds" else "$minutes:$seconds"
-}
+@OptIn(UnstableApi::class)
+fun Long.asTime(): String =
+    Util.getStringForTime(coerceAtLeast(0))
 
 fun String.codecLabel(): String =
     when {

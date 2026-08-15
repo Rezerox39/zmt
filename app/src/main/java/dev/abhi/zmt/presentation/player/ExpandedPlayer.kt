@@ -66,6 +66,7 @@ import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.TuiNotice
 import dev.abhi.zmt.core.common.TuiPanel
 import dev.abhi.zmt.core.common.TuiStatus
+import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.core.common.fitScaleFor
 import dev.abhi.zmt.core.common.isCompactWindow
 import dev.abhi.zmt.core.common.isLandscapeWindow
@@ -77,11 +78,12 @@ import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFaint
 import dev.abhi.zmt.ui.theme.TuiFg
 import dev.abhi.zmt.ui.theme.TuiLine
-import dev.abhi.zmt.ui.theme.TuiSurface
+import dev.abhi.zmt.ui.theme.TuiRaised
+import dev.abhi.zmt.ui.theme.TuiRed
 import dev.abhi.zmt.util.asTime
 import kotlin.math.abs
 
-private val PLAYER_CHIP_LABELS = setOf("FMT", "BIT", "RATE", "KBPS", "VBR")
+private val PLAYER_CHIP_LABELS = setOf("FMT", "BIT", "RATE", "KBPS", "VBR", "SRC")
 
 @Composable
 fun ExpandedPlayer(
@@ -488,7 +490,7 @@ private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
         )
     }
     Text(
-        text = listOf(state.artist, state.album)
+        text = listOf(state.artist.asCredit(), state.album)
             .filter { it.isNotBlank() }
             .joinToString(" · ")
             .lowercase(),
@@ -498,6 +500,16 @@ private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
         overflow = TextOverflow.Ellipsis,
         modifier = Modifier.padding(top = 3.dp),
     )
+    state.fault?.let { fault ->
+        Text(
+            text = fault,
+            style = MaterialTheme.typography.labelSmall,
+            color = TuiRed,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 3.dp),
+        )
+    }
     if (state.settings.listSpecs && state.tech.isNotEmpty()) {
         val chipScroll = rememberScrollState()
         Row(
@@ -753,7 +765,7 @@ private fun QueueFooter(state: DmtState, onQueue: () -> Unit) {
         modifier = Modifier
             .fillMaxWidth()
             .border(1.dp, TuiLine)
-            .background(TuiSurface.copy(alpha = 0.4f))
+            .background(TuiRaised)
             .tuiClickable(onQueue)
             .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {

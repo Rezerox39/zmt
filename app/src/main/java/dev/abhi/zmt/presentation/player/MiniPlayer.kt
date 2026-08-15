@@ -16,8 +16,10 @@ import androidx.compose.ui.unit.dp
 import dev.abhi.zmt.core.common.CursorTitle
 import dev.abhi.zmt.core.common.Hairline
 import dev.abhi.zmt.core.common.TuiKey
+import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFaint
+import dev.abhi.zmt.ui.theme.TuiRed
 import dev.abhi.zmt.util.asTime
 
 @Composable
@@ -52,9 +54,9 @@ fun MiniPlayer(
                 val position = state.positionMs.asTime()
                 val duration = state.durationMs.asTime()
                 Text(
-                    text = "${state.artist} · $position/$duration".lowercase(),
+                    text = state.fault ?: "${state.artist.asCredit()} · $position/$duration".lowercase(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = TuiDim,
+                    color = if (state.fault != null) TuiRed else TuiDim,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

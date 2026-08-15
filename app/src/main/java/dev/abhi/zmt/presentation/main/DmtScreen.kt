@@ -56,6 +56,7 @@ import dev.abhi.zmt.core.common.isLandscapeWindow
 import dev.abhi.zmt.presentation.library.AlbumsPane
 import dev.abhi.zmt.presentation.library.ArtistsPane
 import dev.abhi.zmt.presentation.library.FoldersPane
+import dev.abhi.zmt.presentation.library.GenresPane
 import dev.abhi.zmt.presentation.library.LibraryPane
 import dev.abhi.zmt.presentation.library.PlaylistsPane
 import dev.abhi.zmt.presentation.player.ChainContent
@@ -127,6 +128,9 @@ fun DmtScreen(
 
             state.view == DmtView.ARTISTS && state.openArtist != null ->
                 dispatch(DmtAction.OpenArtist(null))
+
+            state.view == DmtView.GENRES && state.openGenre != null ->
+                dispatch(DmtAction.OpenGenre(null))
 
             state.view == DmtView.FOLDERS && state.openFolder != null ->
                 dispatch(DmtAction.OpenFolder(null))
@@ -283,9 +287,12 @@ private fun PaneHost(
                 state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch)
                 state.view == DmtView.SOURCES -> SourcesPane(state, dispatch)
                 state.view == DmtView.SOURCE_LOGIN -> SourceLoginPane(mode = state.loginSource, state = state, dispatch = dispatch)
-                state.scanning -> Caption(stringResource(R.string.scanning))
+                state.scanning && state.tracks.isEmpty() ->
+                    Caption(stringResource(R.string.scanning))
+
                 state.view == DmtView.ALBUMS -> AlbumsPane(state, dispatch)
                 state.view == DmtView.ARTISTS -> ArtistsPane(state, dispatch)
+                state.view == DmtView.GENRES -> GenresPane(state, dispatch)
                 state.view == DmtView.FOLDERS -> FoldersPane(state, dispatch)
                 state.view == DmtView.PLAYLISTS -> PlaylistsPane(state, dispatch)
                 else -> LibraryPane(state, dispatch)
@@ -404,6 +411,9 @@ private fun libraryTabs(state: DmtState): List<Pair<String, DmtView>> =
         add(stringResource(R.string.tab_library) to DmtView.LIBRARY)
         add(stringResource(R.string.tab_albums) to DmtView.ALBUMS)
         add(stringResource(R.string.tab_artists) to DmtView.ARTISTS)
+        if (state.genres.isNotEmpty()) {
+            add(stringResource(R.string.tab_genres) to DmtView.GENRES)
+        }
         if (state.folders.isNotEmpty()) {
             add(stringResource(R.string.tab_folders) to DmtView.FOLDERS)
             add(stringResource(R.string.tab_playlists) to DmtView.PLAYLISTS)

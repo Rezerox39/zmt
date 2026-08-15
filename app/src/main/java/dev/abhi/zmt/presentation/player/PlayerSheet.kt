@@ -43,7 +43,7 @@ import androidx.compose.ui.util.lerp
 import androidx.compose.ui.zIndex
 import dev.abhi.zmt.ui.theme.TuiBg
 import dev.abhi.zmt.ui.theme.TuiLine
-import dev.abhi.zmt.ui.theme.TuiSurface
+import dev.abhi.zmt.ui.theme.TuiRaised
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Job
@@ -185,7 +185,7 @@ fun PlayerSheet(
                 }
                 .drawBehind {
                     val f = fraction.value
-                    drawRect(lerp(TuiSurface.copy(alpha = 0.85f), TuiBg, f))
+                    drawRect(lerp(TuiRaised, TuiBg, f))
                     if (f < 1f) {
                         val inset = 0.5.dp.toPx()
                         drawRect(
@@ -228,17 +228,19 @@ fun PlayerSheet(
                     }
                 },
             ) {
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopCenter)
-                        .fillMaxWidth()
-                        .height(with(LocalDensity.current) { miniHeightPx.toDp() })
-                        .zIndex(if (miniOnTop) 1f else 0f)
-                        .graphicsLayer {
-                            alpha = (1f - fraction.value * 2f).coerceIn(0f, 1f)
-                        },
-                ) {
-                    MiniPlayer(state = state, dispatch = dispatch)
+                if (miniOnTop) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopCenter)
+                            .fillMaxWidth()
+                            .height(with(LocalDensity.current) { miniHeightPx.toDp() })
+                            .zIndex(1f)
+                            .graphicsLayer {
+                                alpha = (1f - fraction.value * 2f).coerceIn(0f, 1f)
+                            },
+                    ) {
+                        MiniPlayer(state = state, dispatch = dispatch)
+                    }
                 }
                 if (renderFull) {
                     Box(

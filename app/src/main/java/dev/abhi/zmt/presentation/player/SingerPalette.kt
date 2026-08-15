@@ -1,12 +1,13 @@
 package dev.abhi.zmt.presentation.player
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
-import dev.abhi.zmt.ui.theme.TuiAccent
+import dev.abhi.zmt.ui.theme.LocalAccent
 
 val GroupVoice = Color(0xFFCBBFA3)
 
-val singerPalette = listOf(
-    TuiAccent,
+private val fixedSingerColors = listOf(
     Color(0xFF7A9BB3),
     Color(0xFF98A96F),
     Color(0xFFAF87A3),
@@ -19,3 +20,11 @@ val singerPalette = listOf(
     Color(0xFF8C96C0),
     Color(0xFFB97B62),
 )
+
+@Composable
+fun rememberSingerPalette(): List<Color> {
+    val accent = LocalAccent.current
+    return remember(accent) {
+        listOf(accent) + fixedSingerColors.filter { it != accent }
+    }
+}

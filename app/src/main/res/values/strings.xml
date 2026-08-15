@@ -1,11 +1,12 @@
 <resources>
     <string name="app_name" translatable="false">zmt</string>
 
-    <string name="tab_library">1:library</string>
-    <string name="tab_albums">2:albums</string>
-    <string name="tab_artists">3:artists</string>
-    <string name="tab_folders">4:folders</string>
-    <string name="tab_playlists">5:lists</string>
+    <string name="tab_library">library</string>
+    <string name="tab_albums">albums</string>
+    <string name="tab_artists">artists</string>
+    <string name="tab_genres">genres</string>
+    <string name="tab_folders">folders</string>
+    <string name="tab_playlists">lists</string>
     <string name="auto_tracks">tracks</string>
     <string name="auto_albums">albums</string>
     <string name="auto_artists">artists</string>
@@ -22,6 +23,7 @@
     <string name="scan_failed">could not reach %1$s - check connection and rescan</string>
     <string name="no_albums">no albums</string>
     <string name="no_artists">no artists</string>
+    <string name="no_genres">no genres</string>
     <string name="no_files">no folders</string>
     <string name="no_playlists">no playlists yet</string>
     <string name="playlist_new">new</string>
@@ -39,6 +41,26 @@
     <string name="perm_settings">[ settings ]</string>
     <string name="perm_revoke">[ revoke ]</string>
     <string name="perms_hint">granted permissions can only be revoked from system settings</string>
+    <string name="page_setup">Setup</string>
+    <string name="setup_step_hello">hello</string>
+    <string name="setup_step_access">access</string>
+    <string name="setup_step_source">source</string>
+    <string name="setup_step_look">look</string>
+    <string name="setup_step_ready">ready</string>
+    <string name="setup_hello_tagline">dear music, thanks.</string>
+    <string name="setup_hello_body">a player for the music already sitting on this phone. no account, no ads, nothing phoning home. four short steps and you are in.</string>
+    <string name="setup_access_body">one permission to see your music, the rest are optional.</string>
+    <string name="setup_access_required">without media library the shelves stay empty. you can grant it later from cfg.</string>
+    <string name="setup_source_body">where does the music come from? switch any time from src.</string>
+    <string name="setup_source_local_why">files already stored on this device</string>
+    <string name="setup_source_jellyfin_why">your own server, log in later from src</string>
+    <string name="setup_look_body">covers get redrawn as ascii. tune it here, or later in cfg.</string>
+    <string name="setup_ready_body">that is everything. the rest lives in cfg whenever you change your mind.</string>
+    <string name="setup_granted">granted</string>
+    <string name="setup_missing">missing</string>
+    <string name="setup_back">[ back ]</string>
+    <string name="setup_next">[ next ]</string>
+    <string name="setup_start">[ start ]</string>
     <string name="perm_audio_label">media library</string>
     <string name="perm_audio_why">read audio files stored on this device</string>
     <string name="perm_audio_off">off: local source cannot list or play anything</string>
@@ -81,6 +103,9 @@
     <string name="tab_chain">chain</string>
 
     <string name="config">config</string>
+    <string name="section_playback">playback</string>
+    <string name="section_lyrics">lyrics</string>
+    <string name="section_display">display</string>
     <string name="tools">tools</string>
     <string name="set_wave">cover wave effect</string>
     <string name="set_normalize">replay gain</string>
@@ -90,6 +115,11 @@
         <item quantity="other">%1$d cols</item>
     </plurals>
     <string name="set_specs">format chips</string>
+    <string name="set_stop_on_dismiss">stop on app close</string>
+    <string name="set_accent">accent color</string>
+    <string name="accent_accept">[ accept ]</string>
+    <string name="lyrics_files_needed">all files access needed</string>
+    <string name="lyrics_files_why">android only lets apps read .lrc and .ttml files next to songs with all files access. without it zmt can still read lyrics stored inside the file tags.</string>
     <string name="set_raw">raw artwork</string>
     <string name="set_lyrics_script">lyrics script</string>
     <string name="lyrics_script_original">original</string>
@@ -99,6 +129,7 @@
     <string name="no_eq">no equalizer app found</string>
     <string name="queued">queued: %1$s</string>
     <string name="playback_error">playback error: %1$s</string>
+    <string name="playback_unsupported">no decoder for %1$s on this device</string>
     <string name="notif_resume_channel">playback</string>
     <string name="notif_resume_title">zmt could not start</string>
     <string name="notif_resume_text">android blocked playback from starting in the background. tap to open zmt and press play.</string>
@@ -156,6 +187,7 @@
     <string name="info_title">title</string>
     <string name="info_artist">artist</string>
     <string name="info_album">album</string>
+    <string name="info_genre">genre</string>
     <string name="info_duration">duration</string>
     <string name="info_uri">uri</string>
     <plurals name="search_tracks_hint">

@@ -21,11 +21,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import dagger.hilt.android.AndroidEntryPoint
 import dev.abhi.zmt.presentation.main.DmtScreen
+import dev.abhi.zmt.presentation.main.SetupScreen
 import dev.abhi.zmt.presentation.player.DmtAction
 import dev.abhi.zmt.presentation.player.PlayerEffect
 import dev.abhi.zmt.presentation.player.PlayerViewModel
 import dev.abhi.zmt.ui.theme.DMTTheme
+import dev.abhi.zmt.ui.theme.TuiAccent
 import dev.abhi.zmt.ui.theme.TuiThemeProvider
+import dev.abhi.zmt.ui.theme.toColor
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -40,6 +43,9 @@ class MainActivity : ComponentActivity() {
         )
         setContent {
             val state by playerViewModel.state.collectAsState()
+            LaunchedEffect(state.settings.accent) {
+                TuiAccent = state.settings.accent.toColor()
+            }
             DMTTheme(theme = state.settings.theme) {
                 TuiThemeProvider(theme = state.settings.theme) {
                 Surface(
@@ -68,10 +74,18 @@ class MainActivity : ComponentActivity() {
                         }
                     }
 
-                    DmtScreen(
-                        state = state,
-                        dispatch = playerViewModel::onIntent,
-                    )
+                    when {
+                        !state.settingsLoaded -> Unit
+                        !state.settings.setupDone -> SetupScreen(
+                            state = state,
+                            dispatch = playerViewModel::onIntent,
+                        )
+
+                        else -> DmtScreen(
+                            state = state,
+                            dispatch = playerViewModel::onIntent,
+                        )
+                    }
                 }
                 }
             }

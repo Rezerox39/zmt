@@ -176,11 +176,11 @@ private fun isArabicScript(text: String): Boolean =
 
 private fun TextUnit.scaledBy(factor: Float): TextUnit = (value * factor).sp
 
-private fun singerColorFor(line: LyricLine): Color =
+private fun singerColorFor(line: LyricLine, palette: List<Color>): Color =
     when {
-        line.interlude -> singerPalette.first()
+        line.interlude -> palette.first()
         line.singer < 0 -> GroupVoice
-        else -> singerPalette[line.singer % singerPalette.size]
+        else -> palette[line.singer % palette.size]
     }
 
 @Composable
@@ -206,7 +206,7 @@ private fun LyricLineRows(
         line
     }
 
-    val singerColor = singerColorFor(shown)
+    val singerColor = singerColorFor(shown, rememberSingerPalette())
     val hasSinger = !shown.interlude && shown.singer >= 0
     val align = when (shown.voice) {
         Voice.SECONDARY -> TextAlign.End

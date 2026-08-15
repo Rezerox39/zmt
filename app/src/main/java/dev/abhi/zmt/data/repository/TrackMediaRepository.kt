@@ -26,6 +26,7 @@ import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.model.TrackSource
 import dev.abhi.zmt.util.asKHz
 import dev.abhi.zmt.util.asMB
+import dev.abhi.zmt.util.asTime
 import dev.abhi.zmt.util.codecLabel
 import dev.abhi.zmt.util.heAacLabel
 import dev.abhi.zmt.util.probeFrames
@@ -142,6 +143,7 @@ class TrackMediaRepository @Inject constructor(
             }
         }
         return buildList {
+            val cueTrack = track?.takeIf { it.id < 0 }
             if (mime.isNotEmpty()) {
                 add(
                     Spec(
@@ -200,6 +202,28 @@ class TrackMediaRepository @Inject constructor(
                     Spec(
                         label = "SIZE",
                         value = it.asMB(),
+                    ),
+                )
+            }
+            cueTrack?.let {
+                add(
+                    Spec(
+                        label = "SRC",
+                        value = "CUE",
+                    ),
+                )
+                add(
+                    Spec(
+                        label = "IMAGE",
+                        value = it.path.substringAfterLast('/'),
+                    ),
+                )
+                val start = it.clipStartMs ?: 0L
+                val end = it.clipEndMs ?: (start + it.durationMs)
+                add(
+                    Spec(
+                        label = "CLIP",
+                        value = "${start.asTime()} - ${end.asTime()}",
                     ),
                 )
             }
@@ -263,6 +287,14 @@ class TrackMediaRepository @Inject constructor(
                 Spec(
                     label = "IMPL",
                     value = "BUNDLED",
+                ),
+            )
+        } else {
+            add(
+                Spec(
+                    label = "DEC",
+                    value = "NONE",
+                    hot = true,
                 ),
             )
         }

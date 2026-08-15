@@ -3,6 +3,7 @@ package dev.abhi.zmt.data.repository
 import android.content.Context
 import androidx.datastore.preferences.core.edit
 import dagger.hilt.android.qualifiers.ApplicationContext
+import dev.abhi.zmt.data.source.local.KEY_ACCENT
 import dev.abhi.zmt.data.source.local.KEY_BLOCKED_FOLDERS
 import dev.abhi.zmt.data.source.local.KEY_COLS
 import dev.abhi.zmt.data.source.local.KEY_JELLYFIN_TOKEN
@@ -19,6 +20,8 @@ import dev.abhi.zmt.data.source.local.KEY_ROMANIZED_LYRICS
 import dev.abhi.zmt.data.source.local.KEY_SOURCE_MODE
 import dev.abhi.zmt.data.source.local.KEY_SPECS
 import dev.abhi.zmt.data.source.local.KEY_SPEED
+import dev.abhi.zmt.data.source.local.KEY_STOP_ON_DISMISS
+import dev.abhi.zmt.data.source.local.KEY_SETUP_DONE
 import dev.abhi.zmt.data.source.local.KEY_STAT_COUNTS
 import dev.abhi.zmt.data.source.local.KEY_STAT_TOTAL
 import dev.abhi.zmt.data.source.local.KEY_TELEGRAM_AUTH_STATE
@@ -28,6 +31,7 @@ import dev.abhi.zmt.data.source.local.KEY_WAVE
 import dev.abhi.zmt.data.source.local.dmtStore
 import dev.abhi.zmt.data.source.local.encodeCounts
 import dev.abhi.zmt.data.source.local.toCounts
+import dev.abhi.zmt.domain.model.AccentColor
 import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.ThemeOption
 import dev.abhi.zmt.domain.model.DmtStats
@@ -56,6 +60,10 @@ class PreferencesRepository @Inject constructor(
             romanizedLyrics = prefs[KEY_ROMANIZED_LYRICS] ?: false,
             rawArt = prefs[KEY_RAW] ?: false,
             theme = runCatching { ThemeOption.valueOf(prefs[KEY_THEME] ?: "AMOLED_BLACK") }.getOrDefault(ThemeOption.AMOLED_BLACK),
+            accent = AccentColor.entries[(prefs[KEY_ACCENT]
+                ?: 0).mod(AccentColor.entries.size)],
+            stopOnDismiss = prefs[KEY_STOP_ON_DISMISS] ?: false,
+            setupDone = prefs[KEY_SETUP_DONE] ?: false,
             blockedFolders = prefs[KEY_BLOCKED_FOLDERS] ?: emptySet(),
             sourceMode = SourceMode.entries[(prefs[KEY_SOURCE_MODE]
                 ?: 0).mod(SourceMode.entries.size)],
@@ -79,6 +87,9 @@ class PreferencesRepository @Inject constructor(
             it[KEY_ROMANIZED_LYRICS] = settings.romanizedLyrics
             it[KEY_RAW] = settings.rawArt
             it[KEY_THEME] = settings.theme.name
+            it[KEY_ACCENT] = settings.accent.ordinal
+            it[KEY_STOP_ON_DISMISS] = settings.stopOnDismiss
+            it[KEY_SETUP_DONE] = settings.setupDone
             it[KEY_BLOCKED_FOLDERS] = settings.blockedFolders
             it[KEY_SOURCE_MODE] = settings.sourceMode.ordinal
             it[KEY_LIBRARY_SORT] = settings.librarySort.ordinal

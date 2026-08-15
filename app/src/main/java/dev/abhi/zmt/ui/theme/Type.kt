@@ -4,13 +4,16 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import dev.abhi.zmt.R
 
-val JetBrainsMono = FontFamily(
-    Font(R.font.jetbrains_mono, FontWeight.Normal),
-    Font(R.font.jetbrains_mono_bold, FontWeight.Bold),
+val PlexMono = FontFamily(
+    Font(R.font.plex_mono, FontWeight.Normal),
+    Font(R.font.plex_mono_medium, FontWeight.Medium),
+    Font(R.font.plex_mono_bold, FontWeight.Bold),
+    Font(R.font.plex_mono_italic, FontWeight.Normal, FontStyle.Italic),
 )
 
 private fun mono(
@@ -18,7 +21,7 @@ private fun mono(
     weight: FontWeight = FontWeight.Normal,
     tracking: Float = 0f,
 ) = TextStyle(
-    fontFamily = JetBrainsMono,
+    fontFamily = PlexMono,
     fontSize = size.sp,
     fontWeight = weight,
     letterSpacing = tracking.sp,
@@ -33,5 +36,5 @@ val Typography = Typography(
     bodySmall = mono(11, tracking = 0.5f),
     labelLarge = mono(13, FontWeight.Bold, tracking = 1f),
     labelMedium = mono(12, tracking = 1.5f),
-    labelSmall = mono(10, tracking = 1.5f),
+    labelSmall = mono(11, FontWeight.Medium, tracking = 0.5f),
 )

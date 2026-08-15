@@ -1,16 +1,26 @@
 package dev.abhi.zmt.presentation.settings
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
@@ -22,8 +32,9 @@ import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.tuiClickable
+import dev.abhi.zmt.domain.model.AccentColor
+import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.SourceMode
-// Theme removed - only Classic theme
 import dev.abhi.zmt.presentation.player.DmtAction
 import dev.abhi.zmt.presentation.player.DmtState
 import dev.abhi.zmt.presentation.player.DmtView
@@ -32,8 +43,12 @@ import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFaint
 import dev.abhi.zmt.ui.theme.TuiFg
 import dev.abhi.zmt.ui.theme.TuiLine
+import dev.abhi.zmt.ui.theme.toColor
 
 private val COVER_COLS_STEPS = listOf(48, 64, 80, 96)
+
+fun nextCoverCols(current: Int): Int =
+    COVER_COLS_STEPS[(COVER_COLS_STEPS.indexOf(current) + 1).mod(COVER_COLS_STEPS.size)]
 
 @Composable
 fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
@@ -42,14 +57,8 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
     val off = stringResource(R.string.off)
 
     Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
-        Caption(stringResource(R.string.config))
+        Caption(stringResource(R.string.section_playback))
 
-        SettingRow(
-            label = stringResource(R.string.set_wave),
-            value = if (settings.wave) on else off,
-        ) {
-            dispatch(DmtAction.Config(settings.copy(wave = !settings.wave)))
-        }
         SettingRow(
             label = stringResource(R.string.set_normalize),
             value = if (settings.normalizeVolume) on else off,
@@ -61,19 +70,14 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             )
         }
         SettingRow(
-            label = stringResource(R.string.set_detail),
-            value = pluralStringResource(R.plurals.set_detail_value, settings.cols, settings.cols),
+            label = stringResource(R.string.set_stop_on_dismiss),
+            value = if (settings.stopOnDismiss) on else off,
         ) {
-            val currentIndex = COVER_COLS_STEPS.indexOf(settings.cols)
-            val next = COVER_COLS_STEPS[(currentIndex + 1).mod(COVER_COLS_STEPS.size)]
-            dispatch(DmtAction.Config(settings.copy(cols = next)))
+            dispatch(DmtAction.Config(settings.copy(stopOnDismiss = !settings.stopOnDismiss)))
         }
-        SettingRow(
-            label = stringResource(R.string.set_raw),
-            value = if (settings.rawArt) on else off,
-        ) {
-            dispatch(DmtAction.Config(settings.copy(rawArt = !settings.rawArt)))
-        }
+
+        Caption(stringResource(R.string.section_lyrics))
+
         SettingRow(
             label = stringResource(R.string.set_lyrics_script),
             value = stringResource(
@@ -90,12 +94,35 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 ),
             )
         }
+
+        Caption(stringResource(R.string.section_display))
+
+        SettingRow(
+            label = stringResource(R.string.set_wave),
+            value = if (settings.wave) on else off,
+        ) {
+            dispatch(DmtAction.Config(settings.copy(wave = !settings.wave)))
+        }
+        SettingRow(
+            label = stringResource(R.string.set_detail),
+            value = pluralStringResource(R.plurals.set_detail_value, settings.cols, settings.cols),
+        ) {
+            dispatch(DmtAction.Config(settings.copy(cols = nextCoverCols(settings.cols))))
+        }
+        SettingRow(
+            label = stringResource(R.string.set_raw),
+            value = if (settings.rawArt) on else off,
+        ) {
+            dispatch(DmtAction.Config(settings.copy(rawArt = !settings.rawArt)))
+        }
         SettingRow(
             label = stringResource(R.string.set_specs),
             value = if (settings.listSpecs) on else off,
         ) {
             dispatch(DmtAction.Config(settings.copy(listSpecs = !settings.listSpecs)))
         }
+        AccentRow(settings = settings, dispatch = dispatch)
+
         Caption(stringResource(R.string.tools))
         SettingRow(
             label = stringResource(R.string.set_eq),
@@ -166,7 +193,7 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 .tuiClickable { runCatching { uriHandler.openUri(creditUrl) } },
         ) {
             Text(
-                text = "▪ ",
+                text = "▌ ",
                 style = MaterialTheme.typography.labelMedium,
                 color = TuiAccent,
             )
@@ -185,7 +212,44 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
 }
 
 @Composable
-private fun SettingRow(
+fun AccentRow(settings: DmtSettings, dispatch: (DmtAction) -> Unit) {
+    var preview by remember(settings.accent) { mutableStateOf(settings.accent) }
+    Column {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 5.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.set_accent),
+                style = MaterialTheme.typography.bodyLarge,
+                color = TuiFg,
+            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(
+                    modifier = Modifier
+                        .size(14.dp)
+                        .background(preview.toColor())
+                        .border(1.dp, TuiLine),
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                TuiKey(label = "[ ${preview.label} ]") { preview = preview.next() }
+                if (preview != settings.accent) {
+                    Spacer(modifier = Modifier.width(6.dp))
+                    TuiKey(label = stringResource(R.string.accent_accept)) {
+                        dispatch(DmtAction.Config(settings.copy(accent = preview)))
+                    }
+                }
+            }
+        }
+        HorizontalDivider(color = TuiLine)
+    }
+}
+
+@Composable
+fun SettingRow(
     label: String,
     value: String,
     onClick: () -> Unit,

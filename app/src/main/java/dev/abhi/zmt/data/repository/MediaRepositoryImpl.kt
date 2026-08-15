@@ -2,7 +2,10 @@ package dev.abhi.zmt.data.repository
 
 import android.content.ContentUris
 import android.content.Context
+import android.database.ContentObserver
 import android.database.Cursor
+import android.os.Handler
+import android.os.Looper
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.core.net.toUri
@@ -11,7 +14,11 @@ import dev.abhi.zmt.data.source.local.cue.CueLibrary
 import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.model.TrackSource
 import dev.abhi.zmt.domain.repository.MediaRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -21,10 +28,43 @@ class MediaRepositoryImpl @Inject constructor(
     private val settingsRepository: PreferencesRepository,
 ) : MediaRepository {
 
+    private val scanLock = Mutex()
+
+    @Volatile
+    private var cache: List<Track>? = null
+
+    @Volatile
+    private var refresh = false
+
+    private val changes = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+
+    private val mediaObserver = object : ContentObserver(Handler(Looper.getMainLooper())) {
+        override fun onChange(selfChange: Boolean) {
+            cache = null
+            changes.tryEmit(Unit)
+        }
+    }
+
+    init {
+        context.contentResolver.registerContentObserver(
+            MediaStore.Audio.Media.EXTERNAL_CONTENT_URI,
+            true,
+            mediaObserver,
+        )
+    }
+
+    override fun invalidate() {
+        cache = null
+        refresh = true
+    }
+
+    override fun changes(): Flow<Unit> = changes
+
     private val projection = arrayOf(
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.TITLE,
         MediaStore.Audio.Media.ARTIST,
+        MediaStore.Audio.Media.ALBUM_ARTIST,
         MediaStore.Audio.Media.ALBUM,
         MediaStore.Audio.Media.ALBUM_ID,
         MediaStore.Audio.Media.DATA,
@@ -33,11 +73,16 @@ class MediaRepositoryImpl @Inject constructor(
         MediaStore.Audio.Media.BITRATE,
         MediaStore.Audio.Media.SIZE,
         MediaStore.Audio.Media.TRACK,
+        MediaStore.Audio.Media.GENRE,
         MediaStore.Audio.Media.DATE_ADDED,
         MediaStore.Audio.Media.DATE_MODIFIED,
     )
 
-    override suspend fun scan(): List<Track> {
+    override suspend fun scan(): List<Track> = scanLock.withLock {
+        cache ?: load().also { cache = it }
+    }
+
+    private suspend fun load(): List<Track> {
         val blocked = settingsRepository.settings.first().blockedFolders
         val base = buildList {
             runCatching {
@@ -55,12 +100,16 @@ class MediaRepositoryImpl @Inject constructor(
                 }
             }
         }
+        refresh = false
         return CueLibrary.expand(base).sortedBy { it.title.lowercase() }
     }
 }
 
 private fun Cursor.text(column: String, fallback: String): String =
     getString(getColumnIndexOrThrow(column)).orUnknown(fallback)
+
+private fun Cursor.nullableText(column: String): String? =
+    getString(getColumnIndexOrThrow(column))?.takeIf { it.isNotBlank() }
 
 private fun Cursor.long(column: String): Long = getLong(getColumnIndexOrThrow(column))
 
@@ -76,6 +125,7 @@ private fun Cursor.toTrack(): Track {
         uri = ContentUris.withAppendedId(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, id),
         title = text(MediaStore.Audio.Media.TITLE, "unknown title"),
         artist = text(MediaStore.Audio.Media.ARTIST, "unknown artist"),
+        albumArtist = text(MediaStore.Audio.Media.ALBUM_ARTIST, ""),
         album = text(MediaStore.Audio.Media.ALBUM, "unknown album"),
         path = getString(getColumnIndexOrThrow(MediaStore.Audio.Media.DATA)).orEmpty(),
         durationMs = long(MediaStore.Audio.Media.DURATION),
@@ -86,6 +136,7 @@ private fun Cursor.toTrack(): Track {
         dateAdded = long(MediaStore.Audio.Media.DATE_ADDED),
         dateModified = long(MediaStore.Audio.Media.DATE_MODIFIED),
         coverUri = ContentUris.withAppendedId(albumArtBase, albumId),
+        genre = nullableText(MediaStore.Audio.Media.GENRE),
         source = TrackSource.LOCAL,
     )
 }

@@ -22,12 +22,11 @@ import androidx.compose.ui.unit.dp
 import dev.abhi.zmt.R
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.ListRow
-import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.ScrollMemory
 import dev.abhi.zmt.core.common.SearchRow
-import dev.abhi.zmt.core.common.SubdirHeader
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.domain.model.toAlbums
 import dev.abhi.zmt.presentation.player.DmtAction
 import dev.abhi.zmt.presentation.player.DmtState
 import dev.abhi.zmt.presentation.player.SheetHeader
@@ -35,7 +34,7 @@ import dev.abhi.zmt.presentation.player.TuiSheet
 import dev.abhi.zmt.ui.theme.TuiFaint
 import dev.abhi.zmt.util.asTime
 
-private class GroupSpec<T>(
+internal class GroupSpec<T>(
     val items: List<T>,
     val filtered: List<T>,
     val openKey: String?,
@@ -44,10 +43,14 @@ private class GroupSpec<T>(
     val key: (T) -> String,
     val title: (T) -> String,
     val listMeta: (T) -> String,
+    val detailMeta: (T) -> String = { "" },
+    val countLead: (T) -> String = { "" },
     val trackMeta: (Track) -> String,
-    val tracks: (T) -> List<Track>,
+    val children: (T) -> GroupChildren,
     val open: (String?) -> DmtAction,
 )
+
+internal fun <T> GroupSpec<T>.tracksOf(item: T): List<Track> = children(item).flatten()
 
 @Composable
 fun AlbumsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
@@ -61,8 +64,9 @@ fun AlbumsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             key = { it.name },
             title = { it.name },
             listMeta = { "${it.artist} · ${it.tracks.size} trk" },
-            trackMeta = { "${it.artist} · ${it.durationMs.asTime()}" },
-            tracks = { it.tracks },
+            detailMeta = { it.artist },
+            trackMeta = { trackLine2(it, album = false) },
+            children = { GroupChildren.Tracks(it.tracks) },
             open = { DmtAction.OpenAlbum(it) },
         ),
         state = state,
@@ -82,9 +86,33 @@ fun ArtistsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             key = { it.name },
             title = { it.name },
             listMeta = { "${it.albums} alb · ${it.tracks.size} trk" },
-            trackMeta = { "${it.album} · ${it.durationMs.asTime()}" },
-            tracks = { it.tracks },
+            detailMeta = { "" },
+            countLead = { "${it.albums} alb" },
+            trackMeta = { trackLine2(it, artist = false) },
+            children = { GroupChildren.Albums(it.tracks.toAlbums()) },
             open = { DmtAction.OpenArtist(it) },
+        ),
+        state = state,
+        dispatch = dispatch,
+    )
+}
+
+@Composable
+fun GenresPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    GroupPane(
+        spec = GroupSpec(
+            items = state.genres,
+            filtered = state.filteredGenres,
+            openKey = state.openGenre,
+            searchHint = R.plurals.search_artists_hint,
+            emptyText = R.string.no_genres,
+            key = { it.name },
+            title = { it.name },
+            listMeta = { "${it.tracks.size} trk" },
+            detailMeta = { "" },
+            trackMeta = { trackLine2(it) },
+            children = { GroupChildren.Tracks(it.tracks) },
+            open = { DmtAction.OpenGenre(it) },
         ),
         state = state,
         dispatch = dispatch,
@@ -103,8 +131,9 @@ fun FoldersPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             key = { it.path },
             title = { it.name },
             listMeta = { "${it.tracks.size} trk" },
-            trackMeta = { "${it.artist} · ${it.durationMs.asTime()}" },
-            tracks = { it.tracks },
+            detailMeta = { it.path },
+            trackMeta = { trackLine2(it, album = false) },
+            children = { GroupChildren.Tracks(it.tracks) },
             open = { DmtAction.OpenFolder(it) },
         ),
         state = state,
@@ -149,11 +178,11 @@ private fun <T> GroupList(
                 modifier = Modifier.padding(vertical = 8.dp),
             ) {
                 TuiKey(label = "[ ${stringResource(R.string.action_play)} ]") {
-                    dispatch(DmtAction.PlayAt(spec.tracks(item), 0))
+                    dispatch(DmtAction.PlayAt(spec.tracksOf(item), 0))
                     sheetItem = null
                 }
                 TuiKey(label = "[ ${stringResource(R.string.action_queue)} ]") {
-                    dispatch(DmtAction.Enqueue(spec.tracks(item), spec.title(item)))
+                    dispatch(DmtAction.Enqueue(spec.tracksOf(item), spec.title(item)))
                     sheetItem = null
                 }
             }
@@ -191,37 +220,9 @@ private fun <T> GroupList(
                             modifier = Modifier.padding(horizontal = 8.dp),
                         )
                     },
+                    modifier = Modifier.animateItem(),
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun <T> GroupDetail(
-    spec: GroupSpec<T>,
-    item: T,
-    state: DmtState,
-    dispatch: (DmtAction) -> Unit,
-) {
-    val tracks = spec.tracks(item)
-    LazyColumn {
-        item {
-            SubdirHeader(
-                title = spec.title(item),
-                meta = spec.listMeta(item).lowercase(),
-                onBack = { dispatch(spec.open(null)) },
-            )
-        }
-        itemsIndexed(tracks, key = { _, track -> track.id }) { index, track ->
-            ListRow(
-                index = index,
-                line1 = track.title,
-                line2 = spec.trackMeta(track).lowercase(),
-                current = track.id.toString() == state.nowPlayingId,
-                onClick = { dispatch(DmtAction.PlayAt(tracks, index)) },
-                trailing = { TrackBadges(track) },
-            )
         }
     }
 }

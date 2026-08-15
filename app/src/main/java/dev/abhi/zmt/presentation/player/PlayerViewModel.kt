@@ -15,6 +15,7 @@ import kotlin.OptIn
 import androidx.media3.common.PlaybackParameters
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.Tracks
 import androidx.media3.session.MediaController
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -28,6 +29,7 @@ import dev.abhi.zmt.data.repository.TrackMediaRepository
 import dev.abhi.zmt.domain.model.Album
 import dev.abhi.zmt.domain.model.Artist
 import dev.abhi.zmt.domain.model.Folder
+import dev.abhi.zmt.domain.model.Genre
 import dev.abhi.zmt.domain.model.LibrarySort
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
@@ -51,8 +53,10 @@ import dev.abhi.zmt.util.resolveQueue
 import dev.abhi.zmt.util.toMediaItem
 import dev.abhi.zmt.util.togglePlayPause
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOn
@@ -71,15 +75,18 @@ import kotlin.time.Duration.Companion.seconds
 
 private val SPEED_STEPS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
 private val SLEEP_STEPS = listOf(0, 15, 30, 60)
+private val LIBRARY_SETTLE = 500.milliseconds
 
 private data class FilteredLibrary(
     val tracks: List<Track>,
     val albums: List<Album>,
     val artists: List<Artist>,
     val folders: List<Folder>,
+    val genres: List<Genre> = emptyList(),
     val playlists: List<Playlist> = emptyList(),
 )
 
+@OptIn(FlowPreview::class)
 @HiltViewModel
 class PlayerViewModel @Inject constructor(
     @param:ApplicationContext private val context: Context,
@@ -123,7 +130,7 @@ class PlayerViewModel @Inject constructor(
     init {
         viewModelScope.launch {
             val settings = preferencesRepository.settings.first()
-            reduce { it.copy(settings = settings) }
+            reduce { it.copy(settings = settings, settingsLoaded = true) }
         }
         viewModelScope.launch {
             val initErr = telegramLogin.initialize()
@@ -146,6 +153,11 @@ class PlayerViewModel @Inject constructor(
                 .collect { route ->
                     reduce { if (it.route == route) it else it.copy(route = route) }
                 }
+        }
+        viewModelScope.launch {
+            scanLibrary.changes()
+                .debounce(LIBRARY_SETTLE)
+                .collect { if (currentState.hasPermission) scan() }
         }
         if (currentState.hasPermission) scan()
         connect()
@@ -186,15 +198,17 @@ class PlayerViewModel @Inject constructor(
         val albums = currentState.albums
         val artists = currentState.artists
         val folders = currentState.folders
+        val genres = currentState.genres
         val playlists = currentState.playlists
         val sort = currentState.settings.librarySort
-        val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredPlaylists) =
+        val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredGenres, filteredPlaylists) =
             withContext(Dispatchers.Default) {
                 FilteredLibrary(
                     tracks = sectioned(filter(tracks, query, sort)),
                     albums = filterAlbums(albums, query),
                     artists = filterArtists(artists, query),
                     folders = filterFolders(folders, query),
+                    genres = filterGenres(genres, query),
                     playlists = filterPlaylists(playlists, query),
                 )
             }
@@ -205,6 +219,7 @@ class PlayerViewModel @Inject constructor(
                     filteredAlbums = filteredAlbums,
                     filteredArtists = filteredArtists,
                     filteredFolders = filteredFolders,
+                    filteredGenres = filteredGenres,
                     filteredPlaylists = filteredPlaylists,
                 )
             }
@@ -322,6 +337,9 @@ class PlayerViewModel @Inject constructor(
     private fun filterFolders(folders: List<Folder>, query: String): List<Folder> =
         folders.matching(query) { listOf(it.name) }
 
+    private fun filterGenres(genres: List<Genre>, query: String): List<Genre> =
+        genres.matching(query) { listOf(it.name) }
+
     private fun filterPlaylists(playlists: List<Playlist>, query: String): List<Playlist> =
         playlists.matching(query) { listOf(it.name) }
 
@@ -436,6 +454,7 @@ class PlayerViewModel @Inject constructor(
 
             is DmtAction.OpenAlbum -> reduce { it.copy(openAlbum = intent.name) }
             is DmtAction.OpenArtist -> reduce { it.copy(openArtist = intent.name) }
+            is DmtAction.OpenGenre -> reduce { it.copy(openGenre = intent.name) }
             is DmtAction.OpenFolder -> reduce { it.copy(openFolder = intent.path) }
             is DmtAction.OpenPlaylist -> reduce { it.copy(openPlaylist = intent.name) }
 
@@ -773,6 +792,7 @@ class PlayerViewModel @Inject constructor(
                     nowPlayingId = mediaItem?.mediaId,
                     showDownloadSheet = false,
                     lyrics = null,
+                    fault = null,
                     error = null,
                 )
             }
@@ -825,6 +845,19 @@ class PlayerViewModel @Inject constructor(
             }
         }
 
+        override fun onTracksChanged(tracks: Tracks) {
+            if (tracks.groups.isEmpty() || tracks.isTypeSupported(C.TRACK_TYPE_AUDIO)) return
+            controller?.pause()
+            reduce {
+                val format = currentState.tech
+                    .firstOrNull { spec -> spec.label == "FMT" }
+                    ?.value
+                    ?.lowercase()
+                    .orEmpty()
+                it.copy(fault = context.getString(R.string.playback_unsupported, format))
+            }
+        }
+
         override fun onPlayerError(error: PlaybackException) {
             // Log detailed error info for debugging
             val sb = StringBuilder()
@@ -852,7 +885,7 @@ class PlayerViewModel @Inject constructor(
             android.util.Log.e("PlaybackDebug", sb.toString())
             reduce {
                 val name = error.errorCodeName.lowercase()
-                it.copy(error = context.getString(R.string.playback_error, name))
+                it.copy(fault = context.getString(R.string.playback_error, name))
             }
         }
     }
@@ -910,10 +943,12 @@ class PlayerViewModel @Inject constructor(
                         albums = emptyList(),
                         artists = emptyList(),
                         folders = emptyList(),
+                        genres = emptyList(),
                         filtered = emptyList(),
                         filteredAlbums = emptyList(),
                         filteredArtists = emptyList(),
                         filteredFolders = emptyList(),
+                        filteredGenres = emptyList(),
                         error = context.getString(
                             R.string.scan_failed,
                             state.settings.sourceMode.label,
@@ -923,7 +958,7 @@ class PlayerViewModel @Inject constructor(
                 return@launch
             }
             indexTracks(library.tracks)
-            val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders) = withContext(
+            val (filteredTracks, filteredAlbums, filteredArtists, filteredFolders, filteredGenres) = withContext(
                 Dispatchers.Default,
             ) {
                 FilteredLibrary(
@@ -931,6 +966,7 @@ class PlayerViewModel @Inject constructor(
                     albums = filterAlbums(library.albums, query),
                     artists = filterArtists(library.artists, query),
                     folders = filterFolders(library.folders, query),
+                    genres = filterGenres(library.genres, query),
                 )
             }
             reduce {
@@ -940,10 +976,12 @@ class PlayerViewModel @Inject constructor(
                     albums = library.albums,
                     artists = library.artists,
                     folders = library.folders,
+                    genres = library.genres,
                     filtered = filteredTracks,
                     filteredAlbums = filteredAlbums,
                     filteredArtists = filteredArtists,
                     filteredFolders = filteredFolders,
+                    filteredGenres = filteredGenres,
                     error = null,
                 )
             }

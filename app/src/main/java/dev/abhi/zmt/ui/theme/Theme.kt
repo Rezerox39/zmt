@@ -3,7 +3,11 @@ package dev.abhi.zmt.ui.theme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.staticCompositionLocalOf
 import dev.abhi.zmt.domain.model.ThemeOption
+
+val LocalAccent = staticCompositionLocalOf { TuiAccent }
 
 private val AmoledBlackScheme = darkColorScheme(
     primary = TuiBright,
@@ -66,9 +70,11 @@ fun DMTTheme(
         ThemeOption.RED_AMOLED -> RedAmoledScheme
         ThemeOption.LIQUID_GLASS -> LiquidGlassScheme
     }
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalAccent provides TuiAccent) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            content = content,
+        )
+    }
 }
