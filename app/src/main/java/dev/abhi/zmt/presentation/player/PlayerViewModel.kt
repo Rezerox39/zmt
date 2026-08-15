@@ -43,15 +43,13 @@ import kotlinx.coroutines.flow.collectLatest
 import dev.abhi.zmt.domain.usecase.ScanLibraryUseCase
 import dev.abhi.zmt.playback.PlaybackCache
 import dev.abhi.zmt.playback.PlaybackService
-import dev.abhi.zmt.util.QUEUE_CAP
 import dev.abhi.zmt.util.audioPermission
 import dev.abhi.zmt.util.cycleRepeat
 import dev.abhi.zmt.util.mediaController
-import dev.abhi.zmt.util.queueLabels
+import dev.abhi.zmt.util.queueWithPosition
 import dev.abhi.zmt.util.resolveQueue
 import dev.abhi.zmt.util.toMediaItem
 import dev.abhi.zmt.util.togglePlayPause
-import dev.abhi.zmt.util.windowQueue
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -110,6 +108,9 @@ class PlayerViewModel @Inject constructor(
     private var controller: MediaController? = null
     private var pendingEmbed: Pair<Track, String>? = null
     private var noticeJob: Job? = null
+    private var coverJob: Job? = null
+    private var techJob: Job? = null
+    private var lyricsJob: Job? = null
     private var sleepEndAt: Long? = null
     private var sessionRestored = false
 
@@ -214,8 +215,8 @@ class PlayerViewModel @Inject constructor(
         val id = currentState.nowPlayingId
         if (id == null) return null
         // Try to find the track in available lists by matching nowPlayingId
-        for (list in listOf(currentState.filtered, currentState.tracks, currentState.queue.mapNotNull { mid ->
-            currentState.tracks.find { it.id.toString() == mid }
+        for (list in listOf(currentState.filtered, currentState.tracks, currentState.queue.mapNotNull { entry ->
+            currentState.tracks.find { it.id == entry.index.toLong() }
         })) {
             val found = list.find { it.id.toString() == id }
             if (found != null) return found
@@ -474,10 +475,9 @@ class PlayerViewModel @Inject constructor(
             is DmtAction.PlayAt -> c?.run {
                 reduce { it.copy(error = null) }
                 indexTracks(intent.list)
-                val (queue, startIndex) = windowQueue(intent.list, intent.index)
                 setMediaItems(
-                    queue.map { it.toMediaItem() },
-                    startIndex,
+                    intent.list.map { it.toMediaItem() },
+                    intent.index,
                     0L,
                 )
                 prepare()
@@ -486,7 +486,7 @@ class PlayerViewModel @Inject constructor(
 
             is DmtAction.Enqueue -> c?.run {
                 indexTracks(intent.list)
-                addMediaItems(intent.list.take(QUEUE_CAP).map { it.toMediaItem() })
+                addMediaItems(intent.list.map { it.toMediaItem() })
                 prepare()
                 notify(context.getString(R.string.queued, intent.label))
             }
@@ -798,7 +798,16 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
-            reduce { it.copy(shuffle = shuffleModeEnabled) }
+            controller?.let { c ->
+                val (queue, queuePosition) = c.queueWithPosition()
+                reduce {
+                    it.copy(
+                        shuffle = shuffleModeEnabled,
+                        queue = queue,
+                        queuePosition = queuePosition,
+                    )
+                }
+            }
         }
 
         override fun onRepeatModeChanged(repeatMode: Int) {
@@ -810,7 +819,10 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onTimelineChanged(timeline: Timeline, reason: Int) {
-            controller?.let { c -> reduce { it.copy(queue = c.queueLabels()) } }
+            controller?.let { c ->
+                val (queue, queuePosition) = c.queueWithPosition()
+                reduce { it.copy(queue = queue, queuePosition = queuePosition) }
+            }
         }
 
         override fun onPlayerError(error: PlaybackException) {
@@ -846,6 +858,7 @@ class PlayerViewModel @Inject constructor(
     }
 
     private fun syncFrom(c: MediaController) {
+        val (queue, queuePosition) = c.queueWithPosition()
         reduce {
             it.copy(
                 nowPlayingId = c.currentMediaItem?.mediaId,
@@ -856,7 +869,8 @@ class PlayerViewModel @Inject constructor(
                 repeat = c.repeatMode,
                 album = c.mediaMetadata.albumTitle?.toString().orEmpty(),
                 speed = c.playbackParameters.speed,
-                queue = c.queueLabels(),
+                queue = queue,
+                queuePosition = queuePosition,
             )
         }
         loadLiked(c.currentMediaItem)
@@ -951,10 +965,9 @@ class PlayerViewModel @Inject constructor(
             val session = preferencesRepository.lastSession() ?: return@launch
             val (existing, index, position) = session.resolveQueue(tracks) ?: return@launch
             indexTracks(existing)
-            val (queue, startIndex) = windowQueue(existing, index)
             c.setMediaItems(
-                queue.map { it.toMediaItem() },
-                startIndex,
+                existing.map { it.toMediaItem() },
+                index,
                 position,
             )
             c.prepare()
@@ -1011,7 +1024,8 @@ class PlayerViewModel @Inject constructor(
     private fun loadLyrics(mediaItem: MediaItem?) {
         val forId = mediaItem?.mediaId
         reduce { it.copy(lyricsFetching = true) }
-        viewModelScope.launch {
+        lyricsJob?.cancel()
+        lyricsJob = viewModelScope.launch {
             val track = currentState.tracks.find { it.id.toString() == forId }
             val lyrics = track?.let { getLyrics(it) }
             reduce {
@@ -1028,7 +1042,8 @@ class PlayerViewModel @Inject constructor(
         val uri: Uri? = mediaItem?.mediaMetadata?.artworkUri
         val fileUri: Uri? = mediaItem?.localConfiguration?.uri
         val forId = mediaItem?.mediaId
-        viewModelScope.launch {
+        coverJob?.cancel()
+        coverJob = viewModelScope.launch {
             val raw = withContext(Dispatchers.IO) {
                 uri?.let { trackMediaRepository.loadArt(it, fileUri) }
             }
@@ -1054,7 +1069,8 @@ class PlayerViewModel @Inject constructor(
     private fun loadTech(mediaItem: MediaItem?) {
         val uri = mediaItem?.localConfiguration?.uri
         val id = mediaItem?.mediaId
-        viewModelScope.launch {
+        techJob?.cancel()
+        techJob = viewModelScope.launch {
             val track = currentState.tracks.find { t -> t.id.toString() == id }
             val tech = uri?.let { getTrackTech(it, track) }.orEmpty()
             val specs = tech + cacheSpec(uri)

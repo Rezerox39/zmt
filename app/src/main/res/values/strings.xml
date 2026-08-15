@@ -99,6 +99,9 @@
     <string name="no_eq">no equalizer app found</string>
     <string name="queued">queued: %1$s</string>
     <string name="playback_error">playback error: %1$s</string>
+    <string name="notif_resume_channel">playback</string>
+    <string name="notif_resume_title">zmt could not start</string>
+    <string name="notif_resume_text">android blocked playback from starting in the background. tap to open zmt and press play.</string>
     <string name="set_rescan">rescan library</string>
     <string name="action_play">play</string>
     <string name="action_queue">queue</string>

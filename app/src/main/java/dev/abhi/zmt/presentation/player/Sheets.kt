@@ -121,14 +121,14 @@ fun QueueList(
     modifier: Modifier = Modifier,
 ) {
     LazyColumn(modifier = modifier) {
-        itemsIndexed(state.queue, key = { index, _ -> index }) { index, label ->
+        itemsIndexed(state.queue, key = { index, _ -> index }) { position, entry ->
             QueueRow(
-                index = index,
-                label = label,
-                current = index == state.queueIndex,
-                onOpen = { dispatch(DmtAction.Jump(index)) },
-                onPlayNext = { dispatch(DmtAction.PlayNext(index)) },
-                onRemove = { dispatch(DmtAction.RemoveAt(index)) },
+                position = position,
+                label = entry.label,
+                current = entry.index == state.queueIndex,
+                onOpen = { dispatch(DmtAction.Jump(entry.index)) },
+                onPlayNext = { dispatch(DmtAction.PlayNext(entry.index)) },
+                onRemove = { dispatch(DmtAction.RemoveAt(entry.index)) },
             )
         }
         state.lastRemoved?.let { removal ->
@@ -145,7 +145,7 @@ fun QueueList(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun QueueRow(
-    index: Int,
+    position: Int,
     label: String,
     current: Boolean,
     onOpen: () -> Unit,
@@ -201,7 +201,7 @@ private fun QueueRow(
                     .background(if (current) TuiAccent else TuiFaint),
             )
             Text(
-                text = " %02d ".format(index + 1),
+                text = " %02d ".format(position + 1),
                 style = MaterialTheme.typography.labelSmall,
                 color = TuiFaint,
             )

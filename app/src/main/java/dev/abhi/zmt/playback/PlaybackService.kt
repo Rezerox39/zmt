@@ -3,23 +3,32 @@ import dev.abhi.zmt.presentation.widget.MiniPlayerWidget
 
 import android.app.PendingIntent
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.audiofx.AudioEffect
 import android.net.Uri
 import android.os.Bundle
 import androidx.annotation.OptIn
+import androidx.core.app.NotificationChannelCompat
+import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.common.Timeline
+import androidx.media3.common.TrackSelectionParameters.AudioOffloadPreferences
 import androidx.media3.common.util.BitmapLoader
 import androidx.media3.common.util.UnstableApi
 import androidx.media3.datasource.DataSourceBitmapLoader
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.analytics.PlaybackStatsListener
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
+import androidx.media3.exoplayer.source.ShuffleOrder.DefaultShuffleOrder
+import androidx.media3.exoplayer.trackselection.DefaultTrackSelector
 import androidx.media3.session.CacheBitmapLoader
 import androidx.media3.session.CommandButton
 import androidx.media3.session.DefaultMediaNotificationProvider
@@ -31,7 +40,6 @@ import androidx.media3.session.SessionCommand
 import androidx.media3.session.SessionError
 import androidx.media3.session.SessionResult
 import com.google.common.collect.ImmutableList
-import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
@@ -46,9 +54,9 @@ import dev.abhi.zmt.domain.model.toArtists
 import dev.abhi.zmt.domain.model.toFolders
 import dev.abhi.zmt.domain.repository.MediaRepository
 import dev.abhi.zmt.domain.usecase.MediaSourceProvider
+import dev.abhi.zmt.util.notificationPermission
 import dev.abhi.zmt.util.resolveQueue
 import dev.abhi.zmt.util.toMediaItem
-import dev.abhi.zmt.util.windowQueue
 import dev.jyotiraditya.metadata.AudioTags
 import dev.jyotiraditya.metadata.TagKey
 import kotlinx.coroutines.CoroutineScope
@@ -72,6 +80,8 @@ private const val ARTISTS_ID = "artists"
 private const val ARTIST_PREFIX = "artist/"
 private const val FOLDERS_ID = "folders"
 private const val FOLDER_PREFIX = "folder/"
+private const val RESUME_CHANNEL_ID = "resume"
+private const val RESUME_NOTIFICATION_ID = 2
 
 @AndroidEntryPoint
 class PlaybackService : MediaLibraryService() {
@@ -133,6 +143,19 @@ class PlaybackService : MediaLibraryService() {
                 handleAudioFocus,
             )
             .setHandleAudioBecomingNoisy(true)
+            .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setTrackSelector(
+                DefaultTrackSelector(this).apply {
+                    parameters = buildUponParameters()
+                        .setAudioOffloadPreferences(
+                            AudioOffloadPreferences.Builder()
+                                .setAudioOffloadMode(AudioOffloadPreferences.AUDIO_OFFLOAD_MODE_ENABLED)
+                                .setIsGaplessSupportRequired(true)
+                                .build(),
+                        )
+                        .build()
+                },
+            )
             .build()
         val keepPlaybackHistory = false
         player.addAnalyticsListener(
@@ -151,10 +174,21 @@ class PlaybackService : MediaLibraryService() {
                 recordStats(playedMs, mediaId)
             },
         )
+        setListener(
+            object : Listener {
+                override fun onForegroundServiceStartNotAllowedException() {
+                    notifyResumeBlocked()
+                }
+            },
+        )
         player.addListener(
             object : Player.Listener {
-                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) =
+                override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
+                    if (shuffleModeEnabled) {
+                        player.setShuffleOrder(DefaultShuffleOrder(player.mediaItemCount))
+                    }
                     publishButtons()
+                }
 
                 override fun onRepeatModeChanged(repeatMode: Int) = publishButtons()
 
@@ -186,14 +220,7 @@ class PlaybackService : MediaLibraryService() {
         val artworkLoader = DataSourceBitmapLoader.Builder(this).build()
         mediaSession = MediaLibrarySession.Builder(this, player, LibraryCallback())
             .setBitmapLoader(FreshCopyBitmapLoader(CacheBitmapLoader(artworkLoader)))
-            .setSessionActivity(
-                PendingIntent.getActivity(
-                    this,
-                    0,
-                    Intent(this, MainActivity::class.java),
-                    PendingIntent.FLAG_IMMUTABLE,
-                ),
-            )
+            .setSessionActivity(sessionActivity())
             .setMediaButtonPreferences(sessionButtons(player))
             .build()
         scope.launch {
@@ -647,14 +674,12 @@ class PlaybackService : MediaLibraryService() {
             list: List<Track>,
             index: Int,
             positionMs: Long = 0L,
-        ): MediaSession.MediaItemsWithStartPosition {
-            val (queue, start) = windowQueue(list, index)
-            return MediaSession.MediaItemsWithStartPosition(
-                queue.map { it.toMediaItem() },
-                start,
+        ): MediaSession.MediaItemsWithStartPosition =
+            MediaSession.MediaItemsWithStartPosition(
+                list.map { it.toMediaItem() },
+                index,
                 positionMs,
             )
-        }
 
         private suspend fun resolveItems(mediaItems: List<MediaItem>): List<MediaItem> {
             val tracks = library()
@@ -744,6 +769,7 @@ class PlaybackService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class)
     override fun onDestroy() {
+        clearListener()
         (mediaSession?.player as? ExoPlayer)?.let {
             broadcastEffectSession(
                 AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_CONTROL_SESSION,
@@ -757,6 +783,43 @@ class PlaybackService : MediaLibraryService() {
         }
         mediaSession = null
         super.onDestroy()
+    }
+
+    private fun sessionActivity(): PendingIntent =
+        PendingIntent.getActivity(
+            this,
+            0,
+            Intent(this, MainActivity::class.java),
+            PendingIntent.FLAG_IMMUTABLE,
+        )
+
+    private fun notifyResumeBlocked() {
+        val permission = notificationPermission
+        if (permission != null &&
+            ContextCompat.checkSelfPermission(this, permission) != PackageManager.PERMISSION_GRANTED
+        ) {
+            return
+        }
+
+        val manager = NotificationManagerCompat.from(this)
+        if (!manager.areNotificationsEnabled()) return
+
+        manager.createNotificationChannel(
+            NotificationChannelCompat.Builder(
+                RESUME_CHANNEL_ID,
+                NotificationManagerCompat.IMPORTANCE_DEFAULT,
+            ).setName(getString(R.string.notif_resume_channel)).build(),
+        )
+        manager.notify(
+            RESUME_NOTIFICATION_ID,
+            NotificationCompat.Builder(this, RESUME_CHANNEL_ID)
+                .setSmallIcon(R.drawable.ic_stat_dmt)
+                .setContentTitle(getString(R.string.notif_resume_title))
+                .setContentText(getString(R.string.notif_resume_text))
+                .setContentIntent(sessionActivity())
+                .setAutoCancel(true)
+                .build(),
+        )
     }
 
     private fun broadcastEffectSession(action: String, sessionId: Int) {

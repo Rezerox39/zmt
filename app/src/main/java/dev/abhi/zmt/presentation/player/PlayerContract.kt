@@ -13,6 +13,7 @@ import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.domain.model.Spec
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.util.QueueEntry
 
 enum class LibrarySection { ALL, RECENT, PLAYED }
 
@@ -49,8 +50,9 @@ data class DmtState(
     val repeat: Int = Player.REPEAT_MODE_OFF,
     val positionMs: Long = 0L,
     val durationMs: Long = 0L,
-    val queue: List<String> = emptyList(),
+    val queue: List<QueueEntry> = emptyList(),
     val queueIndex: Int = 0,
+    val queuePosition: Int = 0,
     val album: String = "",
     val liked: Boolean = false,
     val currentTrack: Track? = null,
