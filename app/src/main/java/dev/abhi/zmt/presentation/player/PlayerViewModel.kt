@@ -864,10 +864,9 @@ class PlayerViewModel @Inject constructor(
         }
 
         override fun onPlayerError(error: PlaybackException) {
-            // Log detailed error info for debugging
             val sb = StringBuilder()
             sb.appendLine("PlaybackError: ${error.errorCodeName} (${error.errorCode})")
-            // Walk cause chain looking for HTTP response code
+            var httpCode = -1
             var c: Throwable? = error.cause
             while (c != null) {
                 val cn = c::class.simpleName ?: ""
@@ -876,10 +875,8 @@ class PlayerViewModel @Inject constructor(
                     try {
                         val codeField = c::class.java.getDeclaredField("responseCode")
                         codeField.isAccessible = true
-                        sb.appendLine("  >>> HTTP Status: ${codeField.get(c)} <<<")
-                        val headersField = c::class.java.getDeclaredField("headerFields")
-                        headersField.isAccessible = true
-                        sb.appendLine("  >>> Response headers: ${headersField.get(c)} <<<")
+                        httpCode = codeField.get(c) as? Int ?: -1
+                        sb.appendLine("  >>> HTTP Status: $httpCode <<<")
                     } catch (_: Exception) {
                         sb.appendLine("  >>> HTTP error (reflection failed) <<<")
                     }
@@ -888,10 +885,22 @@ class PlayerViewModel @Inject constructor(
                 c = c.cause
             }
             android.util.Log.e("PlaybackDebug", sb.toString())
-            reduce {
-                val name = error.errorCodeName.lowercase()
-                it.copy(fault = context.getString(R.string.playback_error, name))
+
+            val message = when {
+                httpCode == 403 -> "stream blocked (403) \u2014 skipping"
+                httpCode == 429 -> "rate limited (429) \u2014 retrying soon"
+                httpCode in 500..599 -> "server error ($httpCode) \u2014 skipping"
+                error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
+                    "bad HTTP response \u2014 skipping"
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                    "network error \u2014 check connection"
+                error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ||
+                error.errorCode == PlaybackException.ERROR_CODE_DRM_PROHIBITED_OPERATION ->
+                    "content unavailable"
+                else -> context.getString(R.string.playback_error, error.errorCodeName.lowercase())
             }
+            reduce { it.copy(fault = message) }
         }
     }
 

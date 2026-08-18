@@ -4,9 +4,12 @@ import android.util.Log
 import dev.abhi.zmt.data.remote.youtubedl.YouTubeDLBridge
 import dev.abhi.zmt.data.remote.youtubedl.YouTubeDLResponse
 import dev.abhi.zmt.data.remote.youtube.innertube.Innertube
+import dev.abhi.zmt.data.remote.youtube.innertube.models.Context
 import dev.abhi.zmt.data.remote.youtube.innertube.models.UserAgents
 import dev.abhi.zmt.data.remote.youtube.innertube.models.bodies.PlayerBody
 import dev.abhi.zmt.data.remote.youtube.innertube.requests.player
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.isActive
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -24,6 +27,16 @@ data class ResolvedStream(
 
 /**
  * Resolves YouTube Music stream URLs using yt-dlp (primary) or Innertube (fallback).
+ *
+ * Fallback chain:
+ *   1. yt-dlp (best quality, handles JS signature deciphering)
+ *   2. Innertube IOS context
+ *   3. Innertube Web (WEB_REMIX) context
+ *   4. Innertube Android Music context
+ *   5. Innertube TV context
+ *
+ * [resolve] returns only the best first result.
+ * [resolveAll] returns all viable options in priority order for retry.
  */
 @Singleton
 class YoutubeStreamResolver @Inject constructor(
@@ -31,16 +44,51 @@ class YoutubeStreamResolver @Inject constructor(
 ) {
 
     suspend fun resolve(videoId: String): ResolvedStream? {
-        // 1. Try yt-dlp (PRIMARY) — handles JS signature deciphering
         val ytdl = resolveViaYtDlp(videoId)
         if (ytdl != null) return ytdl
 
-        // 2. Fallback to Innertube player API
-        val inner = resolveViaInnertube(videoId)
-        if (inner != null) return inner
+        val contexts = listOf(
+            Context.DefaultIOS,
+            Context.DefaultWeb,
+            Context.DefaultAndroidMusic,
+            Context.DefaultTV,
+        )
+        for (context in contexts) {
+            if (!currentCoroutineContext().isActive) return null
+            val stream = resolveViaInnertubeContext(videoId, context)
+            if (stream != null) return stream
+        }
 
         Log.e(TAG, "All resolvers failed for $videoId")
         return null
+    }
+
+    /**
+     * Return ALL viable stream options for [videoId] in priority order.
+     * Useful for retrying playback with alternate URLs if the first one fails.
+     */
+    suspend fun resolveAll(videoId: String): List<ResolvedStream> {
+        val results = mutableListOf<ResolvedStream>()
+
+        val ytdl = resolveViaYtDlp(videoId)
+        if (ytdl != null) results.add(ytdl)
+
+        val contexts = listOf(
+            Context.DefaultIOS,
+            Context.DefaultWeb,
+            Context.DefaultAndroidMusic,
+            Context.DefaultTV,
+        )
+        for (context in contexts) {
+            if (!currentCoroutineContext().isActive) break
+            val stream = resolveViaInnertubeContext(videoId, context)
+            if (stream != null && results.none { it.url == stream.url }) {
+                results.add(stream)
+            }
+        }
+
+        Log.d(TAG, "resolveAll($videoId): ${results.size} options")
+        return results
     }
 
     private suspend fun resolveViaYtDlp(videoId: String): ResolvedStream? {
@@ -65,7 +113,6 @@ class YoutubeStreamResolver @Inject constructor(
 
             if (url != null) {
                 Log.d(TAG, "yt-dlp: ${response.formatId}, size=${response.fileSize}")
-                // yt-dlp handles its own User-Agent, use a generic one for the DataSource
                 ResolvedStream(url = url, contentLength = response.fileSize, resolverName = "yt-dlp")
             } else {
                 response.formats
@@ -79,10 +126,14 @@ class YoutubeStreamResolver @Inject constructor(
         }
     }
 
-    private suspend fun resolveViaInnertube(videoId: String): ResolvedStream? {
+    private suspend fun resolveViaInnertubeContext(
+        videoId: String,
+        context: Context,
+    ): ResolvedStream? {
+        val label = context.client.clientName
         return try {
             val result = Innertube.player(
-                body = PlayerBody(videoId = videoId),
+                body = PlayerBody(videoId = videoId, context = context),
                 checkIsValid = true,
             )
             val response = result?.getOrNull() ?: return null
@@ -97,9 +148,7 @@ class YoutubeStreamResolver @Inject constructor(
 
             val url = format.url ?: return null
 
-            // Determine which context succeeded and use its User-Agent
-            val contextName = response.context?.client?.clientName ?: "IOS"
-            val userAgent = when (contextName) {
+            val userAgent = when (label) {
                 "ANDROID_MUSIC" -> UserAgents.ANDROID_MUSIC
                 "IOS" -> UserAgents.IOS
                 "WEB_REMIX" -> UserAgents.DESKTOP
@@ -107,10 +156,15 @@ class YoutubeStreamResolver @Inject constructor(
                 else -> UserAgents.IOS
             }
 
-            Log.d(TAG, "Innertube fallback ($contextName): ${format.mimeType} (${format.bitrate}kbps)")
-            ResolvedStream(url = url, userAgent = userAgent, contentLength = format.contentLength ?: 0L, resolverName = "Innertube($contextName)")
+            Log.d(TAG, "Innertube($label): ${format.mimeType} (${format.bitrate}kbps)")
+            ResolvedStream(
+                url = url,
+                userAgent = userAgent,
+                contentLength = format.contentLength ?: 0L,
+                resolverName = "Innertube($label)",
+            )
         } catch (e: Exception) {
-            Log.e(TAG, "Innertube failed: ${e.message}")
+            Log.w(TAG, "Innertube($label) failed for $videoId: ${e.message}")
             null
         }
     }

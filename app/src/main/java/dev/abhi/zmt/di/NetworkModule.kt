@@ -21,8 +21,9 @@ object NetworkModule {
     fun httpClient(): HttpClient =
         HttpClient(CIO) {
             install(HttpTimeout) {
-                connectTimeoutMillis = 5_000
+                connectTimeoutMillis = 8_000
                 socketTimeoutMillis = 15_000
+                requestTimeoutMillis = 20_000
             }
         }
 
@@ -30,7 +31,9 @@ object NetworkModule {
     @Singleton
     fun okHttpClient(): OkHttpClient =
         Builder()
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(30, TimeUnit.SECONDS)
+            .connectTimeout(10, TimeUnit.SECONDS)
+            .readTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(15, TimeUnit.SECONDS)
+            .retryOnConnectionFailure(true)
             .build()
 }

@@ -56,6 +56,9 @@ import dev.abhi.zmt.domain.repository.MediaRepository
 import dev.abhi.zmt.domain.usecase.MediaSourceProvider
 import dev.abhi.zmt.util.notificationPermission
 import dev.abhi.zmt.util.resolveQueue
+import android.util.Log
+import androidx.media3.common.PlaybackException
+import androidx.media3.exoplayer.DefaultLoadControl
 import dev.abhi.zmt.util.toMediaItem
 import dev.jyotiraditya.metadata.AudioTags
 import dev.jyotiraditya.metadata.TagKey
@@ -134,8 +137,19 @@ class PlaybackService : MediaLibraryService() {
         val renderersFactory = DefaultRenderersFactory(this)
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         val mediaSourceFactory = DefaultMediaSourceFactory(offlineCacheDataSourceFactory)
+
+        val loadControl = DefaultLoadControl.Builder()
+            .setBufferDurationsMs(
+                /* minBufferMs */       15_000,
+                /* maxBufferMs */       60_000,
+                /* bufferForPlaybackMs */       1_500,
+                /* bufferForPlaybackAfterRebufferMs */ 3_000,
+            )
+            .build()
+
         val player = ExoPlayer.Builder(this, renderersFactory)
             .setMediaSourceFactory(mediaSourceFactory)
+            .setLoadControl(loadControl)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setUsage(C.USAGE_MEDIA)
@@ -209,6 +223,19 @@ class PlaybackService : MediaLibraryService() {
                         AudioEffect.ACTION_OPEN_AUDIO_EFFECT_CONTROL_SESSION,
                         audioSessionId,
                     )
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    Log.e("PlaybackService", "Player error: ${error.errorCodeName} (${error.errorCode})")
+                    if (player.mediaItemCount > 1) {
+                        val nextIndex = player.currentMediaItemIndex + 1
+                        if (nextIndex < player.mediaItemCount) {
+                            Log.w("PlaybackService", "Auto-skipping to next track")
+                            player.seekToDefaultPosition(nextIndex)
+                        } else if (player.repeatMode == Player.REPEAT_MODE_ALL) {
+                            player.seekToDefaultPosition(0)
+                        }
+                    }
                 }
             },
         )
