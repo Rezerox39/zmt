@@ -895,8 +895,7 @@ class PlayerViewModel @Inject constructor(
                 error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
                 error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
                     "network error \u2014 check connection"
-                error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ||
-                error.errorCode == PlaybackException.ERROR_CODE_DRM_PROHIBITED_OPERATION ->
+                error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ->
                     "content unavailable"
                 else -> context.getString(R.string.playback_error, error.errorCodeName.lowercase())
             }
