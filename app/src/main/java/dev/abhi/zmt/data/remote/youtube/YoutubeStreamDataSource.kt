@@ -109,7 +109,7 @@ class YoutubeStreamDataSource private constructor(
 
         val httpFactory = DefaultHttpDataSource.Factory()
             .setConnectTimeoutMs(15_000)
-            .setReadTimeoutMs(20_000)
+            .setReadTimeoutMs(30_000)
             .setUserAgent(candidate.userAgent)
             .setAllowCrossProtocolRedirects(true)
 

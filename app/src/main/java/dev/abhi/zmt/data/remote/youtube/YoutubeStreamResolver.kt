@@ -22,6 +22,7 @@ data class ResolvedStream(
     val userAgent: String = UserAgents.IOS,
     val contentLength: Long = 0L,
     val resolverName: String = "unknown",
+    val httpHeaders: Map<String, String> = emptyMap(),
 )
 
 @Singleton
@@ -30,9 +31,11 @@ class YoutubeStreamResolver @Inject constructor(
 ) {
 
     suspend fun resolve(videoId: String): ResolvedStream? {
+        // yt-dlp is the PRIMARY resolver — it handles cipher, n-transform, PO tokens
         val ytdl = resolveViaYtDlp(videoId)
         if (ytdl != null) return ytdl
 
+        // Fallback: try Innertube clients (VISIONOS and AndroidVR don't need cipher)
         val contexts = listOf(
             Context.DefaultVisionOS,
             Context.DefaultAndroidVR,
@@ -54,9 +57,11 @@ class YoutubeStreamResolver @Inject constructor(
     suspend fun resolveAll(videoId: String): List<ResolvedStream> {
         val results = mutableListOf<ResolvedStream>()
 
+        // yt-dlp first
         val ytdl = resolveViaYtDlp(videoId)
         if (ytdl != null) results.add(ytdl)
 
+        // Innertube clients
         val contexts = listOf(
             Context.DefaultVisionOS,
             Context.DefaultAndroidVR,
@@ -79,50 +84,82 @@ class YoutubeStreamResolver @Inject constructor(
 
     private suspend fun resolveViaYtDlp(videoId: String): ResolvedStream? {
         if (!youTubeDLBridge.isReady()) {
-            Log.w(TAG, "yt-dlp bridge not ready (not initialized)")
+            Log.w(TAG, "yt-dlp bridge not ready")
             return null
         }
 
         return try {
-            val jsonStr = youTubeDLBridge.runDownload(videoId) ?: return null
-            val response = YouTubeDLResponse.fromString(jsonStr)
-
-            if (response.id != videoId) {
-                Log.w(TAG, "yt-dlp returned wrong video ID: ${response.id} != $videoId")
+            val jsonStr = youTubeDLBridge.runDownload(videoId)
+            if (jsonStr == null) {
+                Log.w(TAG, "yt-dlp returned null for $videoId")
                 return null
             }
 
-            // Try the top-level URL first
+            val response = YouTubeDLResponse.fromString(jsonStr)
+
+            // Check for yt-dlp errors
+            if (response.hasError) {
+                Log.w(TAG, "yt-dlp error for $videoId: ${response.error}")
+                return null
+            }
+
+            if (response.id != videoId) {
+                Log.w(TAG, "yt-dlp returned wrong video ID: ${response.id}")
+                return null
+            }
+
+            // Try top-level URL first
             var url = response.url
             var formatId = response.formatId
+            var fileSize = response.fileSize
+            var headers = emptyMap<String, String>()
 
-            // Fallback: try the first format with a URL
+            // If no top-level URL, find best audio format with URL
             if (url == null && response.formats != null) {
-                for (fmt in response.formats) {
-                    if (fmt.url != null) {
-                        url = fmt.url
-                        formatId = fmt.formatId
-                        break
+                // Prefer audio-only formats
+                val audioFormats = response.formats.filter { it.isAudioOnly && it.url != null }
+                val bestAudio = audioFormats.maxByOrNull { it.audioBitrate ?: 0.0 }
+
+                if (bestAudio != null) {
+                    url = bestAudio.url
+                    formatId = bestAudio.formatId
+                    fileSize = bestAudio.fileSize ?: 0L
+                    headers = bestAudio.httpHeaders ?: emptyMap()
+                    Log.d(TAG, "yt-dlp: picked audio format ${bestAudio.formatId} (${bestAudio.audioBitrate}kbps)")
+                } else {
+                    // Fallback: any format with URL
+                    val anyFormat = response.formats.firstOrNull { it.url != null }
+                    if (anyFormat != null) {
+                        url = anyFormat.url
+                        formatId = anyFormat.formatId
+                        fileSize = anyFormat.fileSize ?: 0L
+                        headers = anyFormat.httpHeaders ?: emptyMap()
+                        Log.d(TAG, "yt-dlp: picked format ${anyFormat.formatId}")
                     }
                 }
             }
 
             if (url == null) {
-                Log.w(TAG, "yt-dlp returned no URL for $videoId")
+                Log.w(TAG, "yt-dlp returned no URL for $videoId (${response.formats?.size ?: 0} formats)")
                 return null
             }
 
-            // Quick HEAD check to validate the URL is actually reachable
+            // Validate URL is reachable
             if (!isUrlReachable(url)) {
-                Log.w(TAG, "yt-dlp URL not reachable for $videoId, skipping")
+                Log.w(TAG, "yt-dlp URL not reachable for $videoId")
                 return null
             }
 
-            Log.d(TAG, "yt-dlp: format=$formatId, size=${response.fileSize}")
+            // Extract User-Agent from headers if available, or use a default
+            val userAgent = headers["User-Agent"] ?: UserAgents.DESKTOP
+
+            Log.d(TAG, "yt-dlp success: format=$formatId, size=$fileSize")
             ResolvedStream(
                 url = url,
-                contentLength = response.fileSize,
+                userAgent = userAgent,
+                contentLength = fileSize,
                 resolverName = "yt-dlp($formatId)",
+                httpHeaders = headers,
             )
         } catch (e: Exception) {
             Log.e(TAG, "yt-dlp failed for $videoId: ${e.message}")
@@ -143,17 +180,28 @@ class YoutubeStreamResolver @Inject constructor(
             val response = result?.getOrNull() ?: return null
             val streamingData = response.streamingData ?: return null
 
-            val format = streamingData.adaptiveFormats
-                ?.filter { it.url != null }
-                ?.filter { it.mimeType.startsWith("audio/") }
-                ?.let { formats ->
-                    // Prefer audio-only formats: opus 251 > m4a 140 > highest bitrate
-                    formats.findLast { it.itag == 251 }
-                        ?: formats.findLast { it.itag == 140 }
-                        ?: formats.maxByOrNull { it.bitrate ?: 0L }
+            // Try direct URL formats first, then signatureCipher
+            val formats = streamingData.adaptiveFormats
+            if (formats.isNullOrEmpty()) return null
+
+            // Find best audio format with direct URL
+            val format = formats
+                .filter { it.mimeType.startsWith("audio/") }
+                .let { audioFormats ->
+                    audioFormats.find { it.url != null && it.itag == 251 }
+                        ?: audioFormats.find { it.url != null && it.itag == 140 }
+                        ?: audioFormats.find { it.url != null }
+                        // If no direct URL, try signatureCipher (needs cipher deobfuscation)
+                        ?: audioFormats.find { it.signatureCipher != null }
                 } ?: return null
 
-            val url = format.url ?: return null
+            val url = format.url
+            if (url == null) {
+                // Format has signatureCipher but no direct URL — we can't handle this
+                // without cipher deobfuscation, skip it
+                Log.d(TAG, "Innertube($label): format has signatureCipher only, skipping")
+                return null
+            }
 
             val userAgent = when (label) {
                 "VISIONOS" -> UserAgents.VISIONOS
@@ -178,9 +226,6 @@ class YoutubeStreamResolver @Inject constructor(
         }
     }
 
-    /**
-     * Quick HEAD request to verify a URL is reachable (validates it won't 404 on read).
-     */
     private fun isUrlReachable(url: String): Boolean {
         return try {
             val conn = URL(url).openConnection() as HttpURLConnection
