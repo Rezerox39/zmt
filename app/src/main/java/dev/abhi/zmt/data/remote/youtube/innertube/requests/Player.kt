@@ -73,10 +73,12 @@ suspend fun Innertube.player(
     tryContexts(
         body = body,
         checkIsValid = checkIsValid,
-        // Mirror ViTune's exact order: IOS → Web → AndroidMusic → TV
-        Context.DefaultIOS,
+        // Metrolist's proven order: VISIONOS → AndroidVR → Web → others
+        Context.DefaultVisionOS,
+        Context.DefaultAndroidVR,
         Context.DefaultWeb,
         Context.DefaultAndroidMusic,
+        Context.DefaultIOS,
         Context.DefaultTV
     )
 }

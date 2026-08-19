@@ -161,6 +161,39 @@ data class Context(
             )
         )
 
+        val DefaultVisionOS = Context(
+            client = Client(
+                clientId = 101,
+                clientName = "VISIONOS",
+                clientVersion = "0.1",
+                platform = "DESKTOP",
+                osName = "visionOS",
+                osVersion = "1.3.21O771",
+                deviceMake = "Apple",
+                deviceModel = "RealityDevice14,1",
+                userAgent = UserAgents.VISIONOS,
+                apiKey = "AIzaSyC9XL3ZjWddXya6X74dJoCTL-WEYFDNX30",
+                music = false
+            )
+        )
+
+        val DefaultAndroidVR = Context(
+            client = Client(
+                clientId = 28,
+                clientName = "ANDROID_VR",
+                clientVersion = "1.65.10",
+                platform = "MOBILE",
+                osName = "Android",
+                osVersion = "12L",
+                deviceMake = "Oculus",
+                deviceModel = "Quest 3",
+                androidSdkVersion = 32,
+                userAgent = UserAgents.ANDROID_VR,
+                apiKey = "AIzaSyAOghZGza2MQSZkY_zfZ370N-PUdXEo8AI",
+                music = false
+            )
+        )
+
         val DefaultTV = Context(
             client = Client(
                 clientId = 7,
@@ -193,4 +226,8 @@ object UserAgents {
         "com.google.android.apps.youtube.music/7.27.52 (Linux; U; Android 11) gzip"
     const val IOS = "com.google.ios.youtube/20.03.02 (iPhone16,2; U; CPU iOS 18_2_1 like Mac OS X;)"
     const val TV = "Mozilla/5.0 (ChromiumStylePlatform) Cobalt/Version"
+    const val VISIONOS =
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
+    const val ANDROID_VR =
+        "com.google.android.apps.youtube.vr.oculus/1.65.10 (Linux; U; Android 12L; eureka-user Build/SQ3A.220605.009.A1) gzip"
 }

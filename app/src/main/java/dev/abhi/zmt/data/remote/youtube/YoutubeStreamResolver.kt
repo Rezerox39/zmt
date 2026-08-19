@@ -34,9 +34,11 @@ class YoutubeStreamResolver @Inject constructor(
         if (ytdl != null) return ytdl
 
         val contexts = listOf(
-            Context.DefaultIOS,
+            Context.DefaultVisionOS,
+            Context.DefaultAndroidVR,
             Context.DefaultWeb,
             Context.DefaultAndroidMusic,
+            Context.DefaultIOS,
             Context.DefaultTV,
         )
         for (context in contexts) {
@@ -56,9 +58,11 @@ class YoutubeStreamResolver @Inject constructor(
         if (ytdl != null) results.add(ytdl)
 
         val contexts = listOf(
-            Context.DefaultIOS,
+            Context.DefaultVisionOS,
+            Context.DefaultAndroidVR,
             Context.DefaultWeb,
             Context.DefaultAndroidMusic,
+            Context.DefaultIOS,
             Context.DefaultTV,
         )
         for (context in contexts) {
@@ -141,17 +145,19 @@ class YoutubeStreamResolver @Inject constructor(
 
             val format = streamingData.adaptiveFormats
                 ?.filter { it.url != null }
+                ?.filter { it.mimeType.startsWith("audio/") }
                 ?.let { formats ->
-                    // Prefer free audio formats: itag 140 (m4a 128k) or 251 (opus)
-                    formats.findLast { it.itag == 140 }
-                        ?: formats.findLast { it.itag == 251 }
-                        ?: formats.findLast { it.mimeType.startsWith("audio/") }
+                    // Prefer audio-only formats: opus 251 > m4a 140 > highest bitrate
+                    formats.findLast { it.itag == 251 }
+                        ?: formats.findLast { it.itag == 140 }
                         ?: formats.maxByOrNull { it.bitrate ?: 0L }
                 } ?: return null
 
             val url = format.url ?: return null
 
             val userAgent = when (label) {
+                "VISIONOS" -> UserAgents.VISIONOS
+                "ANDROID_VR" -> UserAgents.ANDROID_VR
                 "ANDROID_MUSIC" -> UserAgents.ANDROID_MUSIC
                 "IOS" -> UserAgents.IOS
                 "WEB_REMIX" -> UserAgents.DESKTOP
