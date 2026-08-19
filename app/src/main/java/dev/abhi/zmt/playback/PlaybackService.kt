@@ -83,6 +83,7 @@ private const val ARTISTS_ID = "artists"
 private const val ARTIST_PREFIX = "artist/"
 private const val FOLDERS_ID = "folders"
 private const val FOLDER_PREFIX = "folder/"
+private const val MAX_ERROR_RETRIES = 1
 private const val RESUME_CHANNEL_ID = "resume"
 private const val RESUME_NOTIFICATION_ID = 2
 
@@ -115,9 +116,6 @@ class PlaybackService : MediaLibraryService() {
     private var normalizeVolume = false
     private var stopOnDismiss = false
     private var currentErrorRetries = 0
-    private companion object {
-        const val MAX_ERROR_RETRIES = 1
-    }
 
     @Inject
     lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
