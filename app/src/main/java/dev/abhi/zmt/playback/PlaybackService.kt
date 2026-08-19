@@ -114,6 +114,10 @@ class PlaybackService : MediaLibraryService() {
     private var sleepEndAt: Long? = null
     private var normalizeVolume = false
     private var stopOnDismiss = false
+    private var currentErrorRetries = 0
+    private companion object {
+        const val MAX_ERROR_RETRIES = 1
+    }
 
     @Inject
     lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
@@ -213,6 +217,7 @@ class PlaybackService : MediaLibraryService() {
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+                    currentErrorRetries = 0
                     saveSession()
                     applyReplayGain(mediaItem)
                     updateWidget()
@@ -227,6 +232,28 @@ class PlaybackService : MediaLibraryService() {
 
                 override fun onPlayerError(error: PlaybackException) {
                     Log.e("PlaybackService", "Player error: ${error.errorCodeName} (${error.errorCode})")
+
+                    val isIoError = error.errorCode in setOf(
+                        PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
+                        PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
+                        PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT,
+                        PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED,
+                        PlaybackException.ERROR_CODE_IO_READ_POSITION_OUT_OF_RANGE,
+                    )
+
+                    if (isIoError && currentErrorRetries < MAX_ERROR_RETRIES) {
+                        currentErrorRetries++
+                        Log.w("PlaybackService", "IO error, retry ${currentErrorRetries}/$MAX_ERROR_RETRIES (re-prepare)")
+                        scope.launch {
+                            kotlinx.coroutines.delay(500)
+                            player.prepare()
+                            player.playWhenReady = true
+                        }
+                        return
+                    }
+
+                    currentErrorRetries = 0
                     if (player.mediaItemCount > 1) {
                         val nextIndex = player.currentMediaItemIndex + 1
                         if (nextIndex < player.mediaItemCount) {

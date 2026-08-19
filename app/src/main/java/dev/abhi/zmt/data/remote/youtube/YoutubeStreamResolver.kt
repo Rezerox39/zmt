@@ -10,14 +10,13 @@ import dev.abhi.zmt.data.remote.youtube.innertube.models.bodies.PlayerBody
 import dev.abhi.zmt.data.remote.youtube.innertube.requests.player
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.isActive
+import java.net.HttpURLConnection
+import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamResolver"
 
-/**
- * Resolved YouTube stream URL with the User-Agent that was used to fetch it.
- */
 data class ResolvedStream(
     val url: String,
     val userAgent: String = UserAgents.IOS,
@@ -25,19 +24,6 @@ data class ResolvedStream(
     val resolverName: String = "unknown",
 )
 
-/**
- * Resolves YouTube Music stream URLs using yt-dlp (primary) or Innertube (fallback).
- *
- * Fallback chain:
- *   1. yt-dlp (best quality, handles JS signature deciphering)
- *   2. Innertube IOS context
- *   3. Innertube Web (WEB_REMIX) context
- *   4. Innertube Android Music context
- *   5. Innertube TV context
- *
- * [resolve] returns only the best first result.
- * [resolveAll] returns all viable options in priority order for retry.
- */
 @Singleton
 class YoutubeStreamResolver @Inject constructor(
     private val youTubeDLBridge: YouTubeDLBridge,
@@ -63,10 +49,6 @@ class YoutubeStreamResolver @Inject constructor(
         return null
     }
 
-    /**
-     * Return ALL viable stream options for [videoId] in priority order.
-     * Useful for retrying playback with alternate URLs if the first one fails.
-     */
     suspend fun resolveAll(videoId: String): List<ResolvedStream> {
         val results = mutableListOf<ResolvedStream>()
 
@@ -106,20 +88,38 @@ class YoutubeStreamResolver @Inject constructor(
                 return null
             }
 
-            val url = response.url ?: run {
-                Log.w(TAG, "yt-dlp returned no URL for $videoId")
-                null
+            // Try the top-level URL first
+            var url = response.url
+            var formatId = response.formatId
+
+            // Fallback: try the first format with a URL
+            if (url == null && response.formats != null) {
+                for (fmt in response.formats) {
+                    if (fmt.url != null) {
+                        url = fmt.url
+                        formatId = fmt.formatId
+                        break
+                    }
+                }
             }
 
-            if (url != null) {
-                Log.d(TAG, "yt-dlp: ${response.formatId}, size=${response.fileSize}")
-                ResolvedStream(url = url, contentLength = response.fileSize, resolverName = "yt-dlp")
-            } else {
-                response.formats
-                    ?.firstOrNull { it.url != null }
-                    ?.url
-                    ?.let { ResolvedStream(url = it, resolverName = "yt-dlp") }
+            if (url == null) {
+                Log.w(TAG, "yt-dlp returned no URL for $videoId")
+                return null
             }
+
+            // Quick HEAD check to validate the URL is actually reachable
+            if (!isUrlReachable(url)) {
+                Log.w(TAG, "yt-dlp URL not reachable for $videoId, skipping")
+                return null
+            }
+
+            Log.d(TAG, "yt-dlp: format=$formatId, size=${response.fileSize}")
+            ResolvedStream(
+                url = url,
+                contentLength = response.fileSize,
+                resolverName = "yt-dlp($formatId)",
+            )
         } catch (e: Exception) {
             Log.e(TAG, "yt-dlp failed for $videoId: ${e.message}")
             null
@@ -142,7 +142,10 @@ class YoutubeStreamResolver @Inject constructor(
             val format = streamingData.adaptiveFormats
                 ?.filter { it.url != null }
                 ?.let { formats ->
-                    formats.findLast { it.itag == 251 || it.itag == 140 }
+                    // Prefer free audio formats: itag 140 (m4a 128k) or 251 (opus)
+                    formats.findLast { it.itag == 140 }
+                        ?: formats.findLast { it.itag == 251 }
+                        ?: formats.findLast { it.mimeType.startsWith("audio/") }
                         ?: formats.maxByOrNull { it.bitrate ?: 0L }
                 } ?: return null
 
@@ -156,7 +159,7 @@ class YoutubeStreamResolver @Inject constructor(
                 else -> UserAgents.IOS
             }
 
-            Log.d(TAG, "Innertube($label): ${format.mimeType} (${format.bitrate}kbps)")
+            Log.d(TAG, "Innertube($label): ${format.mimeType} itag=${format.itag} (${format.bitrate}kbps)")
             ResolvedStream(
                 url = url,
                 userAgent = userAgent,
@@ -166,6 +169,25 @@ class YoutubeStreamResolver @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Innertube($label) failed for $videoId: ${e.message}")
             null
+        }
+    }
+
+    /**
+     * Quick HEAD request to verify a URL is reachable (validates it won't 404 on read).
+     */
+    private fun isUrlReachable(url: String): Boolean {
+        return try {
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 5_000
+            conn.readTimeout = 5_000
+            conn.instanceFollowRedirects = true
+            val code = conn.responseCode
+            conn.disconnect()
+            code in 200..399
+        } catch (e: Exception) {
+            Log.w(TAG, "URL reachability check failed: ${e.message}")
+            false
         }
     }
 }

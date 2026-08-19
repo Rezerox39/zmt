@@ -867,10 +867,12 @@ class PlayerViewModel @Inject constructor(
             val sb = StringBuilder()
             sb.appendLine("PlaybackError: ${error.errorCodeName} (${error.errorCode})")
             var httpCode = -1
+            var rootCause: Throwable? = null
             var c: Throwable? = error.cause
             while (c != null) {
                 val cn = c::class.simpleName ?: ""
                 sb.appendLine("  Cause: $cn: ${c.message?.take(200)}")
+                rootCause = c
                 if (cn == "InvalidResponseCodeException") {
                     try {
                         val codeField = c::class.java.getDeclaredField("responseCode")
@@ -886,17 +888,31 @@ class PlayerViewModel @Inject constructor(
             }
             android.util.Log.e("PlaybackDebug", sb.toString())
 
+            val rootMsg = rootCause?.message ?: ""
             val message = when {
-                httpCode == 403 -> "stream blocked (403) \u2014 skipping"
+                httpCode == 403 -> "stream blocked (403) \u2014 trying another source"
                 httpCode == 429 -> "rate limited (429) \u2014 retrying soon"
                 httpCode in 500..599 -> "server error ($httpCode) \u2014 skipping"
+                error.errorCode == PlaybackException.ERROR_CODE_IO_UNSPECIFIED -> when {
+                    rootMsg.contains("403") -> "stream blocked \u2014 trying another source"
+                    rootMsg.contains("429") -> "rate limited \u2014 retrying soon"
+                    rootMsg.contains("timeout", ignoreCase = true) -> "connection timed out \u2014 check network"
+                    rootMsg.contains("reset", ignoreCase = true) -> "connection reset \u2014 check network"
+                    rootMsg.contains("unreachable", ignoreCase = true) -> "host unreachable \u2014 check network"
+                    else -> "stream unavailable \u2014 skipping"
+                }
                 error.errorCode == PlaybackException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
                     "bad HTTP response \u2014 skipping"
-                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ||
-                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED ->
                     "network error \u2014 check connection"
+                error.errorCode == PlaybackException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
+                    "connection timed out \u2014 check network"
+                error.errorCode == PlaybackException.ERROR_CODE_IO_CLEARTEXT_NOT_PERMITTED ->
+                    "insecure connection blocked \u2014 check network"
                 error.errorCode == PlaybackException.ERROR_CODE_DRM_LICENSE_ACQUISITION_FAILED ->
                     "content unavailable"
+                error.errorCode == PlaybackException.ERROR_CODE_BEHIND_LIVE_WINDOW ->
+                    "stream expired \u2014 skipping"
                 else -> context.getString(R.string.playback_error, error.errorCodeName.lowercase())
             }
             reduce { it.copy(fault = message) }

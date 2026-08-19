@@ -15,15 +15,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamDS"
-
-/**
- * Maximum number of resolution + playback attempts before giving up.
- */
 private const val MAX_ATTEMPTS = 3
-
-/**
- * HTTP status codes that indicate a transient / retryable error.
- */
 private val RETRYABLE_HTTP_CODES = setOf(403, 429, 500, 502, 503)
 
 @OptIn(UnstableApi::class)
@@ -33,6 +25,7 @@ class YoutubeStreamDataSource private constructor(
 
     private var inner: DataSource? = null
     private var openedUri: Uri? = null
+    private var currentCandidate: ResolvedStream? = null
 
     @Singleton
     class Factory @Inject constructor(
@@ -54,13 +47,11 @@ class YoutubeStreamDataSource private constructor(
         Log.i(TAG, "=== PlaybackDebug ===")
         Log.i(TAG, "Song videoId: $videoId")
 
-        // Phase 1: Resolve stream URLs (all options upfront for retry)
         val candidates = resolveCandidates(videoId)
         if (candidates.isEmpty()) {
             throw IOException("Could not resolve any YouTube stream for $videoId")
         }
 
-        // Phase 2: Try each candidate until one opens successfully
         var lastException: Exception? = null
         for ((index, candidate) in candidates.withIndex()) {
             if (index >= MAX_ATTEMPTS) break
@@ -68,6 +59,7 @@ class YoutubeStreamDataSource private constructor(
             Log.i(TAG, "Attempt ${index + 1}/${minOf(candidates.size, MAX_ATTEMPTS)}: ${candidate.resolverName}")
             try {
                 val length = openWithCandidate(candidate, dataSpec)
+                currentCandidate = candidate
                 Log.i(TAG, "HTTP open succeeded (attempt ${index + 1}), length: $length")
                 return length
             } catch (e: HttpDataSource.InvalidResponseCodeException) {
@@ -134,7 +126,16 @@ class YoutubeStreamDataSource private constructor(
             Log.w(TAG, "read() called but inner DataSource is null")
             return C.RESULT_END_OF_INPUT
         }
-        return ds.read(target, offset, length)
+        return try {
+            ds.read(target, offset, length)
+        } catch (e: HttpDataSource.InvalidResponseCodeException) {
+            val code = try { e.responseCode } catch (_: Exception) { -1 }
+            Log.e(TAG, "Read failed: HTTP $code from ${currentCandidate?.resolverName}")
+            throw IOException("Stream interrupted (HTTP $code) for ${currentCandidate?.resolverName}", e)
+        } catch (e: IOException) {
+            Log.e(TAG, "Read failed: ${e.message} from ${currentCandidate?.resolverName}")
+            throw IOException("Stream interrupted: ${e.message}", e)
+        }
     }
 
     override fun getResponseHeaders(): Map<String, List<String>> =
@@ -146,5 +147,6 @@ class YoutubeStreamDataSource private constructor(
         inner?.close()
         inner = null
         openedUri = null
+        currentCandidate = null
     }
 }
