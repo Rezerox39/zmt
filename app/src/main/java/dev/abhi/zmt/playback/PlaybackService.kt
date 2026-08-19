@@ -140,12 +140,14 @@ class PlaybackService : MediaLibraryService() {
             .setExtensionRendererMode(DefaultRenderersFactory.EXTENSION_RENDERER_MODE_PREFER)
         val mediaSourceFactory = DefaultMediaSourceFactory(offlineCacheDataSourceFactory)
 
+        // Metrolist-tuned buffer: 50s min/max keeps audio playing smoothly
+        // during seeks and network hiccups. 750ms start = faster first sound.
         val loadControl = DefaultLoadControl.Builder()
             .setBufferDurationsMs(
-                /* minBufferMs */       15_000,
-                /* maxBufferMs */       60_000,
-                /* bufferForPlaybackMs */       1_500,
-                /* bufferForPlaybackAfterRebufferMs */ 3_000,
+                /* minBufferMs */       50_000,
+                /* maxBufferMs */       50_000,
+                /* bufferForPlaybackMs */       750,
+                /* bufferForPlaybackAfterRebufferMs */ 2_000,
             )
             .build()
 
@@ -161,6 +163,8 @@ class PlaybackService : MediaLibraryService() {
             )
             .setHandleAudioBecomingNoisy(true)
             .setWakeMode(C.WAKE_MODE_NETWORK)
+            .setSeekBackIncrementMs(5000)
+            .setSeekForwardIncrementMs(5000)
             .setTrackSelector(
                 DefaultTrackSelector(this).apply {
                     parameters = buildUponParameters()

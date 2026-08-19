@@ -35,8 +35,7 @@ class OfflineCacheDataSourceFactory @Inject constructor(
                 .setUpstreamDataSourceFactory(upstream)
                 .setCacheWriteDataSinkFactory(CacheDataSink.Factory().setCache(cache))
                 .setFlags(
-                    CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR or
-                        CacheDataSource.FLAG_IGNORE_CACHE_FOR_UNSET_LENGTH_REQUESTS,
+                    CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR,
                 )
         }
     }
