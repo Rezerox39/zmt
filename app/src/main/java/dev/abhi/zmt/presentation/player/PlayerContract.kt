@@ -80,6 +80,7 @@ data class DmtState(
     val lastRemoved: QueueRemoval? = null,
     val error: String? = null,
     val importResult: String? = null,
+    val showImportDialog: Boolean = false,
     val notice: String? = null,
     val telegramAuthStep: String = "",
     val telegramChannelInput: String = "",
@@ -148,8 +149,9 @@ sealed interface DmtAction {
     data class SetLibrarySection(val section: LibrarySection) : DmtAction
     data class SetVolume(val fraction: Float) : DmtAction
     data class SetEqualizerPreset(val presetIndex: Int) : DmtAction
-    data object ImportPlaylist : DmtAction
-    data class ImportPlaylistFromFile(val uri: android.net.Uri) : DmtAction
+    data object ShowImportDialog : DmtAction
+    data object DismissImportDialog : DmtAction
+    data class ImportPlaylistFromUrl(val url: String) : DmtAction
     data class PlaylistImported(val message: String) : DmtAction
 }
 

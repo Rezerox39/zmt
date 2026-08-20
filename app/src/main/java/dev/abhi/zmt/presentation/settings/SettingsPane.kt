@@ -54,11 +54,7 @@ fun nextCoverCols(current: Int): Int =
     COVER_COLS_STEPS[(COVER_COLS_STEPS.indexOf(current) + 1).mod(COVER_COLS_STEPS.size)]
 
 @Composable
-fun SettingsPane(
-    state: DmtState,
-    dispatch: (DmtAction) -> Unit,
-    pickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>? = null,
-) {
+fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
     val settings = state.settings
     val on = stringResource(R.string.on)
     val off = stringResource(R.string.off)
@@ -188,7 +184,7 @@ fun SettingsPane(
             label = stringResource(R.string.set_import_playlist),
             value = stringResource(R.string.set_import_playlist_action),
         ) {
-            pickerLauncher?.launch(arrayOf("text/*", "application/x-mpegurl", "audio/mpegurl", "*/*"))
+            dispatch(DmtAction.ShowImportDialog)
         }
         SettingRow(
             label = stringResource(R.string.set_rescan),

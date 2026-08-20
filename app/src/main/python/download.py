@@ -129,3 +129,35 @@ def upgrade(package_name):
         print(f"Successfully upgraded {package_name}")
     except Exception as e:
         print(f"Error upgrading package {package_name}: {e}")
+
+
+def list_playlist(quickjs_bin: str, url: str) -> str:
+    """List tracks in a YouTube Music / YouTube playlist.
+    Returns JSON with title/artist for each track."""
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "extract_flat": True,
+        "skip_download": True,
+        "ignoreerrors": True,
+    }
+    if quickjs_bin:
+        opts["jsintfs"] = quickjs_bin
+
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            info = ydl.extract_info(url, download=False)
+            if info is None:
+                return json.dumps({"entries": []})
+            entries = info.get("entries") or []
+            result = []
+            for e in entries:
+                if e is None:
+                    continue
+                result.append({
+                    "title": e.get("title") or "Unknown",
+                    "artist": e.get("uploader") or e.get("channel") or "",
+                })
+            return json.dumps({"entries": result})
+    except Exception as e:
+        return json.dumps({"error": str(e)})

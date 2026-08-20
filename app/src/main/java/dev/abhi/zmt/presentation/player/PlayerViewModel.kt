@@ -49,6 +49,7 @@ import dev.abhi.zmt.domain.usecase.ScanLibraryUseCase
 import dev.abhi.zmt.playback.PlaybackCache
 import dev.abhi.zmt.playback.PlaybackService
 import dev.abhi.zmt.data.remote.playlist.PlaylistImporter
+import dev.abhi.zmt.data.remote.playlist.UrlPlaylistResolver
 import dev.abhi.zmt.util.audioPermission
 import dev.abhi.zmt.util.cycleRepeat
 import dev.abhi.zmt.util.mediaController
@@ -120,6 +121,7 @@ class PlayerViewModel @Inject constructor(
     private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
     private val playbackCache: PlaybackCache,
     private val playlistImporter: PlaylistImporter,
+    private val urlPlaylistResolver: UrlPlaylistResolver,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -737,19 +739,35 @@ class PlayerViewModel @Inject constructor(
                 )
                 reduce { it.copy(volume = vol) }
             }
-            is DmtAction.ImportPlaylist -> {
-                // Signal UI to open file picker
+            is DmtAction.ShowImportDialog -> {
+                reduce { it.copy(showImportDialog = true) }
             }
-            is DmtAction.ImportPlaylistFromFile -> {
+            is DmtAction.DismissImportDialog -> {
+                reduce { it.copy(showImportDialog = false) }
+            }
+            is DmtAction.ImportPlaylistFromUrl -> {
+                reduce { it.copy(showImportDialog = false, notice = "resolving playlist...") }
                 viewModelScope.launch(Dispatchers.IO) {
                     val library = currentState.tracks
-                    val result = playlistImporter.importFromUri(context, intent.uri, library)
+                    val result = urlPlaylistResolver.resolve(intent.url, library)
                     when (result) {
-                        is dev.abhi.zmt.data.remote.playlist.PlaylistImporter.ImportResult.Success -> {
-                            reduce { it.copy(notice = "imported ${result.matched}/${result.total} tracks to ${result.name}") }
-                            mutatePlaylists()
+                        is UrlPlaylistResolver.ResolveResult.Tracks -> {
+                            val matched = urlPlaylistResolver.matchTracks(result.tracks, library)
+                            if (matched.isEmpty()) {
+                                reduce { it.copy(error = "no matching tracks found in your library") }
+                            } else {
+                                val name = result.name
+                                playlistImporter.let { importer ->
+                                    // Use savePlaylist directly through the repository
+                                    val pr = playlistRepository
+                                    pr.create(name)
+                                    matched.forEach { pr.addTrack(name, it) }
+                                }
+                                reduce { it.copy(notice = "imported ${matched.size}/${result.tracks.size} tracks to $name") }
+                                mutatePlaylists()
+                            }
                         }
-                        is dev.abhi.zmt.data.remote.playlist.PlaylistImporter.ImportResult.Error -> {
+                        is UrlPlaylistResolver.ResolveResult.Error -> {
                             reduce { it.copy(error = "import failed: ${result.message}") }
                         }
                     }

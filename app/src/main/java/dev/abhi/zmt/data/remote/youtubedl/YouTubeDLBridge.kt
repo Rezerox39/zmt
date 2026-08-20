@@ -89,5 +89,24 @@ class YouTubeDLBridge @Inject constructor() {
     /**
      * Check if the bridge is initialized and ready.
      */
+    fun runPlaylist(url: String): String? {
+        if (!initialized) {
+            Log.e(TAG, "Not initialized")
+            return null
+        }
+
+        return try {
+            val py = Python.getInstance()
+            val module = py.getModule("download")
+            val path = quickjsPath ?: ""
+            val result = module.callAttr("list_playlist", path, url).toString()
+            Log.d(TAG, "yt-dlp playlist resolved: ${result.take(200)}")
+            result
+        } catch (e: Exception) {
+            Log.e(TAG, "yt-dlp playlist failed: ${e.message}")
+            null
+        }
+    }
+
     fun isReady(): Boolean = initialized
 }

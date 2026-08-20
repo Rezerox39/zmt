@@ -76,9 +76,6 @@ import dev.abhi.zmt.presentation.settings.BlocklistPane
 import dev.abhi.zmt.presentation.settings.PermissionsPane
 import dev.abhi.zmt.presentation.settings.SettingsPane
 import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
-import dev.abhi.zmt.data.remote.playlist.PlaylistImporter
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import dev.abhi.zmt.domain.model.SourceMode
 import kotlinx.coroutines.launch
 import dev.abhi.zmt.presentation.settings.SourceLoginPane
@@ -91,6 +88,7 @@ import dev.abhi.zmt.ui.theme.TuiLine
 import dev.abhi.zmt.ui.theme.TuiFg
 import dev.abhi.zmt.ui.theme.TuiFaint
 import dev.abhi.zmt.ui.theme.TuiDim
+import dev.abhi.zmt.ui.theme.TuiRaised
 import dev.abhi.zmt.core.common.tuiClickable
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.layout.widthIn
@@ -108,12 +106,6 @@ fun DmtScreen(
     var miniAnchor by remember { mutableStateOf<Rect?>(null) }
     val imeVisible = WindowInsets.isImeVisible
     val landscape = isLandscapeWindow()
-
-    val pickerLauncher = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri ->
-        uri?.let { dispatch(DmtAction.ImportPlaylistFromFile(it)) }
-    }
 
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -179,8 +171,7 @@ fun DmtScreen(
                             dispatch = dispatch,
                             art = art,
                             modifier = Modifier.weight(1f),
-                            pickerLauncher = pickerLauncher,
-                        )
+                                    )
 
                         TuiNotice(error = state.error, notice = state.notice)
 
@@ -205,8 +196,7 @@ fun DmtScreen(
                     dispatch = dispatch,
                     art = art,
                     modifier = Modifier.weight(1f),
-                    pickerLauncher = pickerLauncher,
-                )
+                    )
 
                 TuiNotice(error = state.error, notice = state.notice)
 
@@ -274,6 +264,67 @@ fun DmtScreen(
             }
         }
     }
+
+    // Import playlist URL dialog
+    if (state.showImportDialog) {
+        var importUrl by remember { mutableStateOf("") }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { dispatch(DmtAction.DismissImportDialog) },
+            containerColor = dev.abhi.zmt.ui.theme.TuiBg,
+            title = {
+                Text(text = "import playlist", color = TuiFg)
+            },
+            text = {
+                Column {
+                    Text(
+                        text = "paste spotify or youtube music playlist url",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TuiDim,
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.TextField(
+                        value = importUrl,
+                        onValueChange = { importUrl = it },
+                        placeholder = {
+                            Text(
+                                text = "https://open.spotify.com/playlist/...",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = TuiFaint,
+                            )
+                        },
+                        singleLine = true,
+                        colors = androidx.compose.material3.TextFieldDefaults.colors(
+                            focusedTextColor = TuiFg,
+                            unfocusedTextColor = TuiFg,
+                            focusedContainerColor = TuiRaised,
+                            unfocusedContainerColor = TuiRaised,
+                            focusedIndicatorColor = TuiAccent,
+                            unfocusedIndicatorColor = TuiLine,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = {
+                        if (importUrl.isNotBlank()) {
+                            dispatch(DmtAction.ImportPlaylistFromUrl(importUrl))
+                        }
+                    }
+                ) {
+                    Text("import", color = TuiAccent)
+                }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(
+                    onClick = { dispatch(DmtAction.DismissImportDialog) }
+                ) {
+                    Text("cancel", color = TuiDim)
+                }
+            },
+        )
+    }
 }
 
 @Composable
@@ -298,7 +349,6 @@ private fun PaneHost(
     dispatch: (DmtAction) -> Unit,
     art: suspend (Track) -> Bitmap,
     modifier: Modifier = Modifier,
-    pickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>? = null,
 ) {
     Column(modifier = modifier) {
         ScrollMemory(state.view.name) {
@@ -322,7 +372,7 @@ private fun PaneHost(
                 state.view == DmtView.STATS -> StatsPane(state, dispatch)
                 state.view == DmtView.BLOCKLIST -> BlocklistPane(state, dispatch)
                 state.view == DmtView.PERMISSIONS -> PermissionsPane(state, dispatch)
-                state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch, pickerLauncher)
+                state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch)
                 state.view == DmtView.SOURCES -> SourcesPane(state, dispatch)
                 state.view == DmtView.SOURCE_LOGIN -> SourceLoginPane(mode = state.loginSource, state = state, dispatch = dispatch)
                 state.scanning && state.tracks.isEmpty() ->
