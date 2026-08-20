@@ -54,7 +54,11 @@ fun nextCoverCols(current: Int): Int =
     COVER_COLS_STEPS[(COVER_COLS_STEPS.indexOf(current) + 1).mod(COVER_COLS_STEPS.size)]
 
 @Composable
-fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
+fun SettingsPane(
+    state: DmtState,
+    dispatch: (DmtAction) -> Unit,
+    pickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>? = null,
+) {
     val settings = state.settings
     val on = stringResource(R.string.on)
     val off = stringResource(R.string.off)
@@ -71,6 +75,12 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                     settings.copy(crossfadeDuration = settings.crossfadeDuration.next()),
                 ),
             )
+        }
+        SettingRow(
+            label = stringResource(R.string.set_gapless),
+            value = if (settings.gapless) on else off,
+        ) {
+            dispatch(DmtAction.Config(settings.copy(gapless = !settings.gapless)))
         }
         SettingRow(
             label = stringResource(R.string.set_normalize),
@@ -167,6 +177,18 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             value = stringResource(R.string.stat_view),
         ) {
             dispatch(DmtAction.Show(DmtView.STATS))
+        }
+        SettingRow(
+            label = stringResource(R.string.set_fingerprint_lock),
+            value = if (settings.fingerprintLock) on else off,
+        ) {
+            dispatch(DmtAction.Config(settings.copy(fingerprintLock = !settings.fingerprintLock)))
+        }
+        SettingRow(
+            label = stringResource(R.string.set_import_playlist),
+            value = stringResource(R.string.set_import_playlist_action),
+        ) {
+            pickerLauncher?.launch(arrayOf("text/*", "application/x-mpegurl", "audio/mpegurl", "*/*"))
         }
         SettingRow(
             label = stringResource(R.string.set_rescan),

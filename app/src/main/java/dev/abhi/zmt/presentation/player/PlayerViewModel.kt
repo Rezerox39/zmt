@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.collectLatest
 import dev.abhi.zmt.domain.usecase.ScanLibraryUseCase
 import dev.abhi.zmt.playback.PlaybackCache
 import dev.abhi.zmt.playback.PlaybackService
+import dev.abhi.zmt.data.remote.playlist.PlaylistImporter
 import dev.abhi.zmt.util.audioPermission
 import dev.abhi.zmt.util.cycleRepeat
 import dev.abhi.zmt.util.mediaController
@@ -118,6 +119,7 @@ class PlayerViewModel @Inject constructor(
     private val youtubeRepository: dev.abhi.zmt.data.repository.YoutubeMediaRepositoryImpl,
     private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
     private val playbackCache: PlaybackCache,
+    private val playlistImporter: PlaylistImporter,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -734,6 +736,27 @@ class PlayerViewModel @Inject constructor(
                     Bundle().apply { putFloat(PlaybackService.KEY_VOLUME, vol) },
                 )
                 reduce { it.copy(volume = vol) }
+            }
+            is DmtAction.ImportPlaylist -> {
+                // Signal UI to open file picker
+            }
+            is DmtAction.ImportPlaylistFromFile -> {
+                viewModelScope.launch(Dispatchers.IO) {
+                    val library = currentState.tracks
+                    val result = playlistImporter.importFromUri(context, intent.uri, library)
+                    when (result) {
+                        is dev.abhi.zmt.data.remote.playlist.PlaylistImporter.ImportResult.Success -> {
+                            reduce { it.copy(notice = "imported ${result.matched}/${result.total} tracks to ${result.name}") }
+                            mutatePlaylists()
+                        }
+                        is dev.abhi.zmt.data.remote.playlist.PlaylistImporter.ImportResult.Error -> {
+                            reduce { it.copy(error = "import failed: ${result.message}") }
+                        }
+                    }
+                }
+            }
+            is DmtAction.PlaylistImported -> {
+                reduce { it.copy(notice = intent.message) }
             }
             is DmtAction.SetEqualizerPreset -> {
                 val c = controller ?: return@onIntent

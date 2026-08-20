@@ -20,6 +20,8 @@ import dev.abhi.zmt.data.source.local.KEY_CROSSFADE
 import dev.abhi.zmt.data.source.local.KEY_SLEEP_FADE
 import dev.abhi.zmt.data.source.local.KEY_EQUALIZER_PRESET
 import dev.abhi.zmt.data.source.local.KEY_VOLUME_FADE_SLEEP
+import dev.abhi.zmt.data.source.local.KEY_GAPLESS
+import dev.abhi.zmt.data.source.local.KEY_FINGERPRINT_LOCK
 import dev.abhi.zmt.data.source.local.KEY_ROMANIZED_LYRICS
 import dev.abhi.zmt.data.source.local.KEY_SOURCE_MODE
 import dev.abhi.zmt.data.source.local.KEY_SPECS
@@ -85,6 +87,8 @@ class PreferencesRepository @Inject constructor(
             sleepFade = SleepFade.entries[(prefs[KEY_SLEEP_FADE] ?: 0).coerceIn(0, SleepFade.entries.size - 1)],
             equalizerPreset = prefs[KEY_EQUALIZER_PRESET] ?: -1,
             volumeFadeOnSleep = prefs[KEY_VOLUME_FADE_SLEEP] ?: false,
+            gapless = prefs[KEY_GAPLESS] ?: true,
+            fingerprintLock = prefs[KEY_FINGERPRINT_LOCK] ?: false,
         )
     }
 
@@ -125,6 +129,8 @@ class PreferencesRepository @Inject constructor(
             it[KEY_SLEEP_FADE] = settings.sleepFade.ordinal
             it[KEY_EQUALIZER_PRESET] = settings.equalizerPreset
             it[KEY_VOLUME_FADE_SLEEP] = settings.volumeFadeOnSleep
+            it[KEY_GAPLESS] = settings.gapless
+            it[KEY_FINGERPRINT_LOCK] = settings.fingerprintLock
         }
     }
 

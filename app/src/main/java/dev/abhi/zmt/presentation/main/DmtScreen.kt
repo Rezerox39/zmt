@@ -75,6 +75,12 @@ import dev.abhi.zmt.presentation.player.TuiSheet
 import dev.abhi.zmt.presentation.settings.BlocklistPane
 import dev.abhi.zmt.presentation.settings.PermissionsPane
 import dev.abhi.zmt.presentation.settings.SettingsPane
+import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
+import dev.abhi.zmt.data.remote.playlist.PlaylistImporter
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import dev.abhi.zmt.domain.model.SourceMode
+import kotlinx.coroutines.launch
 import dev.abhi.zmt.presentation.settings.SourceLoginPane
 import dev.abhi.zmt.presentation.settings.SourcesPane
 import dev.abhi.zmt.presentation.settings.StatsPane
@@ -102,6 +108,12 @@ fun DmtScreen(
     var miniAnchor by remember { mutableStateOf<Rect?>(null) }
     val imeVisible = WindowInsets.isImeVisible
     val landscape = isLandscapeWindow()
+
+    val pickerLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        uri?.let { dispatch(DmtAction.ImportPlaylistFromFile(it)) }
+    }
 
     val focusManager = LocalFocusManager.current
     val keyboard = LocalSoftwareKeyboardController.current
@@ -307,7 +319,7 @@ private fun PaneHost(
                 state.view == DmtView.STATS -> StatsPane(state, dispatch)
                 state.view == DmtView.BLOCKLIST -> BlocklistPane(state, dispatch)
                 state.view == DmtView.PERMISSIONS -> PermissionsPane(state, dispatch)
-                state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch)
+                state.view == DmtView.SETTINGS -> SettingsPane(state, dispatch, pickerLauncher)
                 state.view == DmtView.SOURCES -> SourcesPane(state, dispatch)
                 state.view == DmtView.SOURCE_LOGIN -> SourceLoginPane(mode = state.loginSource, state = state, dispatch = dispatch)
                 state.scanning && state.tracks.isEmpty() ->

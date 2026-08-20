@@ -41,6 +41,8 @@ val KEY_CROSSFADE = intPreferencesKey("crossfade_duration")
 val KEY_SLEEP_FADE = intPreferencesKey("sleep_fade")
 val KEY_EQUALIZER_PRESET = intPreferencesKey("equalizer_preset")
 val KEY_VOLUME_FADE_SLEEP = booleanPreferencesKey("volume_fade_sleep")
+val KEY_GAPLESS = booleanPreferencesKey("gapless")
+val KEY_FINGERPRINT_LOCK = booleanPreferencesKey("fingerprint_lock")
 
 fun String.toCounts(): Map<Long, Int> =
     split(';')

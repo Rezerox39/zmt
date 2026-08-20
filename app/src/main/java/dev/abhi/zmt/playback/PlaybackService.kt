@@ -130,6 +130,7 @@ class PlaybackService : MediaLibraryService() {
     private var stopOnDismiss = false
     private var currentErrorRetries = 0
     private var crossfadeDurationMs = 0L
+    private var gaplessEnabled = true
     private var crossfadeHandler: Handler? = null
     private var crossfadeRunnable: Runnable? = null
     private var isCrossfading = false
@@ -320,6 +321,7 @@ class PlaybackService : MediaLibraryService() {
                     applyReplayGain(player.currentMediaItem)
                 }
                 crossfadeDurationMs = settings.crossfadeDuration.seconds * 1000L
+                gaplessEnabled = settings.gapless
             }
         }
         btReceiver = BluetoothReceiver {

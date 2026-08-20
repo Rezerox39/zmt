@@ -20,6 +20,7 @@ logback = "1.5.18"
 slf4j = "2.0.18"
 
 chaquo = "17.0.0"
+biometric = "1.2.0-alpha05"
 
 [libraries]
 hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
@@ -50,6 +51,7 @@ slf4j-nop = { group = "org.slf4j", name = "slf4j-nop", version.ref = "slf4j" }
 media3-datasource-okhttp = { group = "androidx.media3", name = "media3-datasource-okhttp", version.ref = "media3" }
 xmlutil-core = { group = "io.github.pdvrieze.xmlutil", name = "core", version.ref = "xmlutil" }
 
+androidx-biometric = { group = "androidx.biometric", name = "biometric", version.ref = "biometric" }
 tdlib = { group = "com.github.tdlibx", name = "td", version = "1.8.56" }
 
 [plugins]

@@ -242,4 +242,7 @@
     <string name="set_volume">volume</string>
     <string name="set_bluetooth_resume">bt auto-play</string>
     <string name="set_gapless">gapless</string>
+    <string name="set_fingerprint_lock">fingerprint lock</string>
+    <string name="set_import_playlist">import playlist</string>
+    <string name="set_import_playlist_action">spotify / ytm</string>
 </resources>

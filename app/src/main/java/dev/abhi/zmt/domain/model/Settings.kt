@@ -105,6 +105,8 @@ data class DmtSettings(
     val sleepFade: SleepFade = SleepFade.OFF,
     val equalizerPreset: Int = -1,
     val volumeFadeOnSleep: Boolean = false,
+    val gapless: Boolean = true,
+    val fingerprintLock: Boolean = false,
 )
 
 data class LastSession(

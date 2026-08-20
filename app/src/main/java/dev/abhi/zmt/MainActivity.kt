@@ -4,7 +4,7 @@ import android.content.Intent
 import android.graphics.Color
 import android.media.audiofx.AudioEffect
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.fragment.app.FragmentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
@@ -18,7 +18,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import dev.abhi.zmt.ui.theme.TuiDim
+import androidx.compose.runtime.mutableStateOf
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.Text
+import androidx.compose.runtime.mutableStateOf
+import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
+import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
 import dagger.hilt.android.AndroidEntryPoint
 import dev.abhi.zmt.presentation.main.DmtScreen
 import dev.abhi.zmt.presentation.main.SetupScreen
@@ -31,9 +45,11 @@ import dev.abhi.zmt.ui.theme.TuiThemeProvider
 import dev.abhi.zmt.ui.theme.toColor
 
 @AndroidEntryPoint
-class MainActivity : ComponentActivity() {
+class MainActivity : FragmentActivity() {
 
     private val playerViewModel: PlayerViewModel by viewModels()
+    private val fingerprintAuth = FingerprintAuthManager()
+    private var authenticated = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -80,6 +96,50 @@ class MainActivity : ComponentActivity() {
                             state = state,
                             dispatch = playerViewModel::onIntent,
                         )
+
+                        state.settings.fingerprintLock && !authenticated -> {
+                            LaunchedEffect(Unit) {
+                                if (fingerprintAuth.canAuthenticate(this@MainActivity)) {
+                                    fingerprintAuth.authenticate(
+                                        this@MainActivity,
+                                        onSuccess = { authenticated = true },
+                                        onError = { /* stay locked */ },
+                                    )
+                                } else {
+                                    // No biometric available — let user through
+                                    authenticated = true
+                                }
+                            }
+                            if (authenticated) {
+                                DmtScreen(
+                                    state = state,
+                                    dispatch = playerViewModel::onIntent,
+                                    art = playerViewModel::homeArt,
+                                )
+                            } else {
+                                Surface(
+                                    modifier = Modifier.fillMaxSize(),
+                                    color = MaterialTheme.colorScheme.background,
+                                ) {
+                                    Box(
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        androidx.compose.material3.Text(
+                                            text = "tap to unlock",
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            color = TuiDim,
+                                            modifier = Modifier.clickable {
+                                                fingerprintAuth.authenticate(
+                                                    this@MainActivity,
+                                                    onSuccess = { authenticated = true },
+                                                    onError = { },
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                        }
 
                         else -> DmtScreen(
                             state = state,
