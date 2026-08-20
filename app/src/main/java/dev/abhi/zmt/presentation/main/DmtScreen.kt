@@ -62,6 +62,7 @@ import dev.abhi.zmt.presentation.library.FoldersPane
 import dev.abhi.zmt.presentation.library.GenresPane
 import dev.abhi.zmt.presentation.library.LibraryPane
 import dev.abhi.zmt.presentation.library.PlaylistsPane
+import dev.abhi.zmt.presentation.library.ImportedPane
 import dev.abhi.zmt.presentation.player.ChainContent
 import dev.abhi.zmt.presentation.player.DmtAction
 import dev.abhi.zmt.presentation.player.DmtState
@@ -123,6 +124,8 @@ fun DmtScreen(
                     state.view != DmtView.HOME)
     BackHandler(enabled = backHandled) {
         when {
+            state.view == DmtView.IMPORTED -> dispatch(DmtAction.Show(DmtView.SOURCES))
+
             state.view == DmtView.STATS -> dispatch(DmtAction.Show(DmtView.SETTINGS))
 
             state.view == DmtView.BLOCKLIST -> dispatch(DmtAction.Show(DmtView.SETTINGS))
@@ -383,6 +386,7 @@ private fun PaneHost(
                 state.view == DmtView.GENRES -> GenresPane(state, dispatch)
                 state.view == DmtView.FOLDERS -> FoldersPane(state, dispatch)
                 state.view == DmtView.PLAYLISTS -> PlaylistsPane(state, dispatch)
+                state.view == DmtView.IMPORTED -> ImportedPane(state, dispatch)
                 else -> LibraryPane(state, dispatch)
             }
         }

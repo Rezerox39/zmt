@@ -129,6 +129,43 @@ fun SourcesPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             )
         }
 
+        // Imported playlists entry
+        val importedCount = state.playlists.count { it.name.startsWith("spotify") || it.name.startsWith("ytm") }
+        if (importedCount > 0) {
+            HorizontalDivider(color = TuiLine)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .tuiClickable { dispatch(DmtAction.Show(DmtView.IMPORTED)) }
+                    .padding(vertical = 10.dp),
+            ) {
+                Text(
+                    text = "( ) ",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = TuiAccent,
+                )
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = "imported",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = TuiBright,
+                    )
+                    Text(
+                        text = "$importedCount playlists from spotify / ytm",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = TuiDim,
+                    )
+                }
+                Text(
+                    text = ">",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TuiDim,
+                )
+            }
+            HorizontalDivider(color = TuiLine)
+        }
+
         Text(
             text = stringResource(R.string.sources_hint),
             style = MaterialTheme.typography.labelSmall,
