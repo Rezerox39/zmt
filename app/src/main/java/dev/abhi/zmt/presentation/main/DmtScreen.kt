@@ -179,6 +179,7 @@ fun DmtScreen(
                             dispatch = dispatch,
                             art = art,
                             modifier = Modifier.weight(1f),
+                            pickerLauncher = pickerLauncher,
                         )
 
                         TuiNotice(error = state.error, notice = state.notice)
@@ -204,6 +205,7 @@ fun DmtScreen(
                     dispatch = dispatch,
                     art = art,
                     modifier = Modifier.weight(1f),
+                    pickerLauncher = pickerLauncher,
                 )
 
                 TuiNotice(error = state.error, notice = state.notice)
@@ -296,6 +298,7 @@ private fun PaneHost(
     dispatch: (DmtAction) -> Unit,
     art: suspend (Track) -> Bitmap,
     modifier: Modifier = Modifier,
+    pickerLauncher: androidx.activity.result.ActivityResultLauncher<Array<String>>? = null,
 ) {
     Column(modifier = modifier) {
         ScrollMemory(state.view.name) {

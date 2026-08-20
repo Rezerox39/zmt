@@ -27,12 +27,7 @@ import androidx.core.content.ContextCompat
 import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Text
-import androidx.compose.runtime.mutableStateOf
-import androidx.biometric.BiometricPrompt
-import androidx.core.content.ContextCompat
-import dev.abhi.zmt.presentation.settings.FingerprintAuthManager
 import dagger.hilt.android.AndroidEntryPoint
 import dev.abhi.zmt.presentation.main.DmtScreen
 import dev.abhi.zmt.presentation.main.SetupScreen

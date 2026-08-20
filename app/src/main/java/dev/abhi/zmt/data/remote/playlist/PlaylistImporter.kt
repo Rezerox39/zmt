@@ -46,7 +46,7 @@ class PlaylistImporter @Inject constructor(
         }
     }
 
-    private fun importM3U(name: String, content: String, library: List<Track>): ImportResult {
+    private suspend fun importM3U(name: String, content: String, library: List<Track>): ImportResult {
         val entries = content.lines()
             .filter { it.isNotBlank() && !it.startsWith("#") }
             .map { it.trim() }
@@ -67,7 +67,7 @@ class PlaylistImporter @Inject constructor(
         return ImportResult.Success(name, tracks.size, total)
     }
 
-    private fun importCSV(name: String, content: String, library: List<Track>): ImportResult {
+    private suspend fun importCSV(name: String, content: String, library: List<Track>): ImportResult {
         val lines = content.lines().filter { it.isNotBlank() }
         if (lines.isEmpty()) return ImportResult.Error("Empty CSV")
 
