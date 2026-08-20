@@ -30,7 +30,6 @@ import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.HeaderAction
 import dev.abhi.zmt.core.common.ListRow
 import dev.abhi.zmt.core.common.ScrollMemory
-import dev.abhi.zmt.core.common.TrackBadges
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.Track
@@ -123,12 +122,12 @@ fun ImportedPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
                 ) {
                     itemsIndexed(allTracks, key = { _, t -> t.id }) { index, track ->
                         ListRow(
-                            title = track.title,
-                            subtitle = "${track.artist.asCredit()} · ${track.durationMs.asTime()}",
-                            badges = { TrackBadges(track = track) },
-                        ) {
-                            dispatch(DmtAction.PlayAt(allTracks, index))
-                        }
+                            index = index,
+                            line1 = track.title,
+                            line2 = "${track.artist.asCredit()} · ${track.durationMs.asTime()}",
+                            current = track.id.toString() == state.nowPlayingId,
+                            onClick = { dispatch(DmtAction.PlayAt(allTracks, index)) },
+                        )
                     }
                 }
             }
