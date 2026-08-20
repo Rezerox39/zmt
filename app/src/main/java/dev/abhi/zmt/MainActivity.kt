@@ -85,6 +85,21 @@ class MainActivity : FragmentActivity() {
                         }
                     }
 
+                    val authenticated = remember { mutableStateOf(false) }
+                    LaunchedEffect(state.settings.fingerprintLock) {
+                        if (state.settings.fingerprintLock && !authenticated.value) {
+                            if (fingerprintAuth.canAuthenticate(this@MainActivity)) {
+                                fingerprintAuth.authenticate(
+                                    this@MainActivity,
+                                    onSuccess = { authenticated.value = true },
+                                    onError = { },
+                                )
+                            } else {
+                                authenticated.value = true
+                            }
+                        }
+                    }
+
                     when {
                         !state.settingsLoaded -> Unit
                         !state.settings.setupDone -> SetupScreen(
@@ -92,46 +107,24 @@ class MainActivity : FragmentActivity() {
                             dispatch = playerViewModel::onIntent,
                         )
 
-                        state.settings.fingerprintLock && !authenticated -> {
-                            LaunchedEffect(Unit) {
-                                if (fingerprintAuth.canAuthenticate(this@MainActivity)) {
-                                    fingerprintAuth.authenticate(
-                                        this@MainActivity,
-                                        onSuccess = { authenticated = true },
-                                        onError = { /* stay locked */ },
+                        state.settings.fingerprintLock && !authenticated.value -> {
+                            Surface(
+                                modifier = Modifier.fillMaxSize(),
+                                color = MaterialTheme.colorScheme.background,
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    Text(
+                                        text = "tap to unlock",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = TuiDim,
+                                        modifier = Modifier.clickable {
+                                            fingerprintAuth.authenticate(
+                                                this@MainActivity,
+                                                onSuccess = { authenticated.value = true },
+                                                onError = { },
+                                            )
+                                        },
                                     )
-                                } else {
-                                    // No biometric available — let user through
-                                    authenticated = true
-                                }
-                            }
-                            if (authenticated) {
-                                DmtScreen(
-                                    state = state,
-                                    dispatch = playerViewModel::onIntent,
-                                    art = playerViewModel::homeArt,
-                                )
-                            } else {
-                                Surface(
-                                    modifier = Modifier.fillMaxSize(),
-                                    color = MaterialTheme.colorScheme.background,
-                                ) {
-                                    Box(
-                                        contentAlignment = Alignment.Center,
-                                    ) {
-                                        androidx.compose.material3.Text(
-                                            text = "tap to unlock",
-                                            style = MaterialTheme.typography.bodyMedium,
-                                            color = TuiDim,
-                                            modifier = Modifier.clickable {
-                                                fingerprintAuth.authenticate(
-                                                    this@MainActivity,
-                                                    onSuccess = { authenticated = true },
-                                                    onError = { },
-                                                )
-                                            },
-                                        )
-                                    }
                                 }
                             }
                         }
