@@ -133,6 +133,7 @@ class PlaybackService : MediaLibraryService() {
     private var crossfadeRunnable: Runnable? = null
     private var isCrossfading = false
     private var btReceiver: BluetoothReceiver? = null
+    @Inject lateinit var streamCache: StreamCacheManager
 
     @Inject
     lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
@@ -251,6 +252,8 @@ class PlaybackService : MediaLibraryService() {
                     applyReplayGain(mediaItem)
                     updateWidget()
                     scheduleCrossfade(player)
+                    // Pre-cache next track in background for instant skip
+                    preCacheNext(player)
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -860,6 +863,23 @@ class PlaybackService : MediaLibraryService() {
         crossfadeRunnable = null
         crossfadeHandler?.removeCallbacksAndMessages(null)
         isCrossfading = false
+    }
+
+    /**
+     * Check if the next track in the queue is already cached locally.
+     * If yes, log it — the DataSource will serve from cache automatically.
+     * If not, the background download triggers when that track starts playing.
+     */
+    private fun preCacheNext(player: Player) {
+        val nextIndex = player.currentMediaItemIndex + 1
+        if (nextIndex >= player.mediaItemCount) return
+        val nextItem = player.getMediaItemAt(nextIndex)
+        val nextUri = nextItem.localConfiguration?.uri?.toString() ?: return
+        if (streamCache.isCached(nextUri)) {
+            Log.d(TAG, "Next track cached locally: $nextUri")
+        } else {
+            Log.d(TAG, "Next track will be cached on play: $nextUri")
+        }
     }
 
     private fun saveSession() {

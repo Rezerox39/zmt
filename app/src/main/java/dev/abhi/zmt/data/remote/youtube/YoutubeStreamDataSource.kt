@@ -10,6 +10,7 @@ import androidx.media3.datasource.DataSpec
 import androidx.media3.datasource.DefaultHttpDataSource
 import androidx.media3.datasource.HttpDataSource
 import androidx.media3.datasource.TransferListener
+import androidx.media3.datasource.FileDataSource
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -21,18 +22,21 @@ private val RETRYABLE_HTTP_CODES = setOf(403, 429, 500, 502, 503)
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(
     private val resolver: YoutubeStreamResolver,
+    private val streamCache: dev.abhi.zmt.playback.StreamCacheManager,
 ) : DataSource {
 
     private var inner: DataSource? = null
     private var openedUri: Uri? = null
     private var currentCandidate: ResolvedStream? = null
+    private var fileDataSource: FileDataSource? = null
 
     @Singleton
     class Factory @Inject constructor(
         private val resolver: YoutubeStreamResolver,
+        private val streamCache: dev.abhi.zmt.playback.StreamCacheManager,
     ) : DataSource.Factory {
         override fun createDataSource(): DataSource {
-            return YoutubeStreamDataSource(resolver)
+            return YoutubeStreamDataSource(resolver, streamCache)
         }
     }
 
@@ -46,6 +50,16 @@ class YoutubeStreamDataSource private constructor(
 
         Log.i(TAG, "=== PlaybackDebug ===")
         Log.i(TAG, "Song videoId: $videoId")
+
+        // Serve from local cache if we have the full file
+        val cachedFile = streamCache.cachedFileFor(dataSpec.uri.toString())
+        if (cachedFile != null) {
+            Log.i(TAG, "Serving from local cache: ${cachedFile.name} (${cachedFile.length()} bytes)")
+            close()
+            fileDataSource = FileDataSource()
+            openedUri = Uri.fromFile(cachedFile)
+            return fileDataSource!!.open(dataSpec.buildUpon().setUri(Uri.fromFile(cachedFile)).build())
+        }
 
         val candidates = resolveCandidates(videoId)
         if (candidates.isEmpty()) {
@@ -61,6 +75,12 @@ class YoutubeStreamDataSource private constructor(
                 val length = openWithCandidate(candidate, dataSpec)
                 currentCandidate = candidate
                 Log.i(TAG, "HTTP open succeeded (attempt ${index + 1}), length: $length")
+                // Cache full file in background for instant replay next time
+                val uriStr = dataSpec.uri.toString()
+                streamCache.cacheInBackground(uriStr) {
+                    val resolved = resolver.resolve(videoId)
+                    resolved?.let { Pair(it.url, it.userAgent) }
+                }
                 return length
             } catch (e: HttpDataSource.InvalidResponseCodeException) {
                 val code = try { e.responseCode } catch (_: Exception) { -1 }
@@ -121,6 +141,15 @@ class YoutubeStreamDataSource private constructor(
     }
 
     override fun read(target: ByteArray, offset: Int, length: Int): Int {
+        // Serve from local cache file if active
+        fileDataSource?.let { fds ->
+            return try {
+                fds.read(target, offset, length)
+            } catch (e: Exception) {
+                Log.e(TAG, "FileDataSource read failed: ${e.message}")
+                throw e
+            }
+        }
         val ds = inner
         if (ds == null) {
             Log.w(TAG, "read() called but inner DataSource is null")
@@ -141,9 +170,11 @@ class YoutubeStreamDataSource private constructor(
     override fun getResponseHeaders(): Map<String, List<String>> =
         inner?.responseHeaders ?: emptyMap()
 
-    override fun getUri(): Uri? = inner?.uri ?: openedUri
+    override fun getUri(): Uri? = fileDataSource?.uri ?: inner?.uri ?: openedUri
 
     override fun close() {
+        fileDataSource?.close()
+        fileDataSource = null
         inner?.close()
         inner = null
         openedUri = null
