@@ -2,7 +2,9 @@ package dev.abhi.zmt.playback
 import dev.abhi.zmt.presentation.widget.MiniPlayerWidget
 
 import android.app.PendingIntent
+import android.bluetooth.BluetoothDevice
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.media.audiofx.AudioEffect
@@ -43,6 +45,8 @@ import com.google.common.collect.ImmutableList
 import com.google.common.util.concurrent.Futures
 import com.google.common.util.concurrent.ListenableFuture
 import com.google.common.util.concurrent.MoreExecutors
+import android.content.Context
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
 import dev.abhi.zmt.MainActivity
 import dev.abhi.zmt.R
@@ -60,6 +64,9 @@ import android.util.Log
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultLoadControl
 import dev.abhi.zmt.util.toMediaItem
+import android.os.Handler
+import android.os.Looper
+import dev.abhi.zmt.domain.model.CrossfadeDuration
 import dev.jyotiraditya.metadata.AudioTags
 import dev.jyotiraditya.metadata.TagKey
 import kotlinx.coroutines.CoroutineScope
@@ -70,6 +77,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.guava.future
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.pow
@@ -107,15 +115,25 @@ class PlaybackService : MediaLibraryService() {
             SessionCommand("dev.abhi.zmt.command.TOGGLE_SHUFFLE", Bundle.EMPTY)
         val CMD_CYCLE_REPEAT =
             SessionCommand("dev.abhi.zmt.command.CYCLE_REPEAT", Bundle.EMPTY)
+        const val KEY_VOLUME = "volume"
+        const val KEY_PRESET_INDEX = "preset_index"
+        val CMD_SET_VOLUME = SessionCommand("dev.abhi.zmt.command.SET_VOLUME", Bundle.EMPTY)
+        val CMD_SET_EQ_PRESET = SessionCommand("dev.abhi.zmt.command.SET_EQ_PRESET", Bundle.EMPTY)
     }
 
     private var mediaSession: MediaLibrarySession? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var sleepJob: Job? = null
     private var sleepEndAt: Long? = null
+    private var sleepFadeActive = false
     private var normalizeVolume = false
     private var stopOnDismiss = false
     private var currentErrorRetries = 0
+    private var crossfadeDurationMs = 0L
+    private var crossfadeHandler: Handler? = null
+    private var crossfadeRunnable: Runnable? = null
+    private var isCrossfading = false
+    private var btReceiver: BluetoothReceiver? = null
 
     @Inject
     lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
@@ -214,15 +232,26 @@ class PlaybackService : MediaLibraryService() {
                 override fun onRepeatModeChanged(repeatMode: Int) = publishButtons()
 
                 override fun onIsPlayingChanged(isPlaying: Boolean) {
-                    if (!isPlaying) saveSession()
+                    if (!isPlaying) {
+                        saveSession()
+                        cancelCrossfade()
+                    } else {
+                        scheduleCrossfade(mediaSession?.player)
+                    }
                     updateWidget()
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
                     currentErrorRetries = 0
+                    if (isCrossfading) {
+                        player.volume = 1f
+                    }
+                    isCrossfading = false
+                    cancelCrossfade()
                     saveSession()
                     applyReplayGain(mediaItem)
                     updateWidget()
+                    scheduleCrossfade(player)
                 }
 
                 override fun onAudioSessionIdChanged(audioSessionId: Int) {
@@ -287,8 +316,20 @@ class PlaybackService : MediaLibraryService() {
                     normalizeVolume = settings.normalizeVolume
                     applyReplayGain(player.currentMediaItem)
                 }
+                crossfadeDurationMs = settings.crossfadeDuration.seconds * 1000L
             }
         }
+        btReceiver = BluetoothReceiver {
+            if (mediaSession?.player?.isPlaying == false && mediaSession?.player?.mediaItemCount ?: 0 > 0) {
+                Log.d("PlaybackService", "BT connected: auto-resuming")
+                mediaSession?.player?.play()
+            }
+        }
+        val btFilter = IntentFilter(BluetoothDevice.ACTION_ACL_CONNECTED)
+        ContextCompat.registerReceiver(
+            this, btReceiver, btFilter,
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
     }
 
     private fun applyReplayGain(mediaItem: MediaItem?) {
@@ -519,6 +560,8 @@ class PlaybackService : MediaLibraryService() {
                 .add(CMD_AUDIO_SESSION)
                 .add(CMD_TOGGLE_SHUFFLE)
                 .add(CMD_CYCLE_REPEAT)
+                .add(CMD_SET_VOLUME)
+                .add(CMD_SET_EQ_PRESET)
                 .build()
             return MediaSession.ConnectionResult.AcceptedResultBuilder(session)
                 .setAvailableSessionCommands(commands)
@@ -558,6 +601,22 @@ class PlaybackService : MediaLibraryService() {
                         Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
                         Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
                         else -> Player.REPEAT_MODE_OFF
+                    }
+                    Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
+                CMD_SET_VOLUME.customAction -> {
+                    val vol = args.getFloat(KEY_VOLUME, 1f).coerceIn(0f, 1f)
+                    session.player.volume = vol
+                    Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
+                }
+
+                CMD_SET_EQ_PRESET.customAction -> {
+                    val presetIndex = args.getInt(KEY_PRESET_INDEX, -1)
+                    scope.launch {
+                        preferencesRepository.save(
+                            preferencesRepository.settings.first().copy(equalizerPreset = presetIndex)
+                        )
                     }
                     Futures.immediateFuture(SessionResult(SessionResult.RESULT_SUCCESS))
                 }
@@ -762,6 +821,48 @@ class PlaybackService : MediaLibraryService() {
         MiniPlayerWidget.updateAllWidgets(this, title, artist, p.isPlaying, progress)
     }
 
+    private fun scheduleCrossfade(player: Player?) {
+        val p = player ?: return
+        if (crossfadeDurationMs <= 0L || p.mediaItemCount <= 1) return
+        cancelCrossfade()
+        crossfadeHandler = Handler(Looper.getMainLooper())
+        crossfadeRunnable = object : Runnable {
+            override fun run() {
+                if (!p.isPlaying || p.duration == C.TIME_UNSET || crossfadeDurationMs <= 0L) return
+                val remaining = p.duration - p.currentPosition
+                if (remaining <= crossfadeDurationMs && remaining > 0L && !isCrossfading) {
+                    isCrossfading = true
+                    val steps = 20
+                    val stepMs = crossfadeDurationMs / steps
+                    var step = 0
+                    val fadeOutRunnable = object : Runnable {
+                        override fun run() {
+                            if (step >= steps) {
+                                return
+                            }
+                            val progress = step.toFloat() / steps
+                            p.volume = (1f - progress).coerceIn(0f, 1f)
+                            step++
+                            crossfadeHandler?.postDelayed(this, stepMs)
+                        }
+                    }
+                    crossfadeHandler?.post(fadeOutRunnable)
+                }
+                if (remaining > 0L) {
+                    crossfadeHandler?.postDelayed(this, 500)
+                }
+            }
+        }
+        crossfadeHandler?.postDelayed(crossfadeRunnable!!, 500)
+    }
+
+    private fun cancelCrossfade() {
+        crossfadeRunnable?.let { crossfadeHandler?.removeCallbacks(it) }
+        crossfadeRunnable = null
+        crossfadeHandler?.removeCallbacksAndMessages(null)
+        isCrossfading = false
+    }
+
     private fun saveSession() {
         val player = mediaSession?.player ?: return
         if (player.mediaItemCount == 0) return
@@ -786,10 +887,39 @@ class PlaybackService : MediaLibraryService() {
     private fun scheduleSleep(endAt: Long) {
         sleepJob?.cancel()
         sleepEndAt = endAt.takeIf { it > System.currentTimeMillis() }
+        sleepFadeActive = false
         sleepJob = sleepEndAt?.let { end ->
             scope.launch {
-                delay((end - System.currentTimeMillis()).milliseconds)
+                val player = mediaSession?.player
+                val fadeSetting = preferencesRepository.settings.first().sleepFade
+                if (fadeSetting != dev.abhi.zmt.domain.model.SleepFade.OFF && player != null) {
+                    val fadeStart = when (fadeSetting) {
+                        dev.abhi.zmt.domain.model.SleepFade.LOW -> 30_000L
+                        dev.abhi.zmt.domain.model.SleepFade.MED -> 60_000L
+                        else -> 0L
+                    }
+                    val fadeDuration = 10_000L
+                    val fadeAt = (end - fadeStart).coerceAtLeast(System.currentTimeMillis())
+                    if (fadeAt > System.currentTimeMillis()) {
+                        delay((fadeAt - System.currentTimeMillis()).milliseconds)
+                        sleepFadeActive = true
+                        val startVol = player.volume
+                        val steps = 20
+                        val stepMs = fadeDuration / steps
+                        for (i in 1..steps) {
+                            val vol = startVol * (1f - i.toFloat() / steps)
+                            player.volume = vol.coerceIn(0f, 1f)
+                            delay(stepMs)
+                        }
+                    }
+                }
+                val remaining = end - System.currentTimeMillis()
+                if (remaining > 0L) delay(remaining.milliseconds)
                 mediaSession?.player?.pause()
+                if (sleepFadeActive) {
+                    mediaSession?.player?.volume = 1f
+                    sleepFadeActive = false
+                }
                 sleepEndAt = null
             }
         }
@@ -830,6 +960,8 @@ class PlaybackService : MediaLibraryService() {
 
     @OptIn(UnstableApi::class)
     override fun onDestroy() {
+        cancelCrossfade()
+        try { btReceiver?.let { unregisterReceiver(it) } } catch (_: Exception) {}
         clearListener()
         (mediaSession?.player as? ExoPlayer)?.let {
             broadcastEffectSession(

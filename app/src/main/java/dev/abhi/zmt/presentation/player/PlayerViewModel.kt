@@ -48,6 +48,7 @@ import kotlinx.coroutines.flow.collectLatest
 import dev.abhi.zmt.domain.usecase.ScanLibraryUseCase
 import dev.abhi.zmt.playback.PlaybackCache
 import dev.abhi.zmt.playback.PlaybackService
+import android.os.Bundle
 import dev.abhi.zmt.util.audioPermission
 import dev.abhi.zmt.util.cycleRepeat
 import dev.abhi.zmt.util.mediaController
@@ -77,6 +78,16 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 
 private val SPEED_STEPS = listOf(0.75f, 1f, 1.25f, 1.5f, 2f)
+
+val EQ_PRESETS = listOf(
+    "flat" to null,
+    "bass boost" to intArrayOf(12, 8, 0, -4, -2, 0, 4, 8, 10, 12),
+    "treble boost" to intArrayOf(-8, -4, 0, 2, 4, 6, 8, 10, 12, 12),
+    "vocal" to intArrayOf(-6, -2, 4, 8, 6, 4, 2, 0, -2, -4),
+    "rock" to intArrayOf(6, 4, 0, -2, 2, 4, 6, 8, 8, 6),
+    "electronic" to intArrayOf(6, 8, 4, 0, -2, 2, 4, 8, 8, 6),
+    "classical" to intArrayOf(0, 2, 4, 6, 4, 2, 0, -2, -4, -4),
+)
 private val SLEEP_STEPS = listOf(0, 15, 30, 60)
 private val LIBRARY_SETTLE = 500.milliseconds
 private const val HOME_ART_COLS = 48
@@ -716,6 +727,29 @@ class PlayerViewModel @Inject constructor(
                     }
                 }
             }
+            is DmtAction.SetVolume -> {
+                val c = controller ?: return@onIntent
+                val vol = intent.fraction.coerceIn(0f, 1f)
+                c.sendCustomCommand(
+                    PlaybackService.CMD_SET_VOLUME,
+                    Bundle().apply { putFloat(PlaybackService.KEY_VOLUME, vol) },
+                )
+                reduce { it.copy(volume = vol) }
+            }
+            is DmtAction.SetEqualizerPreset -> {
+                val c = controller ?: return@onIntent
+                c.sendCustomCommand(
+                    PlaybackService.CMD_SET_EQ_PRESET,
+                    Bundle().apply { putInt(PlaybackService.KEY_PRESET_INDEX, intent.presetIndex) },
+                )
+                val name = EQ_PRESETS.getOrNull(intent.presetIndex)?.first ?: "flat"
+                reduce { it.copy(equalizerPresetName = name) }
+                viewModelScope.launch {
+                    preferencesRepository.save(
+                        currentState.settings.copy(equalizerPreset = intent.presetIndex)
+                    )
+                }
+            }
             is DmtAction.TelegramLogout -> {
                 viewModelScope.launch {
                     telegramLogin.logout()
@@ -769,10 +803,12 @@ class PlayerViewModel @Inject constructor(
                 val sleepExpired = sleepEndAt != null && sleepLeft == 0L
                 if (sleepExpired) sleepEndAt = null
                 reduce {
+                    val vol = c.volume
                     if (it.positionMs == position &&
                         it.durationMs == duration &&
                         it.queueIndex == index &&
                         it.sleepLeftMs == sleepLeft &&
+                        abs(it.volume - vol) < 0.01f &&
                         !sleepExpired
                     ) {
                         it
@@ -782,6 +818,7 @@ class PlayerViewModel @Inject constructor(
                             durationMs = duration,
                             queueIndex = index,
                             sleepLeftMs = sleepLeft,
+                            volume = vol,
                             sleepMinutes = if (sleepExpired) 0 else it.sleepMinutes,
                         )
                     }

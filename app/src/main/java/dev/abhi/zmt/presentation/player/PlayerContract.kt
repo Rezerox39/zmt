@@ -87,6 +87,8 @@ data class DmtState(
     val downloadingVideoId: String? = null,
     val downloadProgress: Int = -1,  // -1 = idle, 0-100 = progress, >100 = done
     val downloadError: String? = null,
+    val volume: Float = 1f,
+    val equalizerPresetName: String = "flat",
 )
 
 sealed interface DmtAction {
@@ -143,6 +145,8 @@ sealed interface DmtAction {
     data object SaveQueueAsPlaylist : DmtAction
     data class PlayNextTrack(val track: Track) : DmtAction
     data class SetLibrarySection(val section: LibrarySection) : DmtAction
+    data class SetVolume(val fraction: Float) : DmtAction
+    data class SetEqualizerPreset(val presetIndex: Int) : DmtAction
 }
 
 data class QueueRemoval(val index: Int, val label: String)

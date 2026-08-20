@@ -294,6 +294,7 @@ private fun ControlsBlock(
     TrackMeta(state, dispatch)
     SeekRow(state, dispatch)
     TransportRow(state, dispatch)
+    VolumeRow(state = state, dispatch = dispatch)
     StatusRow(
         state = state,
         dispatch = dispatch,
@@ -637,6 +638,43 @@ private fun TransportRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
         ) {
             dispatch(DmtAction.Next)
         }
+    }
+}
+
+@Composable
+private fun VolumeRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
+    var scrub by remember { mutableStateOf<Float?>(null) }
+    val volumeFraction = scrub ?: state.volume
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 6.dp),
+    ) {
+        Text(
+            text = "vol",
+            style = MaterialTheme.typography.labelSmall,
+            color = TuiDim,
+        )
+        ThinSlider(
+            fraction = volumeFraction,
+            onScrub = { scrub = it },
+            onSeek = {
+                if (it != null) {
+                    dispatch(DmtAction.SetVolume(it))
+                    scrub = null
+                }
+            },
+            modifier = Modifier
+                .weight(1f)
+                .padding(horizontal = 10.dp),
+        )
+        Text(
+            text = "${(volumeFraction * 100).toInt()}%",
+            style = MaterialTheme.typography.labelSmall,
+            color = if (scrub != null) TuiAccent else TuiDim,
+        )
     }
 }
 

@@ -61,6 +61,26 @@ enum class AccentColor(val argb: Long, val label: String) {
     fun next(): AccentColor = entries[(ordinal + 1) % entries.size]
 }
 
+
+enum class CrossfadeDuration(val seconds: Int, val label: String) {
+    OFF(0, "off"),
+    SHORT(3, "3s"),
+    MEDIUM(5, "5s"),
+    LONG(8, "8s"),
+    ;
+
+    fun next(): CrossfadeDuration = entries[(ordinal + 1) % entries.size]
+}
+
+enum class SleepFade(val label: String) {
+    OFF("off"),
+    LOW("low"),
+    MED("med"),
+    ;
+
+    fun next(): SleepFade = entries[(ordinal + 1) % entries.size]
+}
+
 data class DmtSettings(
     val wave: Boolean = true,
     val normalizeVolume: Boolean = false,
@@ -81,6 +101,10 @@ data class DmtSettings(
     val telegramChannelId: Long? = null,
     val telegramChannelName: String? = null,
     val telegramAuthState: String? = null,
+    val crossfadeDuration: CrossfadeDuration = CrossfadeDuration.OFF,
+    val sleepFade: SleepFade = SleepFade.OFF,
+    val equalizerPreset: Int = -1,
+    val volumeFadeOnSleep: Boolean = false,
 )
 
 data class LastSession(

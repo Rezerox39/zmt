@@ -33,6 +33,9 @@ import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.domain.model.AccentColor
+import dev.abhi.zmt.domain.model.CrossfadeDuration
+import dev.abhi.zmt.domain.model.SleepFade
+import dev.abhi.zmt.presentation.player.EQ_PRESETS
 import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.presentation.player.DmtAction
@@ -60,6 +63,16 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         Caption(stringResource(R.string.section_playback))
 
         SettingRow(
+            label = stringResource(R.string.set_crossfade),
+            value = settings.crossfadeDuration.label,
+        ) {
+            dispatch(
+                DmtAction.Config(
+                    settings.copy(crossfadeDuration = settings.crossfadeDuration.next()),
+                ),
+            )
+        }
+        SettingRow(
             label = stringResource(R.string.set_normalize),
             value = if (settings.normalizeVolume) on else off,
         ) {
@@ -74,6 +87,16 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             value = if (settings.stopOnDismiss) on else off,
         ) {
             dispatch(DmtAction.Config(settings.copy(stopOnDismiss = !settings.stopOnDismiss)))
+        }
+        SettingRow(
+            label = stringResource(R.string.set_sleep_fade),
+            value = settings.sleepFade.label,
+        ) {
+            dispatch(
+                DmtAction.Config(
+                    settings.copy(sleepFade = settings.sleepFade.next()),
+                ),
+            )
         }
 
         Caption(stringResource(R.string.section_lyrics))
@@ -124,6 +147,15 @@ fun SettingsPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
         AccentRow(settings = settings, dispatch = dispatch)
 
         Caption(stringResource(R.string.tools))
+        SettingRow(
+            label = stringResource(R.string.set_eq_preset),
+            value = state.equalizerPresetName,
+        ) {
+            val nextIndex = (state.equalizerPresetName.let { current ->
+                EQ_PRESETS.indexOfFirst { it.first == current }
+            } + 1).mod(EQ_PRESETS.size)
+            dispatch(DmtAction.SetEqualizerPreset(nextIndex))
+        }
         SettingRow(
             label = stringResource(R.string.set_eq),
             value = stringResource(R.string.set_eq_open),

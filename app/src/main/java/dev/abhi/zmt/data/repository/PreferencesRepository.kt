@@ -16,6 +16,10 @@ import dev.abhi.zmt.data.source.local.KEY_LIBRARY_SORT
 import dev.abhi.zmt.data.source.local.KEY_NORMALIZE
 import dev.abhi.zmt.data.source.local.KEY_RAW
 import dev.abhi.zmt.data.source.local.KEY_THEME
+import dev.abhi.zmt.data.source.local.KEY_CROSSFADE
+import dev.abhi.zmt.data.source.local.KEY_SLEEP_FADE
+import dev.abhi.zmt.data.source.local.KEY_EQUALIZER_PRESET
+import dev.abhi.zmt.data.source.local.KEY_VOLUME_FADE_SLEEP
 import dev.abhi.zmt.data.source.local.KEY_ROMANIZED_LYRICS
 import dev.abhi.zmt.data.source.local.KEY_SOURCE_MODE
 import dev.abhi.zmt.data.source.local.KEY_SPECS
@@ -34,6 +38,8 @@ import dev.abhi.zmt.data.source.local.toCounts
 import dev.abhi.zmt.domain.model.AccentColor
 import dev.abhi.zmt.domain.model.DmtSettings
 import dev.abhi.zmt.domain.model.ThemeOption
+import dev.abhi.zmt.domain.model.CrossfadeDuration
+import dev.abhi.zmt.domain.model.SleepFade
 import dev.abhi.zmt.domain.model.DmtStats
 import dev.abhi.zmt.domain.model.LastSession
 import dev.abhi.zmt.domain.model.LibrarySort
@@ -75,6 +81,10 @@ class PreferencesRepository @Inject constructor(
             telegramChannelId = prefs[KEY_TELEGRAM_CHANNEL_ID],
             telegramChannelName = prefs[KEY_TELEGRAM_CHANNEL_NAME],
             telegramAuthState = prefs[KEY_TELEGRAM_AUTH_STATE],
+            crossfadeDuration = CrossfadeDuration.entries[(prefs[KEY_CROSSFADE] ?: 0).coerceIn(0, CrossfadeDuration.entries.size - 1)],
+            sleepFade = SleepFade.entries[(prefs[KEY_SLEEP_FADE] ?: 0).coerceIn(0, SleepFade.entries.size - 1)],
+            equalizerPreset = prefs[KEY_EQUALIZER_PRESET] ?: -1,
+            volumeFadeOnSleep = prefs[KEY_VOLUME_FADE_SLEEP] ?: false,
         )
     }
 
@@ -111,6 +121,10 @@ class PreferencesRepository @Inject constructor(
             settings.telegramAuthState
                 ?.let { state -> it[KEY_TELEGRAM_AUTH_STATE] = state }
                 ?: it.remove(KEY_TELEGRAM_AUTH_STATE)
+            it[KEY_CROSSFADE] = settings.crossfadeDuration.ordinal
+            it[KEY_SLEEP_FADE] = settings.sleepFade.ordinal
+            it[KEY_EQUALIZER_PRESET] = settings.equalizerPreset
+            it[KEY_VOLUME_FADE_SLEEP] = settings.volumeFadeOnSleep
         }
     }
 

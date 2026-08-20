@@ -37,6 +37,11 @@ val KEY_TELEGRAM_CHANNEL_NAME = stringPreferencesKey("telegram_channel_name")
 val KEY_TELEGRAM_AUTH_STATE = stringPreferencesKey("telegram_auth_state")
 val KEY_THEME = stringPreferencesKey("theme")
 
+val KEY_CROSSFADE = intPreferencesKey("crossfade_duration")
+val KEY_SLEEP_FADE = intPreferencesKey("sleep_fade")
+val KEY_EQUALIZER_PRESET = intPreferencesKey("equalizer_preset")
+val KEY_VOLUME_FADE_SLEEP = booleanPreferencesKey("volume_fade_sleep")
+
 fun String.toCounts(): Map<Long, Int> =
     split(';')
         .mapNotNull { entry ->

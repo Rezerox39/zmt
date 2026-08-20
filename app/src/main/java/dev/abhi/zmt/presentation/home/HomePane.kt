@@ -109,6 +109,27 @@ fun HomePane(
             }
         }
 
+        if (home.recentlyPlayed.isNotEmpty()) {
+            HorizontalDivider(
+                color = TuiLine,
+                modifier = Modifier.padding(top = 18.dp),
+            )
+            Text(
+                text = stringResource(R.string.home_recently_played),
+                style = MaterialTheme.typography.titleLarge,
+                color = TuiBright,
+                modifier = Modifier.padding(top = 14.dp, bottom = 6.dp),
+            )
+            ShelfHeader(label = stringResource(R.string.home_tracks), onMore = onOpenTracks)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                itemsIndexed(home.recentlyPlayed, key = { _, track -> track.id }) { index, track ->
+                    TrackCard(track = track, art = art, artKey = state.settings.rawArt) {
+                        dispatch(DmtAction.PlayAt(home.recentlyPlayed, index))
+                    }
+                }
+            }
+        }
+
         if (home.fresh.isNotEmpty()) {
             if (home.hasFavourites) {
                 HorizontalDivider(

@@ -10,6 +10,7 @@ data class HomeShelves(
     val artists: List<Artist> = emptyList(),
     val tracks: List<Track> = emptyList(),
     val fresh: List<Track> = emptyList(),
+    val recentlyPlayed: List<Track> = emptyList(),
 ) {
     val hasFavourites: Boolean
         get() = albums.isNotEmpty() || artists.isNotEmpty() || tracks.isNotEmpty()
@@ -34,6 +35,10 @@ fun homeShelves(
         fresh = tracks
             .filter { it.plays(counts) == 0 }
             .sortedByDescending { it.dateAdded }
+            .take(SHELF_SIZE),
+        recentlyPlayed = tracks
+            .filter { it.plays(counts) > 0 }
+            .sortedByDescending { it.plays(counts) }
             .take(SHELF_SIZE),
     )
 

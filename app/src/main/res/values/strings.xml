@@ -233,4 +233,13 @@
 
     <string name="widget_name">mini player</string>
     <string name="widget_description">now playing widget</string>
+
+    <!-- New features -->
+    <string name="home_recently_played">recently played</string>
+    <string name="set_crossfade">crossfade</string>
+    <string name="set_sleep_fade">sleep fade</string>
+    <string name="set_eq_preset">eq preset</string>
+    <string name="set_volume">volume</string>
+    <string name="set_bluetooth_resume">bt auto-play</string>
+    <string name="set_gapless">gapless</string>
 </resources>
