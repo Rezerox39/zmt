@@ -411,10 +411,11 @@ class TelegramClient @Inject constructor() {
             performer,
             null,
         )
+        val topic = TdApi.MessageTopic()
         val result = sendRequest(
             TdApi.SendMessage(
                 channelId,
-                0L,
+                topic,
                 null,
                 null,
                 null,
