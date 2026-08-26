@@ -120,6 +120,7 @@ class PlayerViewModel @Inject constructor(
     private val youtubeRepository: dev.abhi.zmt.data.repository.YoutubeMediaRepositoryImpl,
     private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
     private val playbackCache: PlaybackCache,
+    private val telegramClient: dev.abhi.zmt.data.remote.telegram.TelegramClient,
     private val playlistImporter: PlaylistImporter,
     private val urlPlaylistResolver: UrlPlaylistResolver,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
@@ -409,6 +410,60 @@ class PlayerViewModel @Inject constructor(
                 if (query.isNotBlank() && currentState.settings.sourceMode == SourceMode.YOUTUBE) {
                     viewModelScope.launch {
                         performYouTubeSearch(query)
+                    }
+                }
+            }
+            DmtAction.ShowUploadSheet -> {
+                reduce { it.copy(showUploadSheet = true) }
+            }
+            DmtAction.DismissUploadSheet -> {
+                reduce { it.copy(showUploadSheet = false) }
+            }
+            DmtAction.UploadToTelegram -> {
+                reduce { it.copy(showUploadSheet = false, uploadProgress = 0, uploadError = null) }
+                viewModelScope.launch(Dispatchers.IO) {
+                    try {
+                        val track = currentState.currentTrack
+                        val channelId = currentState.settings.telegramChannelId
+                        if (track == null) {
+                            reduce { it.copy(uploadError = "no track playing", uploadProgress = -1) }
+                            return@launch
+                        }
+                        if (channelId == null) {
+                            reduce { it.copy(uploadError = "no telegram channel connected", uploadProgress = -1) }
+                            return@launch
+                        }
+
+                        // Get the local file path for this track
+                        val path = track.path
+                        if (path.isBlank() || (!java.io.File(path).exists() && !path.startsWith("content://"))) {
+                            reduce { it.copy(uploadError = "track not available locally", uploadProgress = -1) }
+                            return@launch
+                        }
+
+                        val file = java.io.File(path)
+                        if (!file.exists()) {
+                            reduce { it.copy(uploadError = "file not found", uploadProgress = -1) }
+                            return@launch
+                        }
+
+                        reduce { it.copy(uploadProgress = 30) }
+
+                        val client = telegramClient
+                        val result = client.sendAudioToChannel(
+                            channelId = channelId,
+                            filePath = file.absolutePath,
+                            title = track.title,
+                            performer = track.artist,
+                            duration = (track.durationMs / 1000).toInt(),
+                            track.mime.ifBlank { "audio/mpeg" },
+                        )
+
+                        reduce { it.copy(uploadProgress = 101, notice = "uploaded to telegram") }
+                        kotlinx.coroutines.delay(3000L)
+                        reduce { it.copy(uploadProgress = -1, uploadError = null) }
+                    } catch (e: Exception) {
+                        reduce { it.copy(uploadError = "upload failed: ${e.message}", uploadProgress = -1) }
                     }
                 }
             }

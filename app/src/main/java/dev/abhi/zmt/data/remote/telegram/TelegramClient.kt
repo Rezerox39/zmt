@@ -390,6 +390,39 @@ class TelegramClient @Inject constructor() {
         }
     }
 
+    /**
+     * Send an audio file to a Telegram channel.
+     * The file must already exist locally at [filePath].
+     * Returns the sent message ID on success, or throws on failure.
+     */
+    suspend fun sendAudioToChannel(
+        channelId: Long,
+        filePath: String,
+        title: String,
+        performer: String,
+        duration: Int = 0,
+        mimeType: String = "audio/mpeg",
+    ): Long {
+        val result = sendRequest(
+            TdApi.SendMessage(
+                chatId = channelId,
+                replyToMessageId = 0,
+                replyTo = null,
+                options = null,
+                replyMarkup = null,
+                inputMessageContent = TdApi.InputMessageAudio(
+                    audio = TdApi.InputFileLocal(filePath),
+                    albumCoverThumbnail = null,
+                    duration = duration,
+                    title = title,
+                    performer = performer,
+                    caption = null,
+                ),
+            )
+        )
+        return result.id
+    }
+
     private fun userFacingError(code: Int, message: String): String = when {
         message.contains("PHONE_NUMBER_INVALID") ->
             "Invalid phone number. Include country code (e.g. +1234567890)"

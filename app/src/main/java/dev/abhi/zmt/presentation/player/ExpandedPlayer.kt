@@ -311,6 +311,11 @@ private fun ControlsBlock(
     if (state.showDownloadSheet) {
         DownloadSheet(state = state, dispatch = dispatch)
     }
+
+    // Upload to Telegram sheet
+    if (state.showUploadSheet) {
+        UploadSheet(state = state, dispatch = dispatch)
+    }
 }
 
 @Composable
@@ -360,6 +365,56 @@ private fun DownloadSheet(
                 busy = dlBusy,
             ) {
                 dispatch(DmtAction.DownloadToDevice(track = null))
+            }
+        }
+    }
+}
+
+@Composable
+private fun UploadSheet(
+    state: DmtState,
+    dispatch: (DmtAction) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(top = 4.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 0.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Box(modifier = Modifier.size(7.dp).background(TuiAccent))
+                Text(
+                    text = " tg:upload",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TuiFg,
+                )
+            }
+            Text(
+                text = "[ x ]",
+                style = MaterialTheme.typography.labelMedium,
+                color = TuiDim,
+                modifier = Modifier.tuiClickable { dispatch(DmtAction.DismissUploadSheet) },
+            )
+        }
+
+        val ulLabel = when {
+            state.uploadProgress == 101 -> "done"
+            state.uploadProgress in 0..99 -> "uploading ${state.uploadProgress}%"
+            state.uploadError != null -> "err: ${state.uploadError}"
+            else -> "upload to channel"
+        }
+        val ulBusy = state.uploadProgress in 0..99
+
+        Box(modifier = Modifier.fillMaxWidth()) {
+            TuiStatus(
+                label = "tg",
+                value = ulLabel,
+                on = state.uploadProgress in 0..101,
+                busy = ulBusy,
+            ) {
+                dispatch(DmtAction.UploadToTelegram)
             }
         }
     }
@@ -752,6 +807,27 @@ private fun StatusRow(
                 on = false,
             ) {
                 dispatch(DmtAction.ShowDownloadSheet)
+            }
+        }
+        // Upload to Telegram button
+        val tgConnected = state.settings.telegramChannelId != null
+        val ulActive = state.uploadProgress > 0
+        val ulLabel = when {
+            state.uploadProgress == 101 -> "done"
+            state.uploadProgress in 0..99 -> "tg ${state.uploadProgress}%"
+            state.uploadError != null -> "err"
+            else -> "off"
+        }
+        TuiStatus(
+            label = "tg",
+            value = ulLabel,
+            on = ulActive || state.uploadProgress == 101,
+            busy = state.uploadProgress in 0..99,
+        ) {
+            if (!tgConnected) {
+                dispatch(DmtAction.Show(DmtView.SOURCES))
+            } else {
+                dispatch(DmtAction.ShowUploadSheet)
             }
         }
     }

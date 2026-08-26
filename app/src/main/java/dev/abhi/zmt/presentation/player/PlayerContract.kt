@@ -89,6 +89,9 @@ data class DmtState(
     val downloadingVideoId: String? = null,
     val downloadProgress: Int = -1,  // -1 = idle, 0-100 = progress, >100 = done
     val downloadError: String? = null,
+    val uploadProgress: Int = -1,
+    val uploadError: String? = null,
+    val showUploadSheet: Boolean = false,
     val volume: Float = 1f,
     val equalizerPresetName: String = "flat",
 )
@@ -140,6 +143,9 @@ sealed interface DmtAction {
     data object TelegramLogout : DmtAction
     data object ShowDownloadSheet : DmtAction
     data object DismissDownloadSheet : DmtAction
+    data object ShowUploadSheet : DmtAction
+    data object DismissUploadSheet : DmtAction
+    data object UploadToTelegram : DmtAction
     data class DownloadToDevice(val track: Track? = null) : DmtAction
     data object ToggleLike : DmtAction
     data class PlayNext(val index: Int) : DmtAction
