@@ -403,21 +403,22 @@ class TelegramClient @Inject constructor() {
         duration: Int = 0,
         mimeType: String = "audio/mpeg",
     ): Long {
+        val inputAudio = TdApi.InputMessageAudio(
+            TdApi.InputFileLocal(filePath),
+            null,
+            duration,
+            title,
+            performer,
+            null,
+        )
         val result = sendRequest(
             TdApi.SendMessage(
-                chatId = channelId,
-                replyToMessageId = 0,
-                replyTo = null,
-                options = null,
-                replyMarkup = null,
-                inputMessageContent = TdApi.InputMessageAudio(
-                    audio = TdApi.InputFileLocal(filePath),
-                    albumCoverThumbnail = null,
-                    duration = duration,
-                    title = title,
-                    performer = performer,
-                    caption = null,
-                ),
+                channelId,
+                0L,
+                null,
+                null,
+                null,
+                inputAudio,
             )
         )
         return result.id
