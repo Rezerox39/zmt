@@ -294,9 +294,13 @@ class PlayerViewModel @Inject constructor(
         return when (track.source) {
             TrackSource.YOUTUBE -> {
                 val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return null
-                streamCache.downloadSync(uriStr, onProgress = onProgress) {
-                    youtubeStreamResolver.resolve(videoId)?.let { Pair(it.url, it.userAgent) }
-                }
+                streamCache.downloadSync(
+                    uriStr,
+                    resolveUrl = {
+                        youtubeStreamResolver.resolve(videoId)?.let { Pair(it.url, it.userAgent) }
+                    },
+                    onProgress = onProgress,
+                )
             }
             TrackSource.TELEGRAM -> {
                 val fileId = track.remoteId?.toLongOrNull() ?: track.uri.lastPathSegment?.toLongOrNull() ?: return null
@@ -311,9 +315,11 @@ class PlayerViewModel @Inject constructor(
                 }
             }
             TrackSource.JELLYFIN -> {
-                streamCache.downloadSync(uriStr, onProgress = onProgress) {
-                    Pair(uriStr, "okhttp/4.9.3")
-                }
+                streamCache.downloadSync(
+                    uriStr,
+                    resolveUrl = { Pair(uriStr, "okhttp/4.9.3") },
+                    onProgress = onProgress,
+                )
             }
             else -> null
         }
