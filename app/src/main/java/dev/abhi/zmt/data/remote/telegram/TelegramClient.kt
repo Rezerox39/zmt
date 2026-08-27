@@ -411,11 +411,13 @@ class TelegramClient @Inject constructor() {
             performer,
             null,
         )
-        val topic = TdApi.MessageTopicThread(0L)
+        // Channels and non-forum chats have no topic/thread; pass null so the
+        // message lands in the channel's main feed. MessageTopicThread is only
+        // valid for non-forum supergroups and would be rejected here.
         val result = sendRequest(
             TdApi.SendMessage(
                 channelId,
-                topic,
+                null,
                 null,
                 null,
                 null,
