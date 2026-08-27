@@ -33,6 +33,7 @@ import dev.abhi.zmt.data.source.local.KEY_STAT_TOTAL
 import dev.abhi.zmt.data.source.local.KEY_TELEGRAM_AUTH_STATE
 import dev.abhi.zmt.data.source.local.KEY_TELEGRAM_CHANNEL_ID
 import dev.abhi.zmt.data.source.local.KEY_TELEGRAM_CHANNEL_NAME
+import dev.abhi.zmt.data.source.local.KEY_UPLOADED_TRACKS
 import dev.abhi.zmt.data.source.local.KEY_WAVE
 import dev.abhi.zmt.data.source.local.dmtStore
 import dev.abhi.zmt.data.source.local.encodeCounts
@@ -89,6 +90,7 @@ class PreferencesRepository @Inject constructor(
             volumeFadeOnSleep = prefs[KEY_VOLUME_FADE_SLEEP] ?: false,
             gapless = prefs[KEY_GAPLESS] ?: true,
             fingerprintLock = prefs[KEY_FINGERPRINT_LOCK] ?: false,
+            uploadedTrackIds = prefs[KEY_UPLOADED_TRACKS] ?: emptySet(),
         )
     }
 
@@ -131,6 +133,7 @@ class PreferencesRepository @Inject constructor(
             it[KEY_VOLUME_FADE_SLEEP] = settings.volumeFadeOnSleep
             it[KEY_GAPLESS] = settings.gapless
             it[KEY_FINGERPRINT_LOCK] = settings.fingerprintLock
+            it[KEY_UPLOADED_TRACKS] = settings.uploadedTrackIds
         }
     }
 

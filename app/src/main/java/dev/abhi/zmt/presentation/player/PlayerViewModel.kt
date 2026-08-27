@@ -38,6 +38,7 @@ import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.SourceMode
 import dev.abhi.zmt.domain.model.Spec
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.domain.model.TrackSource
 import dev.abhi.zmt.domain.usecase.EmbedLyricsUseCase
 import dev.abhi.zmt.domain.usecase.GetLyricsUseCase
 import dev.abhi.zmt.domain.usecase.GetTrackTechUseCase
@@ -119,6 +120,8 @@ class PlayerViewModel @Inject constructor(
     private val mediaSourceProvider: dev.abhi.zmt.domain.usecase.MediaSourceProvider,
     private val youtubeRepository: dev.abhi.zmt.data.repository.YoutubeMediaRepositoryImpl,
     private val downloadManager: dev.abhi.zmt.data.remote.download.TrackDownloadManager,
+    private val streamCache: dev.abhi.zmt.playback.StreamCacheManager,
+    private val youtubeStreamResolver: dev.abhi.zmt.data.remote.youtube.YoutubeStreamResolver,
     private val playbackCache: PlaybackCache,
     private val telegramClient: dev.abhi.zmt.data.remote.telegram.TelegramClient,
     private val playlistImporter: PlaylistImporter,
@@ -257,6 +260,63 @@ class PlayerViewModel @Inject constructor(
             if (found != null) return found
         }
         return null
+    }
+
+    /** Stable identity for a track, used to remember that it was uploaded. */
+    private fun trackKey(track: Track): String =
+        track.remoteId?.let { "$it|${track.source.name}" }
+            ?: track.id.toString()
+
+    /**
+     * Returns a local file for [track], auto-downloading streamed sources
+     * (YouTube/Telegram/Jellyfin) when needed. [onProgress] receives 0f..1f
+     * while the audio is being fetched.
+     */
+    private suspend fun acquireLocalFile(
+        track: Track,
+        onProgress: (Float) -> Unit,
+    ): java.io.File? {
+        // 1. Real local file
+        val path = track.path
+        if (path.isNotBlank() && !path.startsWith("tg://") && !path.startsWith("youtube://") && !path.startsWith("http")) {
+            val f = java.io.File(path)
+            if (f.exists() && f.length() > 0) return f
+        }
+
+        // 2. Already cached by the stream cache (played before)
+        val uriStr = track.uri.toString()
+        streamCache.cachedFileFor(uriStr)?.let { return it }
+        if (track.source.name == "TELEGRAM") {
+            streamCache.cachedFileFor("tg://audio/${track.remoteId}")?.let { return it }
+        }
+
+        // 3. Download on demand
+        return when (track.source) {
+            TrackSource.YOUTUBE -> {
+                val videoId = track.remoteId ?: track.uri.lastPathSegment ?: return null
+                streamCache.downloadSync(uriStr, onProgress = onProgress) {
+                    youtubeStreamResolver.resolve(videoId)?.let { Pair(it.url, it.userAgent) }
+                }
+            }
+            TrackSource.TELEGRAM -> {
+                val fileId = track.remoteId?.toLongOrNull() ?: track.uri.lastPathSegment?.toLongOrNull() ?: return null
+                onProgress(0.5f)
+                val file = telegramClient.downloadFile(fileId)
+                val f = file.local.path?.let { java.io.File(it) }
+                if (f != null && f.exists() && f.length() > 0) {
+                    onProgress(1f)
+                    f
+                } else {
+                    null
+                }
+            }
+            TrackSource.JELLYFIN -> {
+                streamCache.downloadSync(uriStr, onProgress = onProgress) {
+                    Pair(uriStr, "okhttp/4.9.3")
+                }
+            }
+            else -> null
+        }
     }
 
     private fun indexTracks(list: List<Track>) {
@@ -434,34 +494,47 @@ class PlayerViewModel @Inject constructor(
                             return@launch
                         }
 
-                        // Get the local file path for this track
-                        val path = track.path
-                        if (path.isBlank() || (!java.io.File(path).exists() && !path.startsWith("content://"))) {
-                            reduce { it.copy(uploadError = "track not available locally", uploadProgress = -1) }
+                        // Resolve/reuse a local file for this track. Streamed tracks
+                        // (YouTube/Telegram/Jellyfin) are auto-downloaded first.
+                        val localFile = acquireLocalFile(track) { fraction ->
+                            // Map down+upload total into 0..80 so upload has headroom
+                            reduce { it.copy(uploadProgress = (fraction * 80).toInt().coerceIn(0, 80), uploadError = null) }
+                        }
+                        if (localFile == null) {
+                            reduce { it.copy(uploadError = "could not download track for upload", uploadProgress = -1) }
                             return@launch
                         }
 
-                        val file = java.io.File(path)
-                        if (!file.exists()) {
-                            reduce { it.copy(uploadError = "file not found", uploadProgress = -1) }
-                            return@launch
-                        }
-
-                        reduce { it.copy(uploadProgress = 30) }
-
+                        // Upload phase: 80 -> 101
+                        reduce { it.copy(uploadProgress = 85, uploadError = null) }
                         val client = telegramClient
-                        val result = client.sendAudioToChannel(
+                        client.sendAudioToChannel(
                             channelId = channelId,
-                            filePath = file.absolutePath,
+                            filePath = localFile.absolutePath,
                             title = track.title,
                             performer = track.artist,
                             duration = (track.durationMs / 1000).toInt(),
                             track.mime.ifBlank { "audio/mpeg" },
                         )
 
-                        reduce { it.copy(uploadProgress = 101, notice = "uploaded to telegram") }
-                        kotlinx.coroutines.delay(3000L)
-                        reduce { it.copy(uploadProgress = -1, uploadError = null) }
+                        // Remember this track as uploaded so the tg button stays white.
+                        val uploadId = trackKey(track)
+                        val newIds = (currentState.settings.uploadedTrackIds + uploadId)
+                        reduce {
+                            it.copy(
+                                uploadProgress = 101,
+                                notice = "uploaded to telegram",
+                                settings = it.settings.copy(uploadedTrackIds = newIds),
+                            )
+                        }
+                        preferencesRepository.save(currentState.settings.copy(uploadedTrackIds = newIds))
+                        // Hold the "done / filled" state briefly, then reset the progress
+                        // indicator. The white button is remembered via uploadedTrackIds,
+                        // so it stays filled for this track without leaking to others.
+                        kotlinx.coroutines.delay(4000L)
+                        if (currentState.uploadProgress >= 101) {
+                            reduce { it.copy(uploadProgress = -1, uploadError = null) }
+                        }
                     } catch (e: Exception) {
                         reduce { it.copy(uploadError = "upload failed: ${e.message}", uploadProgress = -1) }
                     }

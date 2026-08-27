@@ -107,6 +107,7 @@ data class DmtSettings(
     val volumeFadeOnSleep: Boolean = false,
     val gapless: Boolean = true,
     val fingerprintLock: Boolean = false,
+    val uploadedTrackIds: Set<String> = emptySet(),
 )
 
 data class LastSession(

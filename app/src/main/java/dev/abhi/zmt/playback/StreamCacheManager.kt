@@ -100,8 +100,59 @@ class StreamCacheManager @Inject constructor(
         }.start()
     }
 
+
+    /**
+     * Download the full audio for [streamUri] to the local cache and return the file.
+     * Reports fractional progress (0f..1f) via [onProgress] when the content length is known.
+     * Returns null if resolution or download fails.
+     */
+    suspend fun downloadSync(
+        streamUri: String,
+        resolveUrl: suspend () -> Pair<String, String>?,
+        onProgress: (Float) -> Unit = {},
+    ): File? {
+        cachedFileFor(streamUri)?.let { return it }
+        val resolved = resolveUrl() ?: return null
+        val (url, userAgent) = resolved
+        val target = fileFor(streamUri)
+        val tmp = File(target.parent, target.name + ".tmp")
+        try {
+            Log.d(TAG, "Download start: $streamUri")
+            val conn = URL(url).openConnection() as HttpURLConnection
+            conn.connectTimeout = 15_000
+            conn.readTimeout = 120_000
+            conn.setRequestProperty("User-Agent", userAgent)
+            conn.connect()
+            val total = conn.contentLength
+            val input = conn.inputStream
+            FileOutputStream(tmp).use { out ->
+                val buf = ByteArray(64 * 1024)
+                var downloaded = 0L
+                var read: Int
+                while (input.read(buf).also { read = it } != -1) {
+                    out.write(buf, 0, read)
+                    downloaded += read
+                    if (total > 0) onProgress((downloaded.toFloat() / total).coerceIn(0f, 1f))
+                }
+            }
+            conn.disconnect()
+            if (tmp.length() > 0) {
+                tmp.renameTo(target)
+                Log.d(TAG, "Download done: $streamUri (${target.length()} bytes)")
+                return target
+            }
+            tmp.delete()
+            return null
+        } catch (e: Exception) {
+            Log.w(TAG, "Download failed: $streamUri — ${e.message}")
+            tmp.delete()
+            return null
+        }
+    }
+
     /** Compute a stable filename from the stream URI. */
     private fun fileFor(streamUri: String): File {
+
         val safeName = streamUri
             .replace("://", "_")
             .replace("/", "_")

@@ -43,6 +43,7 @@ val KEY_EQUALIZER_PRESET = intPreferencesKey("equalizer_preset")
 val KEY_VOLUME_FADE_SLEEP = booleanPreferencesKey("volume_fade_sleep")
 val KEY_GAPLESS = booleanPreferencesKey("gapless")
 val KEY_FINGERPRINT_LOCK = booleanPreferencesKey("fingerprint_lock")
+val KEY_UPLOADED_TRACKS = stringSetPreferencesKey("uploaded_tracks")
 
 fun String.toCounts(): Map<Long, Int> =
     split(';')

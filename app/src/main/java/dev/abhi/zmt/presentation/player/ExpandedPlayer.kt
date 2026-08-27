@@ -65,6 +65,7 @@ import dev.abhi.zmt.core.common.TuiChip
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.TuiNotice
 import dev.abhi.zmt.core.common.TuiPanel
+import dev.abhi.zmt.core.common.TuiLiquidStatus
 import dev.abhi.zmt.core.common.TuiStatus
 import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.core.common.fitScaleFor
@@ -399,20 +400,32 @@ private fun UploadSheet(
             )
         }
 
+        val curTrack = state.currentTrack
+        val curKey = curTrack?.let {
+            it.remoteId?.let { rid -> "$rid|${it.source.name}" } ?: it.id.toString()
+        }
+        val alreadyUploaded = curKey != null && state.settings.uploadedTrackIds.contains(curKey)
+        val ulDone = state.uploadProgress >= 101 || alreadyUploaded
         val ulLabel = when {
-            state.uploadProgress == 101 -> "done"
-            state.uploadProgress in 0..99 -> "uploading ${state.uploadProgress}%"
+            ulDone -> "done"
+            state.uploadProgress in 0..99 -> "downloading + uploading ${state.uploadProgress}%"
             state.uploadError != null -> "err: ${state.uploadError}"
             else -> "upload to channel"
         }
         val ulBusy = state.uploadProgress in 0..99
+        val ulFraction = when {
+            ulDone -> 1f
+            state.uploadProgress > 0 -> (state.uploadProgress / 100f).coerceIn(0f, 0.99f)
+            else -> 0f
+        }
 
         Box(modifier = Modifier.fillMaxWidth()) {
-            TuiStatus(
+            TuiLiquidStatus(
                 label = "tg",
                 value = ulLabel,
-                on = state.uploadProgress in 0..101,
-                busy = ulBusy,
+                fraction = ulFraction,
+                completed = ulDone,
+                active = ulBusy,
             ) {
                 dispatch(DmtAction.UploadToTelegram)
             }
@@ -809,20 +822,34 @@ private fun StatusRow(
                 dispatch(DmtAction.ShowDownloadSheet)
             }
         }
-        // Upload to Telegram button
+        // Upload to Telegram button — uses a liquid fill that rises while
+        // uploading and stays white once the song is uploaded.
         val tgConnected = state.settings.telegramChannelId != null
-        val ulActive = state.uploadProgress > 0
+        val curTrack = state.currentTrack
+        val curKey = curTrack?.let {
+            it.remoteId?.let { rid -> "$rid|${it.source.name}" } ?: it.id.toString()
+        }
+        val alreadyUploaded = curKey != null && state.settings.uploadedTrackIds.contains(curKey)
+        val ulUploading = state.uploadProgress in 0..99
+        val ulDone = state.uploadProgress >= 101 || alreadyUploaded
+        val ulFraction = when {
+            ulDone -> 1f
+            state.uploadProgress > 0 -> (state.uploadProgress / 100f).coerceIn(0f, 0.99f)
+            state.uploadError != null -> 0.2f
+            else -> 0f
+        }
         val ulLabel = when {
-            state.uploadProgress == 101 -> "done"
+            ulDone -> "done"
             state.uploadProgress in 0..99 -> "tg ${state.uploadProgress}%"
             state.uploadError != null -> "err"
             else -> "off"
         }
-        TuiStatus(
+        TuiLiquidStatus(
             label = "tg",
             value = ulLabel,
-            on = ulActive || state.uploadProgress == 101,
-            busy = state.uploadProgress in 0..99,
+            fraction = ulFraction,
+            completed = ulDone,
+            active = ulUploading,
         ) {
             if (!tgConnected) {
                 dispatch(DmtAction.Show(DmtView.SOURCES))
