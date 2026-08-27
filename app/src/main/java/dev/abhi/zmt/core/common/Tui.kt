@@ -4,8 +4,6 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.keyframes
 import androidx.compose.animation.core.rememberInfiniteTransition
@@ -20,7 +18,6 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Box
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -41,7 +38,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
@@ -64,6 +60,7 @@ import dev.abhi.zmt.ui.theme.TuiFaint
 import dev.abhi.zmt.ui.theme.TuiFg
 import dev.abhi.zmt.ui.theme.TuiLine
 import dev.abhi.zmt.ui.theme.TuiRaised
+import dev.abhi.zmt.ui.theme.TuiRed
 import dev.abhi.zmt.ui.theme.TuiSurface
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -321,10 +318,8 @@ fun TuiStatus(
 }
 
 /**
- * TUI status indicator with a liquid fill that rises from the bottom.
- * Used for long-running operations (e.g. Telegram upload) where the box fills
- * with white proportional to [fraction]. When [completed] is true the box stays
- * fully filled (white) so the user knows the action is done.
+ * TUI status indicator for the Telegram upload button. Turns the label red
+ * once the upload is done so the user knows the song is already uploaded.
  */
 @Composable
 fun TuiLiquidStatus(
@@ -336,71 +331,34 @@ fun TuiLiquidStatus(
     onClick: () -> Unit,
 ) {
     val press = rememberTuiPress()
-    val targetFraction = if (completed) 1f else fraction.coerceIn(0f, 0.999f)
-    val fillFraction by androidx.compose.animation.core.animateFloatAsState(
-        targetValue = targetFraction,
-        animationSpec = tween(durationMillis = 250),
-        label = "liquidFill",
-    )
-    // Gentle wave offset so the liquid edge looks animated while filling.
-    val wave by rememberInfiniteTransition(label = "liquidWave").animateFloat(
-        initialValue = 0f,
-        targetValue = 2f * Math.PI.toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 1100),
-            repeatMode = androidx.compose.animation.core.RepeatMode.Restart,
-        ),
-        label = "liquidWave",
-    )
     val borderColor = lerp(TuiLine, TuiFg, press.fraction)
-    val textColor = lerp(TuiDim, TuiBright, press.fraction)
-    Box(
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .border(1.dp, borderColor)
-            .clipToBounds()
+            .background(lerp(TuiRaised, TuiFg, press.fraction))
             .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
             ) { press.click(onClick) }
             .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {
-        Canvas(modifier = Modifier.matchParentSize()) {
-            if (fillFraction > 0f) {
-                // Animated liquid surface that rises as fraction grows.
-                val baseY = size.height * (1f - fillFraction)
-                val waveAmp = if (completed) 0f else 1.5.dp.toPx()
-                // Draw a sinusoidal top edge for the liquid
-                val liquid = Path()
-                val steps = 24
-                for (i in 0..steps) {
-                    val x = size.width * i / steps
-                    val y = baseY + kotlin.math.sin((wave + i.toFloat() * 0.5f)) * waveAmp
-                    if (i == 0) liquid.moveTo(x, y) else liquid.lineTo(x, y)
-                }
-                liquid.lineTo(size.width, size.height)
-                liquid.lineTo(0f, size.height)
-                liquid.close()
-                drawPath(liquid, color = TuiFg.copy(alpha = 0.90f))
-            }
-        }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(7.dp)
-                    .background(
-                        when {
-                            active && !completed -> TuiAccent
-                            completed -> TuiFg
-                            else -> TuiFaint
-                        },
-                    ),
-            )
-            Text(
-                text = " $label:$value",
-                style = MaterialTheme.typography.labelMedium,
-                color = textColor,
-            )
-        }
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .background(
+                    when {
+                        active && !completed -> TuiAccent
+                        completed -> TuiRed
+                        else -> TuiFaint
+                    },
+                ),
+        )
+        Text(
+            text = " $label:$value",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (completed) TuiRed else lerp(TuiDim, TuiBright, press.fraction),
+        )
     }
 }
 
