@@ -105,5 +105,5 @@ fun MusicTwoRowItemRenderer.toNewReleaseAlbumPage() = Innertube.AlbumItem(
         )
     },
     year = subtitle?.runs?.lastOrNull()?.text,
-    thumbnail = thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.firstOrNull()
+    thumbnail = thumbnailRenderer?.musicThumbnailRenderer?.thumbnail?.thumbnails?.maxByOrNull { it.width ?: it.height ?: 0 }
 )

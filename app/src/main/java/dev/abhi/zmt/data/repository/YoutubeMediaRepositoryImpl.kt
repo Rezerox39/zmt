@@ -35,7 +35,7 @@ class YoutubeMediaRepositoryImpl @Inject constructor(
 
             songs?.mapNotNull { song: Innertube.SongItem ->
                 val videoId = song.info?.endpoint?.videoId ?: return@mapNotNull null
-                val thumbUrl = song.thumbnail?.url
+                val thumbUrl = song.thumbnail?.hd()
                 Track(
                     id = videoId.hashCode().toLong(),
                     uri = Uri.parse("youtube://video/$videoId"),

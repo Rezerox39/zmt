@@ -48,11 +48,18 @@ class TrackMediaRepository @Inject constructor(
     fun loadArt(uri: Uri, fileUri: Uri? = null): Bitmap? =
         if (uri.scheme == "http" || uri.scheme == "https") {
             runCatching {
-                URL(uri.toString()).openStream().use(BitmapFactory::decodeStream)
+                BitmapFactory.decodeStream(URL(uri.toString()).openStream())
             }.getOrNull()
         } else {
             fileUri?.let(::loadEmbeddedArt) ?: runCatching {
-                context.contentResolver.loadThumbnail(uri, Size(512, 512), null)
+                // Prefer the full-length media (e.g. for local files) which yields
+                // the highest-resolution embedded art; fall back to a large
+                // thumbnail so raw-artwork mode isn't pixelated.
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    context.contentResolver.loadThumbnail(uri, Size(2048, 2048), null)
+                } else {
+                    BitmapFactory.decodeStream(context.contentResolver.openInputStream(uri))
+                }
             }.recoverCatching {
                 context.contentResolver.openInputStream(uri).use(BitmapFactory::decodeStream)
             }.getOrNull()
