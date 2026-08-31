@@ -2,6 +2,7 @@ package dev.abhi.zmt.core.common
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import android.graphics.Paint
 import android.graphics.Typeface
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -119,7 +120,7 @@ fun Bitmap.toAsciiBitmap(context: Context, cols: Int = 96): Bitmap {
     val paint = asciiPaint(context)
 
     val mutable = false
-    val safe = if (config == Bitmap.Config.HARDWARE) {
+    val safe = if (Build.VERSION.SDK_INT >= 26 && config == Bitmap.Config.HARDWARE) {
         copy(Bitmap.Config.ARGB_8888, mutable)
     } else {
         this
