@@ -63,13 +63,13 @@ android {
     defaultConfig {
 
         applicationId = "dev.abhi.zmt"
-        minSdk = 30
+        minSdk = 21
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
 
         buildConfigField("int", "TELEGRAM_API_ID", telegramApiId)
