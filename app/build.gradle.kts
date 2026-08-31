@@ -63,7 +63,7 @@ android {
     defaultConfig {
 
         applicationId = "dev.abhi.zmt"
-        minSdk = 21
+        minSdk = 24
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
