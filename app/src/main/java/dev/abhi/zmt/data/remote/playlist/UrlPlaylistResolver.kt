@@ -1,11 +1,18 @@
 package dev.abhi.zmt.data.remote.playlist
 
+import android.net.Uri
 import android.util.Log
+import dev.abhi.zmt.data.remote.youtube.innertube.Innertube
+import dev.abhi.zmt.data.remote.youtube.innertube.models.bodies.SearchBody
+import dev.abhi.zmt.data.remote.youtube.innertube.requests.searchPage
+import dev.abhi.zmt.data.remote.youtube.innertube.utils.from
 import dev.abhi.zmt.data.remote.youtubedl.YouTubeDLBridge
 import dev.abhi.zmt.domain.model.Track
+import dev.abhi.zmt.domain.model.TrackSource
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -22,7 +29,9 @@ private val json = Json { ignoreUnknownKeys = true }
  * Resolves playlist URLs from Spotify and YouTube Music into track lists.
  *
  * Spotify: scrapes the public /embed/playlist page whose __NEXT_DATA__ blob
- * server-renders the full track list.
+ * server-renders the full track list, then looks each track up on YouTube
+ * Music (InnerTube search) so every available song can be played back and
+ * stored in a new playlist in order.
  * YouTube Music: uses yt-dlp which returns a JSON document with all entries.
  */
 @Singleton
@@ -31,8 +40,22 @@ class UrlPlaylistResolver @Inject constructor(
 ) {
 
     sealed class ResolveResult {
-        data class Tracks(val name: String, val tracks: List<Pair<String, String>>) : ResolveResult()
+        data class Tracks(
+            val name: String,
+            val tracks: List<Pair<String, String>>,
+        ) : ResolveResult()
+
         data class Error(val message: String) : ResolveResult()
+    }
+
+    sealed class ImportResult {
+        data class Success(
+            val name: String,
+            val matched: List<Track>,
+            val total: Int,
+        ) : ImportResult()
+
+        data class Error(val message: String) : ImportResult()
     }
 
     suspend fun resolve(url: String, library: List<Track>): ResolveResult {
@@ -49,6 +72,116 @@ class UrlPlaylistResolver @Inject constructor(
         }
     }
 
+    /**
+     * Resolves a Spotify playlist link into playable [Track]s by searching
+     * YouTube Music for every song. Tracks are returned in playlist order.
+     * Songs that can't be found on YouTube are skipped.
+     */
+    suspend fun resolveSpotifyToTracks(url: String): ImportResult {
+        val playlistId = extractSpotifyId(url.trim())
+            ?: return ImportResult.Error("Could not extract Spotify playlist ID")
+
+        val (scrapedName, entries) = scrapeSpotifyPage(playlistId)
+        if (entries.isEmpty()) {
+            return ImportResult.Error("Could not fetch tracks from Spotify playlist")
+        }
+
+        val safeName = "spotify-${scrapedName.replace(Regex("[^a-zA-Z0-9 _-]"), "").trim()}"
+            .takeIf { it != "spotify-" && it.isNotBlank() }
+            ?: "spotify-$playlistId"
+
+        val tracks = mutableListOf<Track>()
+        for ((index, entry) in entries.withIndex()) {
+            val video = searchFirstVideo(entry.first, entry.second)
+            if (video != null) {
+                tracks.add(
+                    Track(
+                        id = "yt-${video.videoId}".hashCode().toLong(),
+                        uri = Uri.parse("youtube://video/${video.videoId}"),
+                        title = video.title,
+                        artist = video.artist,
+                        albumArtist = video.artist,
+                        album = "YouTube",
+                        path = "youtube://video/${video.videoId}",
+                        durationMs = video.durationMs,
+                        mime = "audio/mpeg",
+                        bitrate = 0,
+                        size = 0L,
+                        trackNumber = index + 1,
+                        dateAdded = System.currentTimeMillis(),
+                        dateModified = System.currentTimeMillis(),
+                        coverUri = video.thumbUrl?.let { Uri.parse(it) },
+                        source = TrackSource.YOUTUBE,
+                        remoteId = video.videoId,
+                    ),
+                )
+            }
+        }
+
+        if (tracks.isEmpty()) {
+            return ImportResult.Error("Could not find any songs on YouTube")
+        }
+
+        return ImportResult.Success(
+            name = safeName,
+            matched = tracks,
+            total = entries.size,
+        )
+    }
+
+    // ── YouTube search for a single imported song ─────────────────────
+
+    private data class VideoResult(
+        val videoId: String,
+        val title: String,
+        val artist: String,
+        val durationMs: Long,
+        val thumbUrl: String?,
+    )
+
+    private suspend fun searchFirstVideo(title: String, artist: String): VideoResult? {
+        val query = buildString {
+            append(title)
+            if (artist.isNotBlank()) {
+                append(" ")
+                append(artist)
+            }
+        }.trim()
+
+        return try {
+            val body = SearchBody(query = query, params = Innertube.SearchFilter.Song.value)
+            val result: Innertube.ItemsPage<Innertube.SongItem>? = Innertube.searchPage(
+                body = body,
+                fromMusicShelfRendererContent = Innertube.SongItem.Companion::from,
+            )?.getOrNull()
+
+            val song = result?.items?.firstOrNull { it.info?.endpoint?.videoId != null }
+                ?: return null
+            val info = song.info ?: return null
+            val videoId = info.endpoint?.videoId ?: return null
+            VideoResult(
+                videoId = videoId,
+                title = info.name ?: title,
+                artist = song.authors?.firstOrNull()?.name ?: artist,
+                durationMs = song.durationText?.let { parseDuration(it) } ?: 0L,
+                thumbUrl = song.thumbnail?.hd(),
+            )
+        } catch (e: Exception) {
+            Log.e(TAG, "YouTube search failed for '$query': ${e.message}")
+            null
+        }
+    }
+
+    private fun parseDuration(text: String): Long {
+        val parts = text.split(":").mapNotNull { it.trim().toLongOrNull() }
+        return when (parts.size) {
+            3 -> parts[0] * 3_600_000 + parts[1] * 60_000 + parts[2] * 1_000
+            2 -> parts[0] * 60_000 + parts[1] * 1_000
+            1 -> parts[0] * 1_000
+            else -> 0L
+        }
+    }
+
     // ── Spotify ──────────────────────────────────────────────────────
 
     private suspend fun resolveSpotify(url: String, library: List<Track>): ResolveResult =
@@ -57,12 +190,11 @@ class UrlPlaylistResolver @Inject constructor(
                 val playlistId = extractSpotifyId(url)
                     ?: return@withContext ResolveResult.Error("Could not extract Spotify playlist ID")
 
-                val tracks = scrapeSpotifyPage(playlistId)
+                val (name, tracks) = scrapeSpotifyPage(playlistId)
                 if (tracks.isEmpty()) {
                     return@withContext ResolveResult.Error("Could not fetch tracks from Spotify playlist")
                 }
 
-                val name = "spotify-${playlistId.take(8)}"
                 ResolveResult.Tracks(name, tracks)
             } catch (e: Exception) {
                 Log.e(TAG, "Spotify resolve failed: ${e.message}")
@@ -88,7 +220,7 @@ class UrlPlaylistResolver @Inject constructor(
         }
     }
 
-    private fun scrapeSpotifyPage(playlistId: String): List<Pair<String, String>> {
+    private fun scrapeSpotifyPage(playlistId: String): Pair<String, List<Pair<String, String>>> {
         val pageUrl = "https://open.spotify.com/embed/playlist/$playlistId"
         val conn = URL(pageUrl).openConnection() as HttpURLConnection
         conn.setRequestProperty(
@@ -106,22 +238,25 @@ class UrlPlaylistResolver @Inject constructor(
         return parseSpotifyNextData(html)
     }
 
-    private fun parseSpotifyNextData(html: String): List<Pair<String, String>> {
+    private fun parseSpotifyNextData(html: String): Pair<String, List<Pair<String, String>>> {
+        val fallbackName = "spotify-playlist"
         val result = mutableListOf<Pair<String, String>>()
+        var name = fallbackName
         try {
             val nextDataPattern =
                 Regex("""<script id="__NEXT_DATA__"[^>]*>(.*?)</script>""", RegexOption.DOT_MATCHES_ALL)
-            val match = nextDataPattern.find(html) ?: return result
+            val match = nextDataPattern.find(html) ?: return fallbackName to result
             val root = json.parseToJsonElement(match.groupValues[1]).jsonObject
             val entity = root["props"]?.jsonObject
                 ?.get("pageProps")?.jsonObject
                 ?.get("state")?.jsonObject
                 ?.get("data")?.jsonObject
                 ?.get("entity")?.jsonObject
-                ?: return result
-            val trackList = entity["trackList"]?.jsonArray ?: return result
+                ?: return fallbackName to result
+            entity["name"]?.jsonPrimitive?.contentOrNull?.let { name = it.trim() }
+            val trackList = entity["trackList"]?.jsonArray ?: return name to result
             for (item in trackList) {
-                if (item !is kotlinx.serialization.json.JsonObject) continue
+                if (item !is JsonObject) continue
                 val title = item["title"]?.jsonPrimitive?.contentOrNull ?: continue
                 val subtitle = item["subtitle"]?.jsonPrimitive?.contentOrNull ?: ""
                 result.add(title.trim() to subtitle.trim())
@@ -129,7 +264,7 @@ class UrlPlaylistResolver @Inject constructor(
         } catch (e: Exception) {
             Log.e(TAG, "Spotify __NEXT_DATA__ parse failed: ${e.message}")
         }
-        return result
+        return name to result
     }
 
     // ── YouTube Music ────────────────────────────────────────────────
@@ -168,7 +303,7 @@ class UrlPlaylistResolver @Inject constructor(
             val root = json.parseToJsonElement(jsonStr).jsonObject
             val entries = root["entries"]?.jsonArray ?: return tracks
             for (entry in entries) {
-                if (entry !is kotlinx.serialization.json.JsonObject) continue
+                if (entry !is JsonObject) continue
                 val title = entry["title"]?.jsonPrimitive?.contentOrNull
                     ?: entry["track"]?.jsonPrimitive?.contentOrNull ?: continue
                 val artist = entry["artist"]?.jsonPrimitive?.contentOrNull

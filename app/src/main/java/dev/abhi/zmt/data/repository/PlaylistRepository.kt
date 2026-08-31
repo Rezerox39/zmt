@@ -18,6 +18,7 @@ const val LIKED_PLAYLIST = "liked"
 class PlaylistRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val likedTracks: LikedTracksRepository,
+    private val importedTracks: ImportedTracksRepository,
 ) {
 
     private val dir: File
@@ -25,7 +26,11 @@ class PlaylistRepository @Inject constructor(
             .apply { mkdirs() }
 
     fun load(tracks: List<Track>): List<Playlist> {
-        val byPath = tracks.associateBy { it.path }
+        // Merge source-library tracks with persistently imported tracks so
+        // imported playlists render/play regardless of the current source.
+        val merged = (tracks + importedTracks.all())
+            .distinctBy { it.path }
+        val byPath = merged.associateBy { it.path }
 
         return dir.listFiles { file -> file.extension == "m3u8" }
             .orEmpty()

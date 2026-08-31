@@ -126,6 +126,7 @@ class PlayerViewModel @Inject constructor(
     private val telegramClient: dev.abhi.zmt.data.remote.telegram.TelegramClient,
     private val playlistImporter: PlaylistImporter,
     private val urlPlaylistResolver: UrlPlaylistResolver,
+    private val importedTracks: dev.abhi.zmt.data.repository.ImportedTracksRepository,
 ) : BaseViewModel<DmtAction, DmtState, PlayerEffect>(
     DmtState(
         hasPermission = ContextCompat.checkSelfPermission(
@@ -926,28 +927,39 @@ class PlayerViewModel @Inject constructor(
                 reduce { it.copy(showImportDialog = false) }
             }
             is DmtAction.ImportPlaylistFromUrl -> {
-                reduce { it.copy(showImportDialog = false, notice = "resolving playlist...") }
+                reduce { it.copy(showImportDialog = false, notice = "importing playlist...") }
                 viewModelScope.launch(Dispatchers.IO) {
                     val library = currentState.tracks
-                    val result = urlPlaylistResolver.resolve(intent.url, library)
-                    when (result) {
-                        is UrlPlaylistResolver.ResolveResult.Tracks -> {
-                            val matched = urlPlaylistResolver.matchTracks(result.tracks, library)
-                            if (matched.isEmpty()) {
-                                reduce { it.copy(error = "no matching tracks found in your library") }
-                            } else {
-                                val name = result.name
-                                playlistImporter.let { importer ->
-                                    // Use savePlaylist directly through the repository
-                                    val pr = playlistRepository
-                                    pr.create(name)
-                                    matched.forEach { pr.addTrack(name, it) }
+                    val url = intent.url
+                    val isSpotify = url.contains("spotify")
+
+                    when (val result = if (isSpotify) {
+                        urlPlaylistResolver.resolveSpotifyToTracks(url)
+                    } else {
+                        val r = urlPlaylistResolver.resolve(url, library)
+                        when (r) {
+                            is UrlPlaylistResolver.ResolveResult.Tracks -> {
+                                val matched = urlPlaylistResolver.matchTracks(r.tracks, library)
+                                if (matched.isEmpty()) {
+                                    UrlPlaylistResolver.ImportResult.Error("no matching tracks found in your library")
+                                } else {
+                                    UrlPlaylistResolver.ImportResult.Success(r.name, matched, r.tracks.size)
                                 }
-                                reduce { it.copy(notice = "imported ${matched.size}/${result.tracks.size} tracks to $name") }
-                                mutatePlaylists()
                             }
+                            is UrlPlaylistResolver.ResolveResult.Error ->
+                                UrlPlaylistResolver.ImportResult.Error(r.message)
                         }
-                        is UrlPlaylistResolver.ResolveResult.Error -> {
+                    }) {
+                        is UrlPlaylistResolver.ImportResult.Success -> {
+                            val name = result.name
+                            importedTracks.upsertAll(result.matched)
+                            playlistRepository.create(name)
+                            result.matched.forEach { playlistRepository.addTrack(name, it) }
+                            reduce { it.copy(notice = "imported ${result.matched.size}/${result.total} tracks to $name") }
+                            mutatePlaylists()
+                            onIntent(DmtAction.Show(DmtView.LIBRARY))
+                        }
+                        is UrlPlaylistResolver.ImportResult.Error -> {
                             reduce { it.copy(error = "import failed: ${result.message}") }
                         }
                     }
