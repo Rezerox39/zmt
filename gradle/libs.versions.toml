@@ -19,7 +19,6 @@ ktorOkhttp = "3.5.1"
 logback = "1.5.18"
 slf4j = "2.0.18"
 
-chaquo = "17.0.0"
 biometric = "1.2.0-alpha05"
 
 [libraries]
@@ -61,4 +60,3 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
-chaquo = { id = "com.chaquo.python", version.ref = "chaquo" }

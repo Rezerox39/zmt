@@ -2,111 +2,32 @@ package dev.abhi.zmt.data.remote.youtubedl
 
 import android.content.Context
 import android.util.Log
-import com.chaquo.python.Python
-import com.chaquo.python.android.AndroidPlatform
-import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YouTubeDLBridge"
 
 /**
- * Bridge to Chaquopy Python runtime running yt-dlp.
+ * Stub bridge for yt-dlp integration.
  *
- * Mirrors ViTune's Dependencies object:
- * - Initializes Python with AndroidPlatform
- * - Loads download.py module
- * - Calls download(quickjs_bin, video_id) to resolve stream URLs
+ * The Python/Chaquopy runtime has been removed to support Android 5+
+ * (minSdk 21) and 32-bit ARM devices. YouTube stream resolution now
+ * relies entirely on the Innertube fallback resolvers in
+ * YoutubeStreamResolver, which work without any external dependencies.
  *
- * QuickJS binary is compiled from CMake and found in nativeLibraryDir.
+ * This stub is kept so the rest of the codebase compiles and the
+ * resolver's graceful-fallback path (isReady() → false) is exercised.
  */
 @Singleton
 class YouTubeDLBridge @Inject constructor() {
 
-    @Volatile
-    private var initialized = false
-
-    @Volatile
-    private var quickjsPath: String? = null
-
-    /**
-     * Initialize Python runtime and yt-dlp.
-     * Must be called from a background thread (I/O) since it may
-     * trigger pip install for yt-dlp on first run.
-     */
     fun initialize(context: Context) {
-        if (initialized) return
-
-        try {
-            // Start Python
-            if (!Python.isStarted()) {
-                Python.start(AndroidPlatform(context))
-            }
-
-            val py = Python.getInstance()
-            val module = py.getModule("download")
-
-            // Find QuickJS binary
-            val qjs = File(context.applicationInfo.nativeLibraryDir, "libqjs.so")
-            if (qjs.exists()) {
-                if (!qjs.canExecute()) qjs.setExecutable(true)
-                quickjsPath = qjs.absolutePath
-                Log.i(TAG, "QuickJS found: ${qjs.absolutePath}")
-            } else {
-                Log.w(TAG, "QuickJS binary not found, yt-dlp will use bundled JS runtime")
-            }
-
-            initialized = true
-            Log.i(TAG, "YouTubeDL bridge initialized")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize YouTubeDL bridge: ${e.message}", e)
-        }
+        Log.i(TAG, "yt-dlp bridge disabled — using Innertube fallback resolvers")
     }
 
-    /**
-     * Resolve a YouTube video ID to a playable stream URL using yt-dlp.
-     * Returns null if resolution fails.
-     */
-    fun runDownload(videoId: String): String? {
-        if (!initialized) {
-            Log.e(TAG, "Not initialized")
-            return null
-        }
+    fun runDownload(videoId: String): String? = null
 
-        return try {
-            val py = Python.getInstance()
-            val module = py.getModule("download")
-            val path = quickjsPath ?: ""
-            val result = module.callAttr("download", path, videoId).toString()
-            Log.d(TAG, "yt-dlp resolved $videoId")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "yt-dlp download failed for $videoId: ${e.message}")
-            null
-        }
-    }
+    fun runPlaylist(url: String): String? = null
 
-    /**
-     * Check if the bridge is initialized and ready.
-     */
-    fun runPlaylist(url: String): String? {
-        if (!initialized) {
-            Log.e(TAG, "Not initialized")
-            return null
-        }
-
-        return try {
-            val py = Python.getInstance()
-            val module = py.getModule("download")
-            val path = quickjsPath ?: ""
-            val result = module.callAttr("list_playlist", path, url).toString()
-            Log.d(TAG, "yt-dlp playlist resolved: ${result.take(200)}")
-            result
-        } catch (e: Exception) {
-            Log.e(TAG, "yt-dlp playlist failed: ${e.message}")
-            null
-        }
-    }
-
-    fun isReady(): Boolean = initialized
+    fun isReady(): Boolean = false
 }

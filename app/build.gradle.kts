@@ -6,7 +6,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.chaquo)
 }
 
 val appVersionName = (project.findProperty("versionOverride") as String?) ?: "1.0"
@@ -63,13 +62,13 @@ android {
     defaultConfig {
 
         applicationId = "dev.abhi.zmt"
-        minSdk = 24
+        minSdk = 21
         targetSdk = 37
         versionCode = appVersionCode
         versionName = appVersionName
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a", "x86_64")
         }
 
         buildConfigField("int", "TELEGRAM_API_ID", telegramApiId)
@@ -113,16 +112,6 @@ android {
         jniLibs.useLegacyPackaging = true
     }
 
-    chaquopy {
-        defaultConfig {
-            version = "3.12"
-            pip {
-                install("yt-dlp>=2026.07.04")
-                install("yt-dlp-ejs>=0.8.0")
-                install("pip")
-            }
-        }
-    }
 
     buildFeatures {
         compose = true
@@ -202,27 +191,6 @@ afterEvaluate {
                     )
                 }
             }
-        }
-    }
-}
-
-// Ensure Chaquopy's generated proguard directory exists before minification
-// to prevent "Supplied proguard configuration does not exist" error
-tasks.matching { it.name.startsWith("minify") || it.name.startsWith("transformClassesAndResourcesWithProguard") }.configureEach {
-    dependsOn("createPythonProguardDir")
-}
-
-tasks.register("createPythonProguardDir") {
-    doLast {
-        file("${layout.buildDirectory.get()}/python").mkdirs()
-        val proguard = file("${layout.buildDirectory.get()}/python/proguard-rules.pro")
-        if (!proguard.exists()) {
-            proguard.writeText("""# Chaquopy auto-generated proguard rules
--keep class com.chaquo.python.** { *; }
--dontwarn com.chaquo.python.**
--keep class org.bouncycastle.jsse.** { *; }
--dontwarn org.bouncycastle.jsse.**
-""")
         }
     }
 }
