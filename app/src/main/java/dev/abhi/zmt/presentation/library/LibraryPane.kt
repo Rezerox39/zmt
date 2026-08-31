@@ -46,6 +46,7 @@ import dev.abhi.zmt.presentation.player.TuiSheet
 import dev.abhi.zmt.ui.theme.TuiAccent
 import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFaint
+import dev.abhi.zmt.ui.theme.TuiFg
 import dev.abhi.zmt.util.asTime
 
 @Composable

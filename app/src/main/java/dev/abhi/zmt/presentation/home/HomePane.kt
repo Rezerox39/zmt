@@ -44,8 +44,8 @@ import dev.abhi.zmt.presentation.player.DmtState
 import dev.abhi.zmt.ui.theme.TuiBright
 import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFg
-import TuiRaised
 import dev.abhi.zmt.ui.theme.TuiLine
+import dev.abhi.zmt.ui.theme.TuiRaised
 
 @Composable
 fun HomePane(
