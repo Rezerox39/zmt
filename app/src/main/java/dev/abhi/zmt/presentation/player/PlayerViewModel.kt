@@ -734,6 +734,52 @@ class PlayerViewModel @Inject constructor(
                 notify(context.getString(R.string.queued, intent.track.title))
             }
 
+
+            DmtAction.ToggleSelectMode -> {
+                reduce {
+                    it.copy(
+                        selectionMode = !it.selectionMode,
+                        selectedTrackIds = if (it.selectionMode) emptySet() else it.selectedTrackIds,
+                    )
+                }
+            }
+            is DmtAction.ToggleTrackSelect -> {
+                reduce {
+                    val ids = it.selectedTrackIds.toMutableSet()
+                    if (intent.trackId in ids) ids.remove(intent.trackId) else ids.add(intent.trackId)
+                    it.copy(selectedTrackIds = ids)
+                }
+            }
+
+            DmtAction.ShowCreateSelectionSheet -> {
+                reduce { it.copy(showCreateSelectionSheet = true) }
+            }
+            DmtAction.DismissCreateSelectionSheet -> {
+                reduce { it.copy(showCreateSelectionSheet = false) }
+            }
+            DmtAction.ClearSelection -> {
+                reduce { it.copy(selectionMode = false, selectedTrackIds = emptySet()) }
+            }
+            is DmtAction.CreatePlaylistFromSelection -> {
+                val tracks = currentState.tracks.filter { it.id.toString() in currentState.selectedTrackIds }
+                if (tracks.isEmpty()) {
+                    reduce { it.copy(notice = "no tracks selected") }
+                } else {
+                    val name = intent.name
+                    mutatePlaylists {
+                        playlistRepository.create(name)
+                        tracks.forEach { playlistRepository.addTrack(name, it) }
+                    }
+                    reduce {
+                        it.copy(
+                            selectionMode = false,
+                            selectedTrackIds = emptySet(),
+                            notice = "playlist '$name' created with ${tracks.size} tracks",
+                        )
+                    }
+                }
+            }
+
             DmtAction.SaveQueueAsPlaylist -> saveQueueAsPlaylist()
 
             DmtAction.FetchLyrics -> fetchOnlineLyrics()
@@ -1230,7 +1276,7 @@ class PlayerViewModel @Inject constructor(
         }
 
     private fun DmtState.withHome(): DmtState =
-        copy(home = homeShelves(tracks, albums, artists, stats.counts))
+        copy(home = homeShelves(tracks, albums, artists, playlists, stats.counts))
 
     private val homeArtCache = object : LruCache<String, Bitmap>(HOME_ART_CACHE_BYTES) {
         override fun sizeOf(key: String, value: Bitmap): Int = value.byteCount

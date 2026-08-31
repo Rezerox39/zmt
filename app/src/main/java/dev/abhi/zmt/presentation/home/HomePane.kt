@@ -1,6 +1,7 @@
 package dev.abhi.zmt.presentation.home
 
 import android.graphics.Bitmap
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -33,6 +34,7 @@ import dev.abhi.zmt.core.common.AsciiCover
 import dev.abhi.zmt.core.common.Caption
 import dev.abhi.zmt.core.common.tuiClickable
 import dev.abhi.zmt.domain.model.Album
+import dev.abhi.zmt.domain.model.Playlist
 import dev.abhi.zmt.domain.model.Artist
 import dev.abhi.zmt.domain.model.Track
 import dev.abhi.zmt.domain.model.asCredit
@@ -42,6 +44,7 @@ import dev.abhi.zmt.presentation.player.DmtState
 import dev.abhi.zmt.ui.theme.TuiBright
 import dev.abhi.zmt.ui.theme.TuiDim
 import dev.abhi.zmt.ui.theme.TuiFg
+import TuiRaised
 import dev.abhi.zmt.ui.theme.TuiLine
 
 @Composable
@@ -54,6 +57,8 @@ fun HomePane(
     onOpenTracks: () -> Unit,
     onOpenArtist: (String) -> Unit,
     onOpenArtists: () -> Unit,
+    onOpenPlaylists: () -> Unit,
+    onOpenPlaylist: (String) -> Unit,
 ) {
     if (state.scanning && state.tracks.isEmpty()) {
         Caption(stringResource(R.string.scanning))
@@ -83,6 +88,16 @@ fun HomePane(
                     AlbumCard(album = album, art = art, artKey = state.settings.rawArt) {
                         onOpenAlbum(album.name)
                     }
+                }
+            }
+        }
+
+
+        if (home.playlists.isNotEmpty()) {
+            ShelfHeader(label = "playlists", onMore = onOpenPlaylists)
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(home.playlists, key = { it.name }) { playlist ->
+                    PlaylistCard(playlist = playlist, onClick = { onOpenPlaylist(playlist.name) })
                 }
             }
         }
@@ -177,6 +192,38 @@ private fun ShelfHeader(label: String, onMore: () -> Unit) {
             modifier = Modifier
                 .tuiClickable(onMore)
                 .padding(horizontal = 8.dp),
+        )
+    }
+}
+
+
+@Composable
+private fun PlaylistCard(
+    playlist: Playlist,
+    onClick: () -> Unit,
+) {
+    Column(modifier = Modifier.width(116.dp).tuiClickable(onClick)) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(1f)
+                .border(1.dp, TuiLine)
+                .background(TuiRaised),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = "${playlist.tracks.size}",
+                style = MaterialTheme.typography.headlineMedium,
+                color = TuiDim,
+            )
+        }
+        Text(
+            text = playlist.name.take(18),
+            style = MaterialTheme.typography.labelMedium,
+            color = TuiBright,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }

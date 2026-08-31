@@ -92,6 +92,9 @@ data class DmtState(
     val uploadProgress: Int = -1,
     val uploadError: String? = null,
     val showUploadSheet: Boolean = false,
+    val selectionMode: Boolean = false,
+    val selectedTrackIds: Set<String> = emptySet(),
+    val showCreateSelectionSheet: Boolean = false,
     val volume: Float = 1f,
     val equalizerPresetName: String = "flat",
 )
@@ -151,6 +154,12 @@ sealed interface DmtAction {
     data class PlayNext(val index: Int) : DmtAction
     data class RestoreQueueItem(val index: Int) : DmtAction
     data object SaveQueueAsPlaylist : DmtAction
+    data object ToggleSelectMode : DmtAction
+    data class ToggleTrackSelect(val trackId: String) : DmtAction
+    data object ClearSelection : DmtAction
+    data object ShowCreateSelectionSheet : DmtAction
+    data object DismissCreateSelectionSheet : DmtAction
+    data class CreatePlaylistFromSelection(val name: String) : DmtAction
     data class PlayNextTrack(val track: Track) : DmtAction
     data class SetLibrarySection(val section: LibrarySection) : DmtAction
     data class SetVolume(val fraction: Float) : DmtAction

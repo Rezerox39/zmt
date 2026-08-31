@@ -7,6 +7,7 @@ private const val SHELF_SIZE = 12
 @Immutable
 data class HomeShelves(
     val albums: List<Album> = emptyList(),
+    val playlists: List<Playlist> = emptyList(),
     val artists: List<Artist> = emptyList(),
     val tracks: List<Track> = emptyList(),
     val fresh: List<Track> = emptyList(),
@@ -20,10 +21,12 @@ fun homeShelves(
     tracks: List<Track>,
     albums: List<Album>,
     artists: List<Artist>,
+    playlists: List<Playlist>,
     counts: Map<Long, Int>,
 ): HomeShelves =
     HomeShelves(
         albums = albums.mostPlayed { it.tracks.plays(counts) },
+        playlists = playlists.take(SHELF_SIZE),
         artists = artists.mostPlayed { it.tracks.plays(counts) },
         tracks = tracks
             .filter { it.plays(counts) > 0 }

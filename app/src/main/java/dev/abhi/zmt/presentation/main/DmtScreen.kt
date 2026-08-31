@@ -371,6 +371,11 @@ private fun PaneHost(
                         dispatch(DmtAction.OpenArtist(name))
                     },
                     onOpenArtists = { dispatch(DmtAction.Show(DmtView.ARTISTS)) },
+                    onOpenPlaylists = { dispatch(DmtAction.Show(DmtView.PLAYLISTS)) },
+                    onOpenPlaylist = { name ->
+                        dispatch(DmtAction.Show(DmtView.PLAYLISTS))
+                        dispatch(DmtAction.OpenPlaylist(name))
+                    },
                 )
                 state.view == DmtView.STATS -> StatsPane(state, dispatch)
                 state.view == DmtView.BLOCKLIST -> BlocklistPane(state, dispatch)
@@ -509,8 +514,8 @@ private fun libraryTabs(state: DmtState): List<Pair<String, DmtView>> =
         }
         if (state.folders.isNotEmpty()) {
             add(stringResource(R.string.tab_folders) to DmtView.FOLDERS)
-            add(stringResource(R.string.tab_playlists) to DmtView.PLAYLISTS)
         }
+        add(stringResource(R.string.tab_playlists) to DmtView.PLAYLISTS)
     }
 
 @Composable

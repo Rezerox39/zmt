@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.CircularProgressIndicator
@@ -21,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -81,6 +83,17 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             },
         )
 
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 2.dp),
+        ) {
+            TuiKey(
+                label = if (state.selectionMode) "[ select: on ]" else "[ select ]",
+            ) {
+                dispatch(DmtAction.ToggleSelectMode)
+            }
+        }
+
         if (state.tracks.isEmpty() && state.query.isBlank() && isYouTube) {
             Spacer(modifier = Modifier.height(40.dp))
             Text(
@@ -122,6 +135,32 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             )
         }
 
+        // Selection mode: toggle a "select" action; when active, rows toggle
+        // membership and a footer lets the user save the selection as a playlist.
+        if (state.selectionMode) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+            ) {
+                Text(
+                    text = "selected ${state.selectedTrackIds.size}".lowercase(),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = TuiAccent,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TuiKey(label = "[ clear ]") { dispatch(DmtAction.ClearSelection) }
+                    TuiKey(label = "[ save as playlist ]") {
+                        if (state.selectedTrackIds.isNotEmpty()) {
+                            dispatch(DmtAction.ShowCreateSelectionSheet)
+                        }
+                    }
+                }
+            }
+        }
+
         var longPress by remember { mutableStateOf<Track?>(null) }
         longPress?.let { track ->
             TuiSheet(onDismiss = { longPress = null }) {
@@ -148,18 +187,50 @@ fun LibraryPane(state: DmtState, dispatch: (DmtAction) -> Unit) {
             }
         }
 
+        // Create a playlist from the current selection.
+        if (state.showCreateSelectionSheet) {
+            CreateFromSelectionSheet(
+                count = state.selectedTrackIds.size,
+                onCreate = { name ->
+                    dispatch(DmtAction.CreatePlaylistFromSelection(name))
+                },
+                onDismiss = { dispatch(DmtAction.DismissCreateSelectionSheet) },
+            )
+        }
+
         LazyColumn {
             itemsIndexed(state.filtered, key = { _, track -> track.id }) { index, track ->
-                ListRow(
-                    index = index,
-                    line1 = track.title,
-                    line2 = trackLine2(track),
-                    current = track.id.toString() == state.nowPlayingId,
-                    onClick = { dispatch(DmtAction.PlayAt(state.filtered, index)) },
-                    onLongClick = { longPress = track },
-                    trailing = { TrackBadges(track) },
-                    modifier = Modifier.animateItem(),
-                )
+                val selected = track.id.toString() in state.selectedTrackIds
+                if (state.selectionMode) {
+                    ListRow(
+                        index = index,
+                        line1 = track.title,
+                        line2 = trackLine2(track),
+                        current = track.id.toString() == state.nowPlayingId,
+                        onClick = { dispatch(DmtAction.ToggleTrackSelect(track.id.toString())) },
+                        onLongClick = { longPress = track },
+                        trailing = {
+                            TrackBadges(track)
+                            Text(
+                                text = if (selected) "[x]" else "[ ]",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (selected) TuiAccent else TuiFaint,
+                            )
+                        },
+                        modifier = Modifier.animateItem(),
+                    )
+                } else {
+                    ListRow(
+                        index = index,
+                        line1 = track.title,
+                        line2 = trackLine2(track),
+                        current = track.id.toString() == state.nowPlayingId,
+                        onClick = { dispatch(DmtAction.PlayAt(state.filtered, index)) },
+                        onLongClick = { longPress = track },
+                        trailing = { TrackBadges(track) },
+                        modifier = Modifier.animateItem(),
+                    )
+                }
             }
         }
     }
@@ -208,6 +279,50 @@ private fun SectionChips(
                     .tuiClickable { onSelect(section) }
                     .padding(horizontal = 4.dp, vertical = 2.dp),
             )
+        }
+    }
+}
+
+@Composable
+private fun CreateFromSelectionSheet(
+    count: Int,
+    onCreate: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+
+    TuiSheet(onDismiss = onDismiss) {
+        SheetHeader(title = "save selection to playlist", meta = "$count selected")
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(vertical = 8.dp),
+        ) {
+            Text(
+                text = " > ",
+                style = MaterialTheme.typography.bodyLarge,
+                color = TuiAccent,
+            )
+            BasicTextField(
+                value = name,
+                onValueChange = { name = it },
+                singleLine = true,
+                textStyle = MaterialTheme.typography.bodyLarge.copy(color = TuiFg),
+                cursorBrush = SolidColor(TuiAccent),
+                modifier = Modifier.weight(1f),
+                decorationBox = { inner ->
+                    if (name.isEmpty()) {
+                        Text(
+                            text = "playlist name",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = TuiFaint,
+                        )
+                    }
+                    inner()
+                },
+            )
+            TuiKey(label = "[ create ]") {
+                if (name.isNotBlank()) onCreate(name.trim())
+            }
         }
     }
 }
