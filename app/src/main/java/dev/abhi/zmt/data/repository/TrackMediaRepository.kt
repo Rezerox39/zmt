@@ -48,7 +48,7 @@ class TrackMediaRepository @Inject constructor(
     fun loadArt(uri: Uri, fileUri: Uri? = null): Bitmap? =
         if (uri.scheme == "http" || uri.scheme == "https") {
             runCatching {
-                BitmapFactory.decodeStream(URL(uri.toString()).openStream())
+                BitmapFactory.decodeStream(URL(upgradeArtUrl(uri.toString())).openStream())
             }.getOrNull()
         } else {
             fileUri?.let(::loadEmbeddedArt) ?: runCatching {
@@ -421,3 +421,19 @@ private fun encodingLabel(encoding: Int): String? =
         AudioFormat.ENCODING_PCM_FLOAT -> "FLOAT"
         else -> null
     }
+
+/**
+ * Upgrades known low-resolution art URLs to their full-resolution variant.
+ * Google-hosted thumbnail URLs can serve any size once the size segment is
+ * replaced; i.ytimg.com thumbnails can use maxresdefault. Keeps already-HD
+ * URLs untouched.
+ */
+private fun upgradeArtUrl(url: String): String {
+    if (url.startsWith("https://yt3.googleusercontent.com") ||
+        url.startsWith("https://yt3.ggpht.com") ||
+        url.startsWith("https://lh3.googleusercontent.com")) {
+        return url.substringBefore("=") + "=w1440-h1440-l90-rj"
+    }
+    val m = Regex("(https://i\\.ytimg\\.com/vi/[^/]+)/[a-z0-9]+\\.jpg").find(url)
+    return if (m != null) m.groupValues[1] + "/maxresdefault.jpg" else url
+}
