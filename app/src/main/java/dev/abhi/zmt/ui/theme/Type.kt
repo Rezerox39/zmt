@@ -20,17 +20,35 @@ private fun mono(
     size: Int,
     weight: FontWeight = FontWeight.Normal,
     tracking: Float = 0f,
+    lineHeight: Int = size + 8,
 ) = TextStyle(
     fontFamily = PlexMono,
     fontSize = size.sp,
     fontWeight = weight,
     letterSpacing = tracking.sp,
+    lineHeight = lineHeight.sp,
 )
 
+/**
+ * ZMT Typography — refined hierarchy.
+ *
+ * Display:   32sp bold  — hero numbers, large statistics
+ * Headline:  21sp bold  — screen titles, now-playing track
+ * Title:     15sp bold  — section headings, album names
+ * Body:      14sp normal — primary readable text, track titles
+ * Body sm:   13sp normal — secondary text, descriptions
+ * Label L:   13sp bold tracking 1 — section tags, category labels
+ * Label M:   12sp tracking 1.5 — metadata, timestamps, technical info
+ * Label S:   11sp medium tracking 0.5 — tiny badges, status indicators
+ * Caption:   10sp normal tracking 0.5 — micro text, dim metadata
+ */
 val Typography = Typography(
-    headlineSmall = mono(15),
+    displayLarge = mono(32, FontWeight.Bold),
+    headlineLarge = mono(21, FontWeight.Bold),
+    headlineSmall = mono(15, FontWeight.Normal),
     titleLarge = mono(21, FontWeight.Bold),
     titleMedium = mono(15, FontWeight.Bold),
+    titleSmall = mono(13, FontWeight.Bold, tracking = 0.5f),
     bodyLarge = mono(14),
     bodyMedium = mono(13),
     bodySmall = mono(11, tracking = 0.5f),

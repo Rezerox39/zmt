@@ -19,6 +19,17 @@ var TuiAccent by mutableStateOf(Color(0xFFDC143C))
 val TuiRed = Color(0xFFB85C50)
 val TuiGreen = Color(0xFF7FA05F)
 
+// ── Refined Hierarchy ──
+val TuiSurface2 = Color(0xFF0C0C0C)    // secondary surface
+val TuiSurface3 = Color(0xFF181A1C)    // tertiary surface (cards, panels)
+val TuiMuted = Color(0xFF5A5E60)       // muted text
+val TuiSuccess = Color(0xFF5E9E6E)     // success state
+val TuiWarning = Color(0xFFB89650)     // warning state
+val TuiTextPrimary = Color(0xFFE8E9EB) // primary text (brighter than TuiFg)
+val TuiTextSecondary = Color(0xFF9CA0A3)// secondary text
+val TuiGlow = Color(0xFFDC143C)        // ambient glow (matches default accent)
+
+
 fun AccentColor.toColor(): Color = Color(argb)
 
 // Red AMOLED
