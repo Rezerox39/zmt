@@ -38,15 +38,15 @@ private fun Color.isCloseTo(other: Color) =
  * Fast enough for album art (256×256 or similar).
  */
 fun extractArtworkPalette(bitmap: Bitmap): ArtworkPalette {
-    val step = maxOf(1, bitmap.width / 32)
+    val sampleStep = maxOf(1, bitmap.width / 32)
     var rSum = 0L; var gSum = 0L; var bSum = 0L; var count = 0
     var bestVibrant = Color(0.5f, 0.5f, 0.5f)
     var bestVibrantSat = 0f
     var bestMuted = Color(0.5f, 0.5f, 0.5f)
     var bestMutedSat = 1f
 
-    for (y in 0 until bitmap.height step) {
-        for (x in 0 until bitmap.width step) {
+    for (y in 0 until bitmap.height step sampleStep) {
+        for (x in 0 until bitmap.width step sampleStep) {
             val pixel = bitmap.getPixel(x, y)
             val c = Color(android.graphics.Color.red(pixel) / 255f,
                           android.graphics.Color.green(pixel) / 255f,
