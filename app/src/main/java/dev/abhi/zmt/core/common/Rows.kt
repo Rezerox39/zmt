@@ -153,7 +153,7 @@ fun ListRow(
             Text(
                 text = if (current) ">" else " ",
                 style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
-                color = TuiBg,
+                color = if (current) TuiBg else Color.Transparent,
             )
             Text(
                 text = (index + 1).toString().padStart(3, '0'),

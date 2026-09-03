@@ -61,11 +61,33 @@ fun HomePane(
     onOpenPlaylist: (String) -> Unit,
 ) {
     if (state.scanning && state.tracks.isEmpty()) {
-        Caption(stringResource(R.string.scanning))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 48.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.scanning),
+                style = MaterialTheme.typography.bodyLarge,
+                color = TuiDim,
+            )
+        }
         return
     }
     if (state.tracks.isEmpty()) {
-        Caption(stringResource(R.string.no_audio, state.settings.sourceMode.label))
+        Box(
+            contentAlignment = Alignment.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(vertical = 48.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.no_audio, state.settings.sourceMode.label),
+                style = MaterialTheme.typography.bodyLarge,
+                color = TuiDim,
+            )
+        }
         return
     }
 
@@ -175,19 +197,20 @@ fun HomePane(
 @Composable
 private fun ShelfHeader(label: String, onMore: () -> Unit) {
     Row(
+        verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 10.dp, bottom = 8.dp),
+            .padding(top = 14.dp, bottom = 8.dp),
     ) {
         Text(
             text = label,
-            style = MaterialTheme.typography.titleMedium,
-            color = TuiFg,
+            style = MaterialTheme.typography.titleLarge,
+            color = TuiBright,
         )
         Spacer(modifier = Modifier.weight(1f))
         Text(
             text = ">",
-            style = MaterialTheme.typography.titleMedium,
+            style = MaterialTheme.typography.labelLarge,
             color = TuiDim,
             modifier = Modifier
                 .tuiClickable(onMore)
@@ -323,7 +346,7 @@ private fun ShelfCard(
         )
         Text(
             text = meta.lowercase().ifBlank { " " },
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
             color = TuiDim,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
