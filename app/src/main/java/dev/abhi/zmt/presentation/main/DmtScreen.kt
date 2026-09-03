@@ -218,6 +218,7 @@ fun DmtScreen(
             hidden = imeVisible && !state.expanded,
             onInfo = { showInfoSheet = true },
             onQueue = { showQueueSheet = true },
+            art = art,
         )
 
         if (showQueueSheet) {

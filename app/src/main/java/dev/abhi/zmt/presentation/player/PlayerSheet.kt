@@ -63,6 +63,7 @@ fun PlayerSheet(
     hidden: Boolean,
     onInfo: () -> Unit,
     onQueue: () -> Unit,
+    art: (suspend (dev.abhi.zmt.domain.model.Track) -> android.graphics.Bitmap?)? = null,
 ) {
     if (state.nowPlayingId == null || anchor == null) return
 
@@ -239,7 +240,7 @@ fun PlayerSheet(
                                 alpha = (1f - fraction.value * 2f).coerceIn(0f, 1f)
                             },
                     ) {
-                        MiniPlayer(state = state, dispatch = dispatch)
+                        MiniPlayer(state = state, dispatch = dispatch, art = art)
                     }
                 }
                 if (renderFull) {
