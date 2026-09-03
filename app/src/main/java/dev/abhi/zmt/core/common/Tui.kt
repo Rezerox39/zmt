@@ -228,6 +228,10 @@ fun TuiKey(
         color = lerp(restText, pressText, press.fraction),
         textAlign = TextAlign.Center,
         modifier = modifier
+            .graphicsLayer {
+                scaleX = 1f - press.fraction * 0.04f
+                scaleY = 1f - press.fraction * 0.04f
+            }
             .border(1.dp, lerp(restBorder, pressBorder, press.fraction))
             .background(lerp(restBg, pressBg, press.fraction))
             .clickable(

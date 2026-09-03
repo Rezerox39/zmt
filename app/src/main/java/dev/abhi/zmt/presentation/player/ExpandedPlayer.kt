@@ -562,11 +562,11 @@ private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
             .filter { it.isNotBlank() }
             .joinToString(" · ")
             .lowercase(),
-        style = MaterialTheme.typography.bodyMedium,
+        style = MaterialTheme.typography.bodySmall,
         color = TuiDim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(top = 3.dp),
+        modifier = Modifier.padding(top = 4.dp),
     )
     state.fault?.let { fault ->
         Text(
@@ -648,7 +648,7 @@ private fun SeekRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
+            .padding(top = 10.dp),
     ) {
         Text(
             text = shownPosition.asTime(),
@@ -680,20 +680,23 @@ private fun SeekRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
 @Composable
 private fun TransportRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
     Row(
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 6.dp),
+            .padding(top = 8.dp),
     ) {
+        Spacer(modifier = Modifier.weight(1f))
         TuiKey(
             label = "|<<",
             big = true,
         ) {
             dispatch(DmtAction.Prev)
         }
+        // Play/Pause — primary action, visually dominant
+        val playLabel = if (state.isPlaying) "  ||  " else "  |>  "
         TuiKey(
-            label = if (state.isPlaying) "  ||  " else "  |>  ",
+            label = playLabel,
             bright = true,
             big = true,
         ) {
@@ -705,6 +708,7 @@ private fun TransportRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
         ) {
             dispatch(DmtAction.Next)
         }
+        Spacer(modifier = Modifier.weight(1f))
     }
 }
 
