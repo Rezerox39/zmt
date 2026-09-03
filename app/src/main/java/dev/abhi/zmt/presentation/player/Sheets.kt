@@ -23,6 +23,10 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -196,9 +200,18 @@ private fun QueueRow(
                 .tuiClickable(onOpen)
                 .padding(vertical = 8.dp),
         ) {
+            val indicatorScale by animateFloatAsState(
+                targetValue = if (current) 1.4f else 1f,
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessMedium,
+                ),
+                label = "queueIndicator",
+            )
             Box(
                 modifier = Modifier
                     .size(6.dp)
+                    .graphicsLayer { scaleX = indicatorScale; scaleY = indicatorScale }
                     .background(if (current) TuiAccent else TuiFaint),
             )
             Text(

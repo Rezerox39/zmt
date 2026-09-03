@@ -28,6 +28,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDirection
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.sp
 import dev.abhi.zmt.core.common.TuiPanel
 import dev.abhi.zmt.core.common.tuiClickable
@@ -233,8 +237,17 @@ private fun LyricLineRows(
 
     val runs = remember(shown) { buildRuns(shown) }
     val secondaryRuns = remember(shown, runs) { secondaryRunsFor(shown, runs) }
+    val lineScale by animateFloatAsState(
+        targetValue = if (state == LineState.ACTIVE) 1f else 0.98f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioNoBouncy,
+            stiffness = Spring.StiffnessMedium,
+        ),
+        label = "lyricLineScale",
+    )
     Column(
         modifier = rowModifier
+            .graphicsLayer { scaleX = lineScale; scaleY = lineScale }
             .padding(top = if (shown.sectionStart) 18.dp else 6.dp, bottom = 6.dp),
     ) {
         (runs + secondaryRuns).forEach { run ->
