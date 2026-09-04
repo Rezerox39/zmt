@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -403,6 +404,7 @@ fun TuiFillButton(
         contentAlignment = Alignment.CenterStart,
         modifier = Modifier
             .fillMaxWidth()
+            .height(IntrinsicSize.Max)
             .border(1.dp, borderColor)
             .background(lerp(TuiRaised, TuiFg, press.fraction))
             .clickable(
@@ -410,18 +412,19 @@ fun TuiFillButton(
                 indication = null,
             ) { press.click(onClick) },
     ) {
-        // Fill background — animates left to right
+        // Fill background — animates left to right, absolutely positioned via IntrinsicSize.Max
         Box(
             modifier = Modifier
                 .fillMaxHeight()
                 .fillMaxWidth(fraction)
                 .background(fillColor),
         )
-        // Label text
+        // Label text — padding inside the box so IntrinsicSize.Max captures it
         Text(
             text = " $label",
             style = MaterialTheme.typography.labelMedium,
             color = lerp(textColor, TuiBg, press.fraction),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
         )
     }
 }

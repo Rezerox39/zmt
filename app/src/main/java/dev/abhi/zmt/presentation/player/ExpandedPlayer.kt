@@ -308,7 +308,7 @@ private fun ControlsBlock(
         reserveSpace = true,
     )
 
-    // Download/upload: self-contained fill buttons in StatusRow (no separate sheets)
+
 }
 
 @Composable
@@ -597,88 +597,94 @@ private fun StatusRow(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
-    // ── Row 1: shf, rpt, slp ──
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 10.dp),
     ) {
-        Box(modifier = Modifier.weight(1f)) {
-            TuiStatus(
-                label = stringResource(R.string.shuffle_key),
-                value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
-                on = state.shuffle,
-            ) { dispatch(DmtAction.ToggleShuffle) }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            TuiStatus(
-                label = stringResource(R.string.repeat_key),
-                value = stringResource(
-                    when (state.repeat) {
-                        Player.REPEAT_MODE_ALL -> R.string.repeat_all
-                        Player.REPEAT_MODE_ONE -> R.string.repeat_one
-                        else -> R.string.off
-                    },
-                ),
-                on = state.repeat != Player.REPEAT_MODE_OFF,
-            ) { dispatch(DmtAction.CycleRepeat) }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            TuiStatus(
-                label = stringResource(R.string.sleep_key),
-                value = if (state.sleepMinutes == 0) stringResource(R.string.off)
-                else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
-                on = state.sleepMinutes != 0,
-            ) { dispatch(DmtAction.CycleSleep) }
-        }
-    }
-    // ── Row 2: spd, lyr, dl ──
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    ) {
-        Box(modifier = Modifier.weight(1f)) {
-            TuiStatus(
-                label = stringResource(R.string.speed_key),
-                value = stringResource(R.string.speed_value, state.speed.toString()),
-                on = abs(state.speed - 1f) > 0.01f,
-            ) { dispatch(DmtAction.CycleSpeed) }
-        }
-        Box(modifier = Modifier.weight(1f)) {
-            TuiStatus(
-                label = stringResource(R.string.lyrics_key),
-                value = stringResource(
-                    when {
-                        state.lyricsFetching -> R.string.lyrics_key_busy
-                        state.lyrics == null -> R.string.lyrics_key_fetch
-                        showLyrics -> R.string.on
-                        else -> R.string.off
-                    },
-                ),
-                on = showLyrics && state.lyrics != null,
-                busy = state.lyricsFetching,
-            ) {
-                when {
-                    state.lyricsFetching -> Unit
-                    state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
-                    else -> onToggleLyrics()
-                }
+        // ── Row 1: shf, rpt, slp ──
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = stringResource(R.string.shuffle_key),
+                    value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
+                    on = state.shuffle,
+                ) { dispatch(DmtAction.ToggleShuffle) }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = stringResource(R.string.repeat_key),
+                    value = stringResource(
+                        when (state.repeat) {
+                            Player.REPEAT_MODE_ALL -> R.string.repeat_all
+                            Player.REPEAT_MODE_ONE -> R.string.repeat_one
+                            else -> R.string.off
+                        },
+                    ),
+                    on = state.repeat != Player.REPEAT_MODE_OFF,
+                ) { dispatch(DmtAction.CycleRepeat) }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = stringResource(R.string.sleep_key),
+                    value = if (state.sleepMinutes == 0) stringResource(R.string.off)
+                    else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
+                    on = state.sleepMinutes != 0,
+                ) { dispatch(DmtAction.CycleSleep) }
             }
         }
-        Box(modifier = Modifier.weight(1f)) {
-            DownloadFillButton(state = state, dispatch = dispatch)
+        // ── Row 2: spd, lyr, dl ──
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = stringResource(R.string.speed_key),
+                    value = stringResource(R.string.speed_value, state.speed.toString()),
+                    on = abs(state.speed - 1f) > 0.01f,
+                ) { dispatch(DmtAction.CycleSpeed) }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                TuiStatus(
+                    label = stringResource(R.string.lyrics_key),
+                    value = stringResource(
+                        when {
+                            state.lyricsFetching -> R.string.lyrics_key_busy
+                            state.lyrics == null -> R.string.lyrics_key_fetch
+                            showLyrics -> R.string.on
+                            else -> R.string.off
+                        },
+                    ),
+                    on = showLyrics && state.lyrics != null,
+                    busy = state.lyricsFetching,
+                ) {
+                    when {
+                        state.lyricsFetching -> Unit
+                        state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
+                        else -> onToggleLyrics()
+                    }
+                }
+            }
+            Box(modifier = Modifier.weight(1f)) {
+                DownloadFillButton(state = state, dispatch = dispatch)
+            }
         }
-    }
-    // ── Row 3: tg (full width) ──
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 8.dp),
-    ) {
-        UploadFillButton(state = state, dispatch = dispatch)
+        // ── Row 3: tg + spacers for grid symmetry ──
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                UploadFillButton(state = state, dispatch = dispatch)
+            }
+            Spacer(modifier = Modifier.weight(1f))
+            Spacer(modifier = Modifier.weight(1f))
+        }
     }
 }
 
