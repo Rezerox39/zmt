@@ -2,6 +2,7 @@ package dev.abhi.zmt.domain.usecase
 
 import android.content.ContentUris
 import android.content.Context
+import android.os.Build
 import android.content.IntentSender
 import android.provider.MediaStore
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -21,6 +22,9 @@ class EmbedLyricsUseCase @Inject constructor(
     suspend fun writeRequest(track: Track): IntentSender? =
         withContext(Dispatchers.IO) {
             if (track.source != TrackSource.LOCAL || !AudioTags.canWrite(track.path)) {
+                return@withContext null
+            }
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) {
                 return@withContext null
             }
 
