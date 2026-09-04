@@ -752,6 +752,7 @@ private fun UploadFillButton(
         }
     }
 }
+@Composable
 
 private fun QueueFooter(state: DmtState, onQueue: () -> Unit) {
     val next = state.queue.getOrNull(state.queuePosition + 1)
