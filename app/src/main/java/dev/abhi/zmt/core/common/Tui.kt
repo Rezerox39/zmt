@@ -329,7 +329,7 @@ fun TuiStatus(
     }
 }
 
-/**
+@Composable
 fun Hairline(fraction: Float, modifier: Modifier = Modifier) {
     LinearProgressIndicator(
         progress = { fraction.coerceIn(0f, 1f) },
