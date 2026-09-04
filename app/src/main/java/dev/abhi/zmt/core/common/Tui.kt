@@ -21,9 +21,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -287,11 +285,16 @@ fun TuiStatus(
     value: String,
     on: Boolean,
     busy: Boolean = false,
+    done: Boolean = false,
     onClick: () -> Unit,
 ) {
     val press = rememberTuiPress()
-    val restText = if (on) TuiBright else TuiDim
     val blink = if (busy) rememberCursorAlpha() else 1f
+    val textColor = when {
+        done -> TuiAccent
+        on -> TuiBright
+        else -> TuiDim
+    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
@@ -311,120 +314,16 @@ fun TuiStatus(
                 .background(
                     when {
                         busy -> TuiAccent.copy(alpha = blink)
+                        done -> TuiAccent
                         on -> TuiAccent
                         else -> TuiFaint
                     },
                 ),
         )
         Text(
-            text = " $label:$value",
-            style = MaterialTheme.typography.labelMedium,
-            color = lerp(restText, TuiBg, press.fraction),
-        )
-    }
-}
-
-/**
- * TUI status indicator for the Telegram upload button. Turns the label red
- * once the upload is done so the user knows the song is already uploaded.
- */
-@Composable
-fun TuiLiquidStatus(
-    label: String,
-    value: String,
-    fraction: Float,
-    completed: Boolean = false,
-    active: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val press = rememberTuiPress()
-    val borderColor = lerp(TuiLine, TuiFg, press.fraction)
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .border(1.dp, borderColor)
-            .background(lerp(TuiRaised, TuiFg, press.fraction))
-            .clickable(
-                interactionSource = press.interactionSource,
-                indication = null,
-            ) { press.click(onClick) }
-            .padding(horizontal = 12.dp, vertical = 11.dp),
-    ) {
-        Box(
-            modifier = Modifier
-                .size(7.dp)
-                .background(
-                    when {
-                        active && !completed -> TuiAccent
-                        completed -> TuiRed
-                        else -> TuiFaint
-                    },
-                ),
-        )
-        Text(
-            text = " $label:$value",
-            style = MaterialTheme.typography.labelMedium,
-            color = if (completed) TuiRed else lerp(TuiDim, TuiBright, press.fraction),
-        )
-    }
-}
-
-
-/**
- * Self-contained fill-state button — used by both dl and tg.
- * States: idle → loading (left-to-right fill) → done (filled + accent).
- * Tapping done resets to idle so action can be repeated.
- */
-@Composable
-fun TuiFillButton(
-    label: String,
-    progress: Float,       // 0f = idle, 0-1f = loading, >=1f = done
-    busy: Boolean = false,
-    done: Boolean = false,
-    onClick: () -> Unit,
-) {
-    val press = rememberTuiPress()
-    val fraction = progress.coerceIn(0f, 1f)
-    val borderColor = lerp(
-        TuiLine,
-        if (done) TuiRed else TuiFg,
-        press.fraction,
-    )
-    val fillColor = when {
-        done -> TuiRed.copy(alpha = 0.35f)
-        busy -> TuiAccent.copy(alpha = 0.25f)
-        else -> TuiFaint.copy(alpha = 0.15f)
-    }
-    val textColor = when {
-        done -> TuiRed
-        busy -> TuiAccent
-        else -> TuiFg
-    }
-    Box(
-        contentAlignment = Alignment.CenterStart,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Max)
-            .border(1.dp, borderColor)
-            .background(lerp(TuiRaised, TuiFg, press.fraction))
-            .clickable(
-                interactionSource = press.interactionSource,
-                indication = null,
-            ) { press.click(onClick) },
-    ) {
-        // Fill background — animates left to right, absolutely positioned via IntrinsicSize.Max
-        Box(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth(fraction)
-                .background(fillColor),
-        )
-        // Label text — padding inside the box so IntrinsicSize.Max captures it
-        Text(
-            text = " $label",
+            text = if (label.isEmpty()) " $value" else " $label:$value",
             style = MaterialTheme.typography.labelMedium,
             color = lerp(textColor, TuiBg, press.fraction),
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 11.dp),
         )
     }
 }

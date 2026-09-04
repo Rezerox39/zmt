@@ -530,7 +530,6 @@ class PlayerViewModel @Inject constructor(
                         reduce {
                             it.copy(
                                 uploadProgress = 101,
-                                notice = "uploaded to telegram",
                                 settings = it.settings.copy(uploadedTrackIds = newIds),
                             )
                         }

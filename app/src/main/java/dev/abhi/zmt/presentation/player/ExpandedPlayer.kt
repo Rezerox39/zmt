@@ -63,7 +63,6 @@ import dev.abhi.zmt.core.common.TuiChip
 import dev.abhi.zmt.core.common.TuiKey
 import dev.abhi.zmt.core.common.TuiNotice
 import dev.abhi.zmt.core.common.TuiPanel
-import dev.abhi.zmt.core.common.TuiFillButton
 import dev.abhi.zmt.core.common.TuiStatus
 import dev.abhi.zmt.domain.model.asCredit
 import dev.abhi.zmt.core.common.fitScaleFor
@@ -605,17 +604,17 @@ private fun StatusRow(
     ) {
         // ── Row 1: shf, rpt, slp ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
                 TuiStatus(
                     label = stringResource(R.string.shuffle_key),
                     value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
                     on = state.shuffle,
                 ) { dispatch(DmtAction.ToggleShuffle) }
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
                 TuiStatus(
                     label = stringResource(R.string.repeat_key),
                     value = stringResource(
@@ -628,7 +627,7 @@ private fun StatusRow(
                     on = state.repeat != Player.REPEAT_MODE_OFF,
                 ) { dispatch(DmtAction.CycleRepeat) }
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
                 TuiStatus(
                     label = stringResource(R.string.sleep_key),
                     value = if (state.sleepMinutes == 0) stringResource(R.string.off)
@@ -637,19 +636,19 @@ private fun StatusRow(
                 ) { dispatch(DmtAction.CycleSleep) }
             }
         }
-        // ── Row 2: spd, lyr, dl ──
+        // ── Row 2: spd, lyr, tg ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
                 TuiStatus(
                     label = stringResource(R.string.speed_key),
                     value = stringResource(R.string.speed_value, state.speed.toString()),
                     on = abs(state.speed - 1f) > 0.01f,
                 ) { dispatch(DmtAction.CycleSpeed) }
             }
-            Box(modifier = Modifier.weight(1f)) {
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
                 TuiStatus(
                     label = stringResource(R.string.lyrics_key),
                     value = stringResource(
@@ -670,58 +669,74 @@ private fun StatusRow(
                     }
                 }
             }
-            Box(modifier = Modifier.weight(1f)) {
-                DownloadFillButton(state = state, dispatch = dispatch)
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
+                TelegramStatusButton(state = state, dispatch = dispatch)
             }
         }
-        // ── Row 3: tg + spacers for grid symmetry ──
+        // ── Row 3: misc, dl, fav ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f)) {
-                UploadFillButton(state = state, dispatch = dispatch)
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
+                TuiStatus(
+                    label = stringResource(R.string.misc_key),
+                    value = "eq",
+                    on = false,
+                ) { dispatch(DmtAction.OpenEqualizer) }
             }
-            Spacer(modifier = Modifier.weight(1f))
-            Spacer(modifier = Modifier.weight(1f))
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
+                DownloadStatusButton(state = state, dispatch = dispatch)
+            }
+            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
+                TuiStatus(
+                    label = stringResource(R.string.fav_key),
+                    value = if (state.liked) stringResource(R.string.on) else stringResource(R.string.off),
+                    on = state.liked,
+                ) { dispatch(DmtAction.ToggleLike) }
+            }
         }
     }
 }
 
 @Composable
-private fun DownloadFillButton(
+private fun DownloadStatusButton(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
-    val dlFraction = when {
-        state.downloadProgress == 101 -> 1f
-        state.downloadProgress in 0..99 -> state.downloadProgress / 100f
-        else -> 0f
-    }
-    val dlBusy = state.downloadProgress in 0..99
-    val dlDone = state.downloadProgress == 101
-    val dlLabel = when {
-        dlDone -> "dl:done"
-        state.downloadProgress in 0..99 -> "dl:${state.downloadProgress}%"
-        state.downloadProgress == -2 -> "dl:err"
-        else -> "dl:off"
-    }
-    TuiFillButton(
-        label = dlLabel,
-        progress = dlFraction,
-        busy = dlBusy,
-        done = dlDone,
-    ) {
-        when {
-            dlDone -> Unit
-            state.downloadProgress == -2 -> dispatch(DmtAction.DownloadToDevice(track = null))
-            else -> dispatch(DmtAction.DownloadToDevice(track = null))
-        }
+    val dlProgress = state.downloadProgress
+    val dlBusy = dlProgress in 0..99
+    val dlDone = dlProgress >= 100
+    when {
+        dlDone -> TuiStatus(
+            label = "",
+            value = "100",
+            on = false,
+            done = true,
+        ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
+
+        dlBusy -> TuiStatus(
+            label = "dl",
+            value = dlProgress.toString(),
+            on = true,
+        ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
+
+        dlProgress == -2 -> TuiStatus(
+            label = "dl",
+            value = "err",
+            on = false,
+        ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
+
+        else -> TuiStatus(
+            label = "dl",
+            value = stringResource(R.string.off),
+            on = false,
+        ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
     }
 }
 
 @Composable
-private fun UploadFillButton(
+private fun TelegramStatusButton(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
 ) {
@@ -733,22 +748,16 @@ private fun UploadFillButton(
     val alreadyUploaded = curKey != null && state.settings.uploadedTrackIds.contains(curKey)
     val ulUploading = state.uploadProgress in 0..99
     val ulDone = state.uploadProgress >= 101 || alreadyUploaded
-    val ulFraction = when {
-        ulDone -> 1f
-        state.uploadProgress > 0 -> (state.uploadProgress / 100f).coerceIn(0f, 0.99f)
-        state.uploadError != null -> 0.2f
-        else -> 0f
-    }
     val ulLabel = when {
-        ulDone -> "tg:done"
-        state.uploadProgress in 0..99 -> "tg:${state.uploadProgress}%"
-        state.uploadError != null -> "tg:err"
-        else -> "tg:off"
+        ulDone -> stringResource(R.string.on)
+        ulUploading -> state.uploadProgress.toString()
+        state.uploadError != null -> "err"
+        else -> stringResource(R.string.off)
     }
-    TuiFillButton(
-        label = ulLabel,
-        progress = ulFraction,
-        busy = ulUploading,
+    TuiStatus(
+        label = "tg",
+        value = ulLabel,
+        on = ulUploading,
         done = ulDone,
     ) {
         if (!tgConnected) {
@@ -758,6 +767,7 @@ private fun UploadFillButton(
         }
     }
 }
+
 @Composable
 
 private fun QueueFooter(state: DmtState, onQueue: () -> Unit) {
