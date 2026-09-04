@@ -17,6 +17,7 @@ val TuiFaint = Color(0xFF3C4245)
 val TuiLine = Color(0xFF1E2122)
 var TuiAccent by mutableStateOf(Color(0xFFDC143C))
 val TuiRed = Color(0xFFB85C50)
+val TuiCrimson = Color(0xFFDC143C)
 val TuiGreen = Color(0xFF7FA05F)
 
 // ── Refined Hierarchy ──
