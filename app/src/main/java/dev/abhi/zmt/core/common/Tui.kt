@@ -367,6 +367,64 @@ fun TuiLiquidStatus(
     }
 }
 
+
+/**
+ * Self-contained fill-state button — used by both dl and tg.
+ * States: idle → loading (left-to-right fill) → done (filled + accent).
+ * Tapping done resets to idle so action can be repeated.
+ */
+@Composable
+fun TuiFillButton(
+    label: String,
+    progress: Float,       // 0f = idle, 0-1f = loading, >=1f = done
+    busy: Boolean = false,
+    done: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val press = rememberTuiPress()
+    val fraction = progress.coerceIn(0f, 1f)
+    val borderColor = lerp(
+        TuiLine,
+        if (done) TuiRed else TuiFg,
+        press.fraction,
+    )
+    val fillColor = when {
+        done -> TuiRed.copy(alpha = 0.35f)
+        busy -> TuiAccent.copy(alpha = 0.25f)
+        else -> TuiFaint.copy(alpha = 0.15f)
+    }
+    val textColor = when {
+        done -> TuiRed
+        busy -> TuiAccent
+        else -> TuiFg
+    }
+    Box(
+        contentAlignment = Alignment.CenterStart,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(1.dp, borderColor)
+            .background(lerp(TuiRaised, TuiFg, press.fraction))
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+            ) { press.click(onClick) },
+    ) {
+        // Fill background — animates left to right
+        Box(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth(fraction)
+                .background(fillColor),
+        )
+        // Label text
+        Text(
+            text = " $label",
+            style = MaterialTheme.typography.labelMedium,
+            color = lerp(textColor, TuiBg, press.fraction),
+        )
+    }
+}
+
 @Composable
 fun Hairline(fraction: Float, modifier: Modifier = Modifier) {
     LinearProgressIndicator(
