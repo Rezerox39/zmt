@@ -286,6 +286,7 @@ fun TuiStatus(
     on: Boolean,
     busy: Boolean = false,
     done: Boolean = false,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val press = rememberTuiPress()
@@ -297,7 +298,9 @@ fun TuiStatus(
     }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
+        modifier = modifier
+            .fillMaxWidth()
+            .height(42.dp)
             .border(1.dp, lerp(TuiLine, TuiFg, press.fraction))
             .background(lerp(TuiRaised, TuiFg, press.fraction))
             .clickable(
@@ -306,7 +309,7 @@ fun TuiStatus(
             ) {
                 press.click(onClick)
             }
-            .padding(horizontal = 12.dp, vertical = 11.dp),
+            .padding(horizontal = 12.dp),
     ) {
         Box(
             modifier = Modifier

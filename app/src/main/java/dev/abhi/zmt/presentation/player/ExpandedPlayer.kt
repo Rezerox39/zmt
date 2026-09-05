@@ -604,97 +604,94 @@ private fun StatusRow(
     ) {
         // ── Row 1: shf, rpt, slp ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.shuffle_key),
-                    value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
-                    on = state.shuffle,
-                ) { dispatch(DmtAction.ToggleShuffle) }
-            }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.repeat_key),
-                    value = stringResource(
-                        when (state.repeat) {
-                            Player.REPEAT_MODE_ALL -> R.string.repeat_all
-                            Player.REPEAT_MODE_ONE -> R.string.repeat_one
-                            else -> R.string.off
-                        },
-                    ),
-                    on = state.repeat != Player.REPEAT_MODE_OFF,
-                ) { dispatch(DmtAction.CycleRepeat) }
-            }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.sleep_key),
-                    value = if (state.sleepMinutes == 0) stringResource(R.string.off)
-                    else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
-                    on = state.sleepMinutes != 0,
-                ) { dispatch(DmtAction.CycleSleep) }
-            }
+            TuiStatus(
+                label = stringResource(R.string.shuffle_key),
+                value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
+                on = state.shuffle,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.ToggleShuffle) }
+            TuiStatus(
+                label = stringResource(R.string.repeat_key),
+                value = stringResource(
+                    when (state.repeat) {
+                        Player.REPEAT_MODE_ALL -> R.string.repeat_all
+                        Player.REPEAT_MODE_ONE -> R.string.repeat_one
+                        else -> R.string.off
+                    },
+                ),
+                on = state.repeat != Player.REPEAT_MODE_OFF,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.CycleRepeat) }
+            TuiStatus(
+                label = stringResource(R.string.sleep_key),
+                value = if (state.sleepMinutes == 0) stringResource(R.string.off)
+                else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
+                on = state.sleepMinutes != 0,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.CycleSleep) }
         }
         // ── Row 2: spd, lyr, tg ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.speed_key),
-                    value = stringResource(R.string.speed_value, state.speed.toString()),
-                    on = abs(state.speed - 1f) > 0.01f,
-                ) { dispatch(DmtAction.CycleSpeed) }
-            }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.lyrics_key),
-                    value = stringResource(
-                        when {
-                            state.lyricsFetching -> R.string.lyrics_key_busy
-                            state.lyrics == null -> R.string.lyrics_key_fetch
-                            showLyrics -> R.string.on
-                            else -> R.string.off
-                        },
-                    ),
-                    on = showLyrics && state.lyrics != null,
-                    busy = state.lyricsFetching,
-                ) {
+            TuiStatus(
+                label = stringResource(R.string.speed_key),
+                value = stringResource(R.string.speed_value, state.speed.toString()),
+                on = abs(state.speed - 1f) > 0.01f,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.CycleSpeed) }
+            TuiStatus(
+                label = stringResource(R.string.lyrics_key),
+                value = stringResource(
                     when {
-                        state.lyricsFetching -> Unit
-                        state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
-                        else -> onToggleLyrics()
-                    }
+                        state.lyricsFetching -> R.string.lyrics_key_busy
+                        state.lyrics == null -> R.string.lyrics_key_fetch
+                        showLyrics -> R.string.on
+                        else -> R.string.off
+                    },
+                ),
+                on = showLyrics && state.lyrics != null,
+                busy = state.lyricsFetching,
+                modifier = Modifier.weight(1f),
+            ) {
+                when {
+                    state.lyricsFetching -> Unit
+                    state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
+                    else -> onToggleLyrics()
                 }
             }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TelegramStatusButton(state = state, dispatch = dispatch)
-            }
+            TelegramStatusButton(
+                state = state,
+                dispatch = dispatch,
+                modifier = Modifier.weight(1f),
+            )
         }
         // ── Row 3: misc, dl, fav ──
         Row(
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.misc_key),
-                    value = "eq",
-                    on = false,
-                ) { dispatch(DmtAction.OpenEqualizer) }
-            }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                DownloadStatusButton(state = state, dispatch = dispatch)
-            }
-            Box(modifier = Modifier.weight(1f).height(44.dp), contentAlignment = Alignment.Center) {
-                TuiStatus(
-                    label = stringResource(R.string.fav_key),
-                    value = if (state.liked) stringResource(R.string.on) else stringResource(R.string.off),
-                    on = state.liked,
-                ) { dispatch(DmtAction.ToggleLike) }
-            }
+            TuiStatus(
+                label = stringResource(R.string.misc_key),
+                value = "eq",
+                on = false,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.OpenEqualizer) }
+            DownloadStatusButton(
+                state = state,
+                dispatch = dispatch,
+                modifier = Modifier.weight(1f),
+            )
+            TuiStatus(
+                label = stringResource(R.string.fav_key),
+                value = if (state.liked) stringResource(R.string.on) else stringResource(R.string.off),
+                on = state.liked,
+                modifier = Modifier.weight(1f),
+            ) { dispatch(DmtAction.ToggleLike) }
         }
     }
 }
@@ -703,6 +700,7 @@ private fun StatusRow(
 private fun DownloadStatusButton(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dlProgress = state.downloadProgress
     val dlBusy = dlProgress in 0..99
@@ -713,24 +711,28 @@ private fun DownloadStatusButton(
             value = "100",
             on = false,
             done = true,
+            modifier = modifier,
         ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
 
         dlBusy -> TuiStatus(
             label = "dl",
             value = dlProgress.toString(),
             on = true,
+            modifier = modifier,
         ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
 
         dlProgress == -2 -> TuiStatus(
             label = "dl",
             value = "err",
             on = false,
+            modifier = modifier,
         ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
 
         else -> TuiStatus(
             label = "dl",
             value = stringResource(R.string.off),
             on = false,
+            modifier = modifier,
         ) { dispatch(DmtAction.DownloadToDevice(track = null)) }
     }
 }
@@ -739,6 +741,7 @@ private fun DownloadStatusButton(
 private fun TelegramStatusButton(
     state: DmtState,
     dispatch: (DmtAction) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val tgConnected = state.settings.telegramChannelId != null
     val curTrack = state.currentTrack
@@ -759,6 +762,7 @@ private fun TelegramStatusButton(
         value = ulLabel,
         on = ulUploading,
         done = ulDone,
+        modifier = modifier,
     ) {
         if (!tgConnected) {
             dispatch(DmtAction.Show(DmtView.SOURCES))
