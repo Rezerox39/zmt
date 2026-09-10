@@ -279,6 +279,7 @@ fun TuiChip(text: String) {
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TuiStatus(
     label: String,
@@ -286,6 +287,7 @@ fun TuiStatus(
     on: Boolean,
     busy: Boolean = false,
     done: Boolean = false,
+    onLongClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
@@ -299,13 +301,12 @@ fun TuiStatus(
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = modifier
-            .fillMaxWidth()
-            .height(42.dp)
             .border(1.dp, lerp(TuiLine, TuiFg, press.fraction))
             .background(lerp(TuiRaised, TuiFg, press.fraction))
-            .clickable(
+            .combinedClickable(
                 interactionSource = press.interactionSource,
                 indication = null,
+                onLongClick = onLongClick?.let { { press.click(it) } },
             ) {
                 press.click(onClick)
             }
@@ -412,3 +413,7 @@ fun ThinSlider(
         }
     }
 }
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi

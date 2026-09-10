@@ -7,6 +7,8 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -171,7 +173,6 @@ private fun PortraitPlayer(
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
-                    .fillMaxWidth(0.85f)
                     .aspectRatio(1f),
                 ) {
                     ArtSlot(state, dispatch, showLyrics)
@@ -291,7 +292,7 @@ private fun ControlsBlock(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
-    TrackMeta(state, dispatch)
+    TrackMeta(state)
     SeekRow(state, dispatch)
     TransportRow(state, dispatch)
     StatusRow(
@@ -417,33 +418,22 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
 
 @Composable
 private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(top = 18.dp),
-    ) {
-        CursorTitle(
-            text = state.title,
-            style = MaterialTheme.typography.titleLarge,
-            modifier = Modifier.weight(1f),
-        )
-        LikeButton(
-            liked = state.liked,
-            onClick = { dispatch(DmtAction.ToggleLike) },
-            modifier = Modifier.padding(start = 10.dp),
-        )
-    }
+private fun TrackMeta(state: DmtState) {
+    CursorTitle(
+        text = state.title,
+        style = MaterialTheme.typography.titleLarge,
+        modifier = Modifier.padding(top = 18.dp),
+    )
     Text(
         text = listOf(state.artist.asCredit(), state.album)
             .filter { it.isNotBlank() }
             .joinToString(" · ")
             .lowercase(),
-        style = MaterialTheme.typography.bodySmall,
+        style = MaterialTheme.typography.bodyMedium,
         color = TuiDim,
         maxLines = 1,
         overflow = TextOverflow.Ellipsis,
-        modifier = Modifier.padding(top = 4.dp),
+        modifier = Modifier.padding(top = 3.dp),
     )
     state.fault?.let { fault ->
         Text(
@@ -589,6 +579,7 @@ private fun TransportRow(state: DmtState, dispatch: (DmtAction) -> Unit) {
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun StatusRow(
     state: DmtState,
@@ -596,103 +587,71 @@ private fun StatusRow(
     showLyrics: Boolean,
     onToggleLyrics: () -> Unit,
 ) {
-    Column(
+    FlowRow(
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .fillMaxWidth()
             .padding(top = 10.dp),
     ) {
-        // ── Row 1: shf, rpt, slp ──
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            TuiStatus(
-                label = stringResource(R.string.shuffle_key),
-                value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
-                on = state.shuffle,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.ToggleShuffle) }
-            TuiStatus(
-                label = stringResource(R.string.repeat_key),
-                value = stringResource(
-                    when (state.repeat) {
-                        Player.REPEAT_MODE_ALL -> R.string.repeat_all
-                        Player.REPEAT_MODE_ONE -> R.string.repeat_one
-                        else -> R.string.off
-                    },
-                ),
-                on = state.repeat != Player.REPEAT_MODE_OFF,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.CycleRepeat) }
-            TuiStatus(
-                label = stringResource(R.string.sleep_key),
-                value = if (state.sleepMinutes == 0) stringResource(R.string.off)
-                else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
-                on = state.sleepMinutes != 0,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.CycleSleep) }
-        }
-        // ── Row 2: spd, lyr, tg ──
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            TuiStatus(
-                label = stringResource(R.string.speed_key),
-                value = stringResource(R.string.speed_value, state.speed.toString()),
-                on = abs(state.speed - 1f) > 0.01f,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.CycleSpeed) }
-            TuiStatus(
-                label = stringResource(R.string.lyrics_key),
-                value = stringResource(
-                    when {
-                        state.lyricsFetching -> R.string.lyrics_key_busy
-                        state.lyrics == null -> R.string.lyrics_key_fetch
-                        showLyrics -> R.string.on
-                        else -> R.string.off
-                    },
-                ),
-                on = showLyrics && state.lyrics != null,
-                busy = state.lyricsFetching,
-                modifier = Modifier.weight(1f),
-            ) {
+        TuiStatus(
+            label = stringResource(R.string.shuffle_key),
+            value = if (state.shuffle) stringResource(R.string.on) else stringResource(R.string.off),
+            on = state.shuffle,
+        ) { dispatch(DmtAction.ToggleShuffle) }
+        TuiStatus(
+            label = stringResource(R.string.repeat_key),
+            value = stringResource(
+                when (state.repeat) {
+                    Player.REPEAT_MODE_ALL -> R.string.repeat_all
+                    Player.REPEAT_MODE_ONE -> R.string.repeat_one
+                    else -> R.string.off
+                },
+            ),
+            on = state.repeat != Player.REPEAT_MODE_OFF,
+        ) { dispatch(DmtAction.CycleRepeat) }
+        TuiStatus(
+            label = stringResource(R.string.sleep_key),
+            value = if (state.sleepMinutes == 0) stringResource(R.string.off)
+            else stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000),
+            on = state.sleepMinutes != 0,
+        ) { dispatch(DmtAction.CycleSleep) }
+        TuiStatus(
+            label = stringResource(R.string.speed_key),
+            value = stringResource(R.string.speed_value, state.speed.toString()),
+            on = abs(state.speed - 1f) > 0.01f,
+        ) { dispatch(DmtAction.CycleSpeed) }
+        TuiStatus(
+            label = stringResource(R.string.lyrics_key),
+            value = stringResource(
                 when {
-                    state.lyricsFetching -> Unit
-                    state.lyrics == null -> dispatch(DmtAction.FetchLyrics)
-                    else -> onToggleLyrics()
-                }
-            }
-            TelegramStatusButton(
-                state = state,
-                dispatch = dispatch,
-                modifier = Modifier.weight(1f),
-            )
-        }
-        // ── Row 3: misc, dl, fav ──
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth(),
+                    state.lyricsFetching -> R.string.lyrics_key_busy
+                    showLyrics && state.lyrics != null -> R.string.on
+                    else -> R.string.off
+                },
+            ),
+            on = showLyrics && state.lyrics != null,
+            busy = state.lyricsFetching,
+            onLongClick = { dispatch(DmtAction.OpenLyricsSources) },
         ) {
-            TuiStatus(
-                label = stringResource(R.string.misc_key),
-                value = "eq",
-                on = false,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.OpenEqualizer) }
-            DownloadStatusButton(
-                state = state,
-                dispatch = dispatch,
-                modifier = Modifier.weight(1f),
-            )
-            TuiStatus(
-                label = stringResource(R.string.fav_key),
-                value = if (state.liked) stringResource(R.string.on) else stringResource(R.string.off),
-                on = state.liked,
-                modifier = Modifier.weight(1f),
-            ) { dispatch(DmtAction.ToggleLike) }
+            when {
+                state.lyricsFetching -> Unit
+                state.lyrics != null -> onToggleLyrics()
+                else -> dispatch(DmtAction.OpenLyricsSources)
+            }
         }
+        TuiStatus(
+            label = stringResource(R.string.fav_key),
+            value = if (state.liked) stringResource(R.string.on) else stringResource(R.string.off),
+            on = state.liked,
+        ) { dispatch(DmtAction.ToggleLike) }
+        TelegramStatusButton(state = state, dispatch = dispatch)
+        DownloadStatusButton(state = state, dispatch = dispatch)
+        TuiStatus(
+            label = stringResource(R.string.misc_key),
+            value = "eq",
+            on = false,
+        ) { dispatch(DmtAction.OpenEqualizer) }
     }
 }
 
