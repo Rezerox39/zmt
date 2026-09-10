@@ -1,4 +1,5 @@
 package dev.abhi.zmt.presentation.player
+import dev.abhi.zmt.R
 
 import android.graphics.Bitmap
 import androidx.compose.foundation.Image
