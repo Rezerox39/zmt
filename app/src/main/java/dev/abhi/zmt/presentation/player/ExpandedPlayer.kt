@@ -7,7 +7,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
-import androidx.compose.foundation.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
@@ -417,7 +417,6 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun TrackMeta(state: DmtState, dispatch: (DmtAction) -> Unit) {
 private fun TrackMeta(state: DmtState) {
     CursorTitle(
         text = state.title,
@@ -632,12 +631,12 @@ private fun StatusRow(
             ),
             on = showLyrics && state.lyrics != null,
             busy = state.lyricsFetching,
-            onLongClick = { dispatch(DmtAction.OpenLyricsSources) },
+            onLongClick = { dispatch(DmtAction.FetchLyrics) },
         ) {
             when {
                 state.lyricsFetching -> Unit
                 state.lyrics != null -> onToggleLyrics()
-                else -> dispatch(DmtAction.OpenLyricsSources)
+                else -> dispatch(DmtAction.FetchLyrics)
             }
         }
         TuiStatus(
