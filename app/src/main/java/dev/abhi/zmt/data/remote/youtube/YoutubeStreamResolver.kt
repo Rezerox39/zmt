@@ -144,12 +144,6 @@ class YoutubeStreamResolver @Inject constructor(
                 return null
             }
 
-            // Validate URL is reachable
-            if (!isUrlReachable(url)) {
-                Log.w(TAG, "yt-dlp URL not reachable for $videoId")
-                return null
-            }
-
             // Extract User-Agent from headers if available, or use a default
             val userAgent = headers["User-Agent"] ?: UserAgents.DESKTOP
 
