@@ -380,7 +380,7 @@ private fun CoverPanel(state: DmtState, modifier: Modifier = Modifier) {
                 val image = remember(rawArt) { rawArt.asImageBitmap() }
                 Image(
                     bitmap = image,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.album_art),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)

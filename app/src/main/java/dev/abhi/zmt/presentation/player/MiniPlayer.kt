@@ -21,6 +21,7 @@ import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,7 +68,7 @@ fun MiniPlayer(
                 cover?.let { bitmap ->
                     Image(
                         bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.album_art),
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(40.dp)

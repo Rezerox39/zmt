@@ -83,6 +83,7 @@
 
     <string name="now_playing">now playing</string>
     <string name="no_cover">[ no cover ]</string>
+    <string name="album_art">Album artwork</string>
     <string name="close" translatable="false">v</string>
     <string name="info" translatable="false">i</string>
     <string name="lyrics_key" translatable="false">lyr</string>

@@ -60,6 +60,7 @@ import dev.abhi.zmt.domain.usecase.MediaSourceProvider
 import dev.abhi.zmt.util.notificationPermission
 import dev.abhi.zmt.util.resolveQueue
 import android.util.Log
+import dev.abhi.zmt.BuildConfig
 import androidx.media3.common.PlaybackException
 import androidx.media3.exoplayer.DefaultLoadControl
 import dev.abhi.zmt.util.toMediaItem
@@ -266,7 +267,7 @@ class PlaybackService : MediaLibraryService() {
                 }
 
                 override fun onPlayerError(error: PlaybackException) {
-                    Log.e("PlaybackService", "Player error: ${error.errorCodeName} (${error.errorCode})")
+                    if (BuildConfig.DEBUG) Log.e("PlaybackService", "Player error: ${error.errorCodeName} (${error.errorCode})")
 
                     val isIoError = error.errorCode in setOf(
                         PlaybackException.ERROR_CODE_IO_UNSPECIFIED,
@@ -279,7 +280,7 @@ class PlaybackService : MediaLibraryService() {
 
                     if (isIoError && currentErrorRetries < MAX_ERROR_RETRIES) {
                         currentErrorRetries++
-                        Log.w("PlaybackService", "IO error, retry ${currentErrorRetries}/$MAX_ERROR_RETRIES (re-prepare)")
+                        if (BuildConfig.DEBUG) Log.w("PlaybackService", "IO error, retry ${currentErrorRetries}/$MAX_ERROR_RETRIES (re-prepare)")
                         scope.launch {
                             kotlinx.coroutines.delay(500)
                             player.prepare()
@@ -292,7 +293,7 @@ class PlaybackService : MediaLibraryService() {
                     if (player.mediaItemCount > 1) {
                         val nextIndex = player.currentMediaItemIndex + 1
                         if (nextIndex < player.mediaItemCount) {
-                            Log.w("PlaybackService", "Auto-skipping to next track")
+                            if (BuildConfig.DEBUG) Log.w("PlaybackService", "Auto-skipping to next track")
                             player.seekToDefaultPosition(nextIndex)
                         } else if (player.repeatMode == Player.REPEAT_MODE_ALL) {
                             player.seekToDefaultPosition(0)
@@ -326,7 +327,7 @@ class PlaybackService : MediaLibraryService() {
         }
         btReceiver = BluetoothReceiver {
             if (mediaSession?.player?.isPlaying == false && mediaSession?.player?.mediaItemCount ?: 0 > 0) {
-                Log.d("PlaybackService", "BT connected: auto-resuming")
+                if (BuildConfig.DEBUG) Log.d("PlaybackService", "BT connected: auto-resuming")
                 mediaSession?.player?.play()
             }
         }
@@ -879,9 +880,9 @@ class PlaybackService : MediaLibraryService() {
         val nextItem = player.getMediaItemAt(nextIndex)
         val nextUri = nextItem.localConfiguration?.uri?.toString() ?: return
         if (streamCache.isCached(nextUri)) {
-            Log.d(TAG, "Next track cached locally: $nextUri")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Next track cached locally: $nextUri")
         } else {
-            Log.d(TAG, "Next track will be cached on play: $nextUri")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Next track will be cached on play: $nextUri")
         }
     }
 

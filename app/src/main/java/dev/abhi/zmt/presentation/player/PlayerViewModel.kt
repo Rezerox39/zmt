@@ -848,23 +848,23 @@ class PlayerViewModel @Inject constructor(
                     reduce { it.copy(error = null, scanning = true) }
                     val initErr = telegramLogin.initialize()
                     if (initErr != null) {
-                        android.util.Log.e("TDLibDebug", "Init failed: $initErr")
+                        if (BuildConfig.DEBUG) Log.e("TDLibDebug", "Init failed: $initErr")
                         reduce { it.copy(error = "Init failed: $initErr", scanning = false) }
                         return@launch
                     }
-                    android.util.Log.d("TDLibDebug", "Init OK, sending phone: ${intent.phoneNumber.take(4)}****")
+                    if (BuildConfig.DEBUG) Log.d("TDLibDebug", "Init OK, sending phone")
                     try {
                         val result = telegramLogin.sendPhoneNumber(intent.phoneNumber)
                         if (result.isFailure) {
                             val errMsg = result.exceptionOrNull()?.message ?: "Failed to send phone number"
-                            android.util.Log.e("TDLibDebug", "Send phone failed: $errMsg")
+                            if (BuildConfig.DEBUG) Log.e("TDLibDebug", "Send phone failed: $errMsg")
                             reduce { it.copy(error = "Error: $errMsg", scanning = false) }
                         } else {
-                            android.util.Log.d("TDLibDebug", "Send phone OK, waiting for auth state...")
+                            if (BuildConfig.DEBUG) Log.d("TDLibDebug", "Send phone OK, waiting for auth state...")
                             reduce { it.copy(scanning = false) }
                         }
                     } catch (e: Exception) {
-                        android.util.Log.e("TDLibDebug", "Send phone exception: ${e.message}", e)
+                        if (BuildConfig.DEBUG) Log.e("TDLibDebug", "Send phone exception: ${e.message}", e)
                         reduce { it.copy(error = "Connection error: ${e.message}", scanning = false) }
                     }
                 }
@@ -1154,7 +1154,7 @@ class PlayerViewModel @Inject constructor(
                 }
                 c = c.cause
             }
-            android.util.Log.e("PlaybackDebug", sb.toString())
+            if (BuildConfig.DEBUG) Log.e("PlaybackDebug", sb.toString())
 
             val rootMsg = rootCause?.message ?: ""
             val message = when {
