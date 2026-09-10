@@ -13,8 +13,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -45,7 +43,6 @@ import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
@@ -231,10 +228,6 @@ fun TuiKey(
         color = lerp(restText, pressText, press.fraction),
         textAlign = TextAlign.Center,
         modifier = modifier
-            .graphicsLayer {
-                scaleX = 1f - press.fraction * 0.04f
-                scaleY = 1f - press.fraction * 0.04f
-            }
             .border(1.dp, lerp(restBorder, pressBorder, press.fraction))
             .background(lerp(restBg, pressBg, press.fraction))
             .clickable(
@@ -281,38 +274,29 @@ fun TuiChip(text: String) {
     )
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TuiStatus(
     label: String,
     value: String,
     on: Boolean,
     busy: Boolean = false,
-    done: Boolean = false,
-    onLongClick: (() -> Unit)? = null,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     val press = rememberTuiPress()
+    val restText = if (on) TuiBright else TuiDim
     val blink = if (busy) rememberCursorAlpha() else 1f
-    val textColor = when {
-        done -> TuiAccent
-        on -> TuiBright
-        else -> TuiDim
-    }
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = modifier
+        modifier = Modifier
             .border(1.dp, lerp(TuiLine, TuiFg, press.fraction))
             .background(lerp(TuiRaised, TuiFg, press.fraction))
-            .combinedClickable(
+            .clickable(
                 interactionSource = press.interactionSource,
                 indication = null,
-                onLongClick = onLongClick?.let { { press.click(it) } },
             ) {
                 press.click(onClick)
             }
-            .padding(horizontal = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 11.dp),
     ) {
         Box(
             modifier = Modifier
@@ -320,16 +304,60 @@ fun TuiStatus(
                 .background(
                     when {
                         busy -> TuiAccent.copy(alpha = blink)
-                        done -> TuiAccent
                         on -> TuiAccent
                         else -> TuiFaint
                     },
                 ),
         )
         Text(
-            text = if (label.isEmpty()) " $value" else " $label:$value",
+            text = " $label:$value",
             style = MaterialTheme.typography.labelMedium,
-            color = lerp(textColor, TuiBg, press.fraction),
+            color = lerp(restText, TuiBg, press.fraction),
+        )
+    }
+}
+
+/**
+ * TUI status indicator for the Telegram upload button. Turns the label red
+ * once the upload is done so the user knows the song is already uploaded.
+ */
+@Composable
+fun TuiLiquidStatus(
+    label: String,
+    value: String,
+    fraction: Float,
+    completed: Boolean = false,
+    active: Boolean = false,
+    onClick: () -> Unit,
+) {
+    val press = rememberTuiPress()
+    val borderColor = lerp(TuiLine, TuiFg, press.fraction)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .border(1.dp, borderColor)
+            .background(lerp(TuiRaised, TuiFg, press.fraction))
+            .clickable(
+                interactionSource = press.interactionSource,
+                indication = null,
+            ) { press.click(onClick) }
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+    ) {
+        Box(
+            modifier = Modifier
+                .size(7.dp)
+                .background(
+                    when {
+                        active && !completed -> TuiAccent
+                        completed -> TuiRed
+                        else -> TuiFaint
+                    },
+                ),
+        )
+        Text(
+            text = " $label:$value",
+            style = MaterialTheme.typography.labelMedium,
+            color = if (completed) TuiRed else lerp(TuiDim, TuiBright, press.fraction),
         )
     }
 }
