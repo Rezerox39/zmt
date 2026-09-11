@@ -95,6 +95,7 @@ private const val FOLDER_PREFIX = "folder/"
 private const val TAG = "PlaybackService"
 
 // Fisher-Yates shuffle, current track pinned at index 0.
+@OptIn(UnstableApi::class)
 private fun shuffleOrderLedBy(current: Int, count: Int): DefaultShuffleOrder {
     val order = IntArray(count) { it }
     val head = if (current in 0 until count) 1 else 0
