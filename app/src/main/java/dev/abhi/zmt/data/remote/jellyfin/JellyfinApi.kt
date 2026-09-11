@@ -133,12 +133,12 @@ class JellyfinApi @Inject constructor(
 
     private suspend fun getJson(url: String, token: String): JSONObject =
         client.get(url) {
-            header("X-Emby-Authorization", authHeader(token))
+            header("Authorization", authHeader(token))
         }.toJson()
 
     private suspend fun postJson(url: String, body: JSONObject): JSONObject =
         client.post(url) {
-            header("X-Emby-Authorization", authHeader())
+            header("Authorization", authHeader())
             contentType(ContentType.Application.Json)
             setBody(body.toString())
         }.toJson()

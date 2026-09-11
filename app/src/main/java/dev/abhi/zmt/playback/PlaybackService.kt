@@ -81,6 +81,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import javax.inject.Inject
 import kotlin.math.pow
+import kotlin.random.Random
 import kotlin.time.Duration.Companion.milliseconds
 
 private const val ROOT_ID = "root"
@@ -92,6 +93,26 @@ private const val ARTIST_PREFIX = "artist/"
 private const val FOLDERS_ID = "folders"
 private const val FOLDER_PREFIX = "folder/"
 private const val TAG = "PlaybackService"
+
+// Fisher-Yates shuffle, current track pinned at index 0.
+private fun shuffleOrderLedBy(current: Int, count: Int): DefaultShuffleOrder {
+    val order = IntArray(count) { it }
+    val head = if (current in 0 until count) 1 else 0
+
+    if (head == 1) {
+        order[current] = order[0]
+        order[0] = current
+    }
+
+    for (i in count - 1 downTo head + 1) {
+        val j = Random.nextInt(head, i + 1)
+        val swapped = order[i]
+        order[i] = order[j]
+        order[j] = swapped
+    }
+
+    return DefaultShuffleOrder(order, Random.nextLong())
+}
 private const val MAX_ERROR_RETRIES = 1
 private const val RESUME_CHANNEL_ID = "resume"
 private const val RESUME_NOTIFICATION_ID = 2
@@ -228,7 +249,12 @@ class PlaybackService : MediaLibraryService() {
             object : Player.Listener {
                 override fun onShuffleModeEnabledChanged(shuffleModeEnabled: Boolean) {
                     if (shuffleModeEnabled) {
-                        player.setShuffleOrder(DefaultShuffleOrder(player.mediaItemCount))
+                        player.setShuffleOrder(
+                            shuffleOrderLedBy(
+                                player.currentMediaItemIndex,
+                                player.mediaItemCount,
+                            ),
+                        )
                     }
                     publishButtons()
                 }
@@ -243,6 +269,14 @@ class PlaybackService : MediaLibraryService() {
                         scheduleCrossfade(mediaSession?.player)
                     }
                     updateWidget()
+                }
+
+                override fun onPositionDiscontinuity(
+                    oldPosition: Player.PositionInfo,
+                    newPosition: Player.PositionInfo,
+                    reason: Int,
+                ) {
+                    if (reason == Player.DISCONTINUITY_REASON_SEEK) saveSession()
                 }
 
                 override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -352,11 +386,19 @@ class PlaybackService : MediaLibraryService() {
                 val path = library().find { it.id == id }?.path
                 val gainDb = path?.takeIf { it.isNotEmpty() }?.let { file ->
                     withContext(Dispatchers.IO) {
-                        AudioTags.read(file)[TagKey.REPLAYGAIN_TRACK_GAIN]
+                        val tags = AudioTags.read(file)
+                        val replayGain = tags[TagKey.REPLAYGAIN_TRACK_GAIN]
                             ?.firstOrNull()
                             ?.replace("dB", "", ignoreCase = true)
                             ?.trim()
                             ?.toFloatOrNull()
+                        // R128 tags are referenced to -23 LUFS, ReplayGain to -18 LUFS
+                        val r128Gain = tags[TagKey.R128_TRACK_GAIN]
+                            ?.firstOrNull()
+                            ?.trim()
+                            ?.toIntOrNull()
+                            ?.let { it / 256f + 5f }
+                        replayGain ?: r128Gain
                     }
                 }
                 gainDb?.let { 10.0.pow(it / 20.0).toFloat().coerceIn(0f, 1f) } ?: 1f

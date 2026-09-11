@@ -13,6 +13,7 @@ object TagKey {
     const val COMMENT = "COMMENT"
     const val LYRICS = "LYRICS"
     const val REPLAYGAIN_TRACK_GAIN = "REPLAYGAIN_TRACK_GAIN"
+    const val R128_TRACK_GAIN = "R128_TRACK_GAIN"
 }
 
 internal const val USLT = "USLT"
