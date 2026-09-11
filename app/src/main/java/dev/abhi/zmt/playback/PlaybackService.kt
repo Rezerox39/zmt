@@ -137,6 +137,7 @@ class PlaybackService : MediaLibraryService() {
     private var isCrossfading = false
     private var btReceiver: BluetoothReceiver? = null
     @Inject lateinit var streamCache: StreamCacheManager
+    @Inject lateinit var youtubeStreamResolver: dev.abhi.zmt.data.remote.youtube.YoutubeStreamResolver
 
     @Inject
     lateinit var offlineCacheDataSourceFactory: OfflineCacheDataSourceFactory
@@ -1063,6 +1064,3 @@ class PlaybackService : MediaLibraryService() {
         )
     }
 }
-
-    @Inject
-    lateinit var youtubeStreamResolver: dev.abhi.zmt.data.remote.youtube.YoutubeStreamResolver
