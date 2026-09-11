@@ -92,7 +92,7 @@ val EQ_PRESETS = listOf(
     "electronic" to intArrayOf(6, 8, 4, 0, -2, 2, 4, 8, 8, 6),
     "classical" to intArrayOf(0, 2, 4, 6, 4, 2, 0, -2, -4, -4),
 )
-private val SLEEP_STEPS = listOf(0, 15, 30, 60)
+private val SLEEP_STEPS = listOf(0, -1, 15, 30, 60)
 private val LIBRARY_SETTLE = 500.milliseconds
 private const val HOME_ART_COLS = 48
 private const val HOME_ART_CACHE_BYTES = 32 * 1024 * 1024
@@ -1482,7 +1482,15 @@ class PlayerViewModel @Inject constructor(
         val c = controller ?: return
         val currentIndex = SLEEP_STEPS.indexOf(currentState.sleepMinutes)
         val next = SLEEP_STEPS[(currentIndex + 1).mod(SLEEP_STEPS.size)]
-        val endAt = if (next == 0) 0L else System.currentTimeMillis() + next * 60_000L
+        val endAt = when {
+            next == 0 -> 0L
+            next == -1 -> {
+                // End-of-track: schedule at current track's remaining time
+                val remaining = c.duration - c.currentPosition
+                if (remaining > 0) System.currentTimeMillis() + remaining else 0L
+            }
+            else -> System.currentTimeMillis() + next * 60_000L
+        }
         c.sendCustomCommand(
             PlaybackService.CMD_SLEEP_SET,
             Bundle().apply { putLong(PlaybackService.KEY_END_AT, endAt) },
@@ -1491,7 +1499,11 @@ class PlayerViewModel @Inject constructor(
         reduce {
             it.copy(
                 sleepMinutes = next,
-                sleepLeftMs = if (next == 0) 0L else next * 60_000L,
+                sleepLeftMs = when {
+                    next == 0 -> 0L
+                    next == -1 -> c.duration - c.currentPosition
+                    else -> next * 60_000L
+                },
             )
         }
     }

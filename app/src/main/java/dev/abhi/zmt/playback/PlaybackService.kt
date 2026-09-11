@@ -322,7 +322,8 @@ class PlaybackService : MediaLibraryService() {
                     applyReplayGain(player.currentMediaItem)
                 }
                 crossfadeDurationMs = settings.crossfadeDuration.seconds * 1000L
-                gaplessEnabled = settings.gapless
+                // Crossfade and gapless are mutually exclusive — crossfade wins
+                gaplessEnabled = settings.gapless && crossfadeDurationMs <= 0L
             }
         }
         btReceiver = BluetoothReceiver {
@@ -870,9 +871,9 @@ class PlaybackService : MediaLibraryService() {
     }
 
     /**
-     * Check if the next track in the queue is already cached locally.
-     * If yes, log it — the DataSource will serve from cache automatically.
-     * If not, the background download triggers when that track starts playing.
+     * Proactively cache the next track in the queue so skips feel instant.
+     * If already cached, does nothing. Otherwise triggers a background download
+     * via the StreamCacheManager so the track is ready when the user skips.
      */
     private fun preCacheNext(player: Player) {
         val nextIndex = player.currentMediaItemIndex + 1
@@ -882,7 +883,21 @@ class PlaybackService : MediaLibraryService() {
         if (streamCache.isCached(nextUri)) {
             if (BuildConfig.DEBUG) Log.d(TAG, "Next track cached locally: $nextUri")
         } else {
-            if (BuildConfig.DEBUG) Log.d(TAG, "Next track will be cached on play: $nextUri")
+            if (BuildConfig.DEBUG) Log.d(TAG, "Pre-caching next track: $nextUri")
+            // Trigger background download so next skip is instant
+            scope.launch {
+                streamCache.cacheInBackground(nextUri) {
+                    // Resolve the stream URL using the resolver
+                    val videoId = nextUri.removePrefix("youtube://video/")
+                    if (videoId.isNotBlank() && videoId != nextUri) {
+                        youtubeStreamResolver.resolve(videoId)?.let { Pair(it.url, it.userAgent) }
+                    } else null
+                }
+            }
+            // Also evict old cache entries to stay under 512MB
+            scope.launch(Dispatchers.IO) {
+                streamCache.evictIfNeeded()
+            }
         }
     }
 
@@ -1048,3 +1063,6 @@ class PlaybackService : MediaLibraryService() {
         )
     }
 }
+
+    @Inject
+    lateinit var youtubeStreamResolver: dev.abhi.zmt.data.remote.youtube.YoutubeStreamResolver

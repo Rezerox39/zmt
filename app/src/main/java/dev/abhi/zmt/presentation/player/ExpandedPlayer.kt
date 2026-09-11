@@ -749,10 +749,10 @@ private fun StatusRow(
         }
         TuiStatus(
             label = stringResource(R.string.sleep_key),
-            value = if (state.sleepMinutes == 0) {
-                stringResource(R.string.off)
-            } else {
-                stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000)
+            value = when {
+                state.sleepMinutes == 0 -> stringResource(R.string.off)
+                state.sleepMinutes == -1 -> "end"
+                else -> stringResource(R.string.sleep_left, (state.sleepLeftMs + 59_999) / 60_000)
             },
             on = state.sleepMinutes != 0,
         ) {

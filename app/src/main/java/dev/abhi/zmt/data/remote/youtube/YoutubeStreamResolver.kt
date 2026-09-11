@@ -9,13 +9,28 @@ import dev.abhi.zmt.data.remote.youtube.innertube.models.UserAgents
 import dev.abhi.zmt.data.remote.youtube.innertube.models.bodies.PlayerBody
 import dev.abhi.zmt.data.remote.youtube.innertube.requests.player
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import java.net.HttpURLConnection
-import java.net.URL
 import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamResolver"
+private const val MAX_ATTEMPTS = 5
+private const val RETRY_DELAY_MS = 200L
+
+/**
+ * Shared Innertube client contexts ordered by reliability.
+ * VisionOS and AndroidVR bypass cipher; others are fallbacks.
+ * Used by both [resolve] and [resolveAll].
+ */
+private val INNERTUBE_CONTEXTS = listOf(
+    Context.DefaultVisionOS,
+    Context.DefaultAndroidVR,
+    Context.DefaultWeb,
+    Context.DefaultAndroidMusic,
+    Context.DefaultIOS,
+    Context.DefaultTV,
+)
 
 data class ResolvedStream(
     val url: String,
@@ -31,23 +46,14 @@ class YoutubeStreamResolver @Inject constructor(
 ) {
 
     suspend fun resolve(videoId: String): ResolvedStream? {
-        // yt-dlp is the PRIMARY resolver — it handles cipher, n-transform, PO tokens
         val ytdl = resolveViaYtDlp(videoId)
         if (ytdl != null) return ytdl
 
-        // Fallback: try Innertube clients (VISIONOS and AndroidVR don't need cipher)
-        val contexts = listOf(
-            Context.DefaultVisionOS,
-            Context.DefaultAndroidVR,
-            Context.DefaultWeb,
-            Context.DefaultAndroidMusic,
-            Context.DefaultIOS,
-            Context.DefaultTV,
-        )
-        for (context in contexts) {
+        for (context in INNERTUBE_CONTEXTS) {
             if (!currentCoroutineContext().isActive) return null
             val stream = resolveViaInnertubeContext(videoId, context)
             if (stream != null) return stream
+            delay(RETRY_DELAY_MS)
         }
 
         Log.e(TAG, "All resolvers failed for $videoId")
@@ -57,25 +63,16 @@ class YoutubeStreamResolver @Inject constructor(
     suspend fun resolveAll(videoId: String): List<ResolvedStream> {
         val results = mutableListOf<ResolvedStream>()
 
-        // yt-dlp first
         val ytdl = resolveViaYtDlp(videoId)
         if (ytdl != null) results.add(ytdl)
 
-        // Innertube clients
-        val contexts = listOf(
-            Context.DefaultVisionOS,
-            Context.DefaultAndroidVR,
-            Context.DefaultWeb,
-            Context.DefaultAndroidMusic,
-            Context.DefaultIOS,
-            Context.DefaultTV,
-        )
-        for (context in contexts) {
+        for (context in INNERTUBE_CONTEXTS) {
             if (!currentCoroutineContext().isActive) break
             val stream = resolveViaInnertubeContext(videoId, context)
             if (stream != null && results.none { it.url == stream.url }) {
                 results.add(stream)
             }
+            delay(RETRY_DELAY_MS)
         }
 
         Log.d(TAG, "resolveAll($videoId): ${results.size} options")
@@ -97,7 +94,6 @@ class YoutubeStreamResolver @Inject constructor(
 
             val response = YouTubeDLResponse.fromString(jsonStr)
 
-            // Check for yt-dlp errors
             if (response.hasError) {
                 Log.w(TAG, "yt-dlp error for $videoId: ${response.error}")
                 return null
@@ -108,15 +104,12 @@ class YoutubeStreamResolver @Inject constructor(
                 return null
             }
 
-            // Try top-level URL first
             var url = response.url
             var formatId = response.formatId
             var fileSize = response.fileSize
             var headers = emptyMap<String, String>()
 
-            // If no top-level URL, find best audio format with URL
             if (url == null && response.formats != null) {
-                // Prefer audio-only formats
                 val audioFormats = response.formats.filter { it.isAudioOnly && it.url != null }
                 val bestAudio = audioFormats.maxByOrNull { it.audioBitrate ?: 0.0 }
 
@@ -127,7 +120,6 @@ class YoutubeStreamResolver @Inject constructor(
                     headers = bestAudio.httpHeaders ?: emptyMap()
                     Log.d(TAG, "yt-dlp: picked audio format ${bestAudio.formatId} (${bestAudio.audioBitrate}kbps)")
                 } else {
-                    // Fallback: any format with URL
                     val anyFormat = response.formats.firstOrNull { it.url != null }
                     if (anyFormat != null) {
                         url = anyFormat.url
@@ -144,7 +136,6 @@ class YoutubeStreamResolver @Inject constructor(
                 return null
             }
 
-            // Extract User-Agent from headers if available, or use a default
             val userAgent = headers["User-Agent"] ?: UserAgents.DESKTOP
 
             Log.d(TAG, "yt-dlp success: format=$formatId, size=$fileSize")
@@ -174,25 +165,20 @@ class YoutubeStreamResolver @Inject constructor(
             val response = result?.getOrNull() ?: return null
             val streamingData = response.streamingData ?: return null
 
-            // Try direct URL formats first, then signatureCipher
             val formats = streamingData.adaptiveFormats
             if (formats.isNullOrEmpty()) return null
 
-            // Find best audio format with direct URL
             val format = formats
                 .filter { it.mimeType.startsWith("audio/") }
                 .let { audioFormats ->
                     audioFormats.find { it.url != null && it.itag == 251 }
                         ?: audioFormats.find { it.url != null && it.itag == 140 }
                         ?: audioFormats.find { it.url != null }
-                        // If no direct URL, try signatureCipher (needs cipher deobfuscation)
                         ?: audioFormats.find { it.signatureCipher != null }
                 } ?: return null
 
             val url = format.url
             if (url == null) {
-                // Format has signatureCipher but no direct URL — we can't handle this
-                // without cipher deobfuscation, skip it
                 Log.d(TAG, "Innertube($label): format has signatureCipher only, skipping")
                 return null
             }
@@ -217,22 +203,6 @@ class YoutubeStreamResolver @Inject constructor(
         } catch (e: Exception) {
             Log.w(TAG, "Innertube($label) failed for $videoId: ${e.message}")
             null
-        }
-    }
-
-    private fun isUrlReachable(url: String): Boolean {
-        return try {
-            val conn = URL(url).openConnection() as HttpURLConnection
-            conn.requestMethod = "HEAD"
-            conn.connectTimeout = 5_000
-            conn.readTimeout = 5_000
-            conn.instanceFollowRedirects = true
-            val code = conn.responseCode
-            conn.disconnect()
-            code in 200..399
-        } catch (e: Exception) {
-            Log.w(TAG, "URL reachability check failed: ${e.message}")
-            false
         }
     }
 }

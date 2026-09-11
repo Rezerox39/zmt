@@ -16,8 +16,8 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 private const val TAG = "YoutubeStreamDS"
-private const val MAX_ATTEMPTS = 3
-private val RETRYABLE_HTTP_CODES = setOf(403, 429, 500, 502, 503)
+private const val MAX_ATTEMPTS = 5
+private val RETRYABLE_HTTP_CODES = setOf(403, 429, 500, 502, 503, 504)
 
 @OptIn(UnstableApi::class)
 class YoutubeStreamDataSource private constructor(

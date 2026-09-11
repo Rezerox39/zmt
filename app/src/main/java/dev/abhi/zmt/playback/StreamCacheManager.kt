@@ -175,4 +175,21 @@ class StreamCacheManager @Inject constructor(
 
     /** Total cache size in bytes. */
     fun cachedBytes(): Long = cacheDir.listFiles()?.sumOf { it.length() } ?: 0L
+
+    /**
+     * Evict oldest files when cache exceeds [maxBytes].
+     * Runs on a background thread — safe to call from any coroutine.
+     */
+    fun evictIfNeeded(maxBytes: Long = 512L * 1024 * 1024) {
+        val files = cacheDir.listFiles()?.filter { it.length() > 0 }?.sortedBy { it.lastModified() } ?: return
+        var total = files.sumOf { it.length() }
+        for (file in files) {
+            if (total <= maxBytes) break
+            val size = file.length()
+            if (file.delete()) {
+                total -= size
+                Log.d(TAG, "Evicted cache: ${file.name} ($size bytes)")
+            }
+        }
+    }
 }
